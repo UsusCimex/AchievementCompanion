@@ -1,0 +1,353 @@
+using System.Reflection;
+using System.Text;
+using AC.Core;
+using AC.Core.SteamFormats;
+
+// Мини-раннер: каждый public static void метод класса Tests - тест.
+int failed = 0, passed = 0;
+foreach (var m in typeof(Tests).GetMethods(BindingFlags.Public | BindingFlags.Static))
+{
+    try
+    {
+        m.Invoke(null, null);
+        passed++;
+        Console.WriteLine($"OK    {m.Name}");
+    }
+    catch (TargetInvocationException e)
+    {
+        failed++;
+        Console.WriteLine($"FAIL  {m.Name}: {e.InnerException?.Message}");
+    }
+}
+Console.WriteLine($"Passed: {passed}, Failed: {failed}");
+return failed == 0 ? 0 : 1;
+
+static class Assert
+{
+    public static void True(bool cond, string msg = "ожидалось true")
+    {
+        if (!cond) throw new Exception(msg);
+    }
+
+    public static void Equal<T>(T expected, T actual)
+    {
+        if (!EqualityComparer<T>.Default.Equals(expected, actual))
+            throw new Exception($"ожидалось {expected}, получено {actual}");
+    }
+}
+
+static class Tests
+{
+    static GameData SampleGame()
+    {
+        var g = new GameData { AppId = 1, Name = "Test", CompletionMinutes = 600, PlaytimeMinutes = 0 };
+        void Add(string id, string name, string desc, double pct) =>
+            g.Achievements.Add(new AchievementDef { ApiName = id, Name = name, Description = desc, GlobalPercent = pct });
+        Add("ch1", "Глава 1", "Пройдите главу 1", 90);
+        Add("ch5", "Finale", "Complete chapter 5", 30);
+        Add("miss", "Mercy", "Spare the guard before leaving the prison", 20);
+        Add("grind", "Collector", "Collect all 300 feathers", 2);
+        Add("misc", "Photographer", "Take a photo", 50);
+        GameLogic.AutoClassify(g);
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        return g;
+    }
+
+    public static void Classifier_Basic()
+    {
+        Assert.Equal(AchievementKind.Story, KindClassifier.Classify("Глава 1", "Пройдите главу 1"));
+        Assert.Equal(AchievementKind.Story, KindClassifier.Classify("Finale", "Complete chapter 5"));
+        Assert.Equal(AchievementKind.Missable, KindClassifier.Classify("Mercy", "Spare the guard before leaving the prison"));
+        Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Collector", "Collect all 300 feathers"));
+        Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Охотник", "Убейте 1000 врагов"));
+        Assert.Equal(AchievementKind.Missable, KindClassifier.Classify("Призрак", "Пройдите уровень, ни разу не попавшись"));
+        Assert.Equal(AchievementKind.Other, KindClassifier.Classify("Photographer", "Take a photo"));
+        Assert.Equal(AchievementKind.Unknown, KindClassifier.Classify("", ""));
+    }
+
+    public static void ManualKind_NotOverwrittenByAuto()
+    {
+        var g = SampleGame();
+        GameLogic.SetKind(g, "misc", AchievementKind.Missable);
+        GameLogic.AutoClassify(g);
+        Assert.Equal(AchievementKind.Missable, g.Tags["misc"].Kind);
+    }
+
+    public static void Estimator_MonotonicByRarity()
+    {
+        var g = SampleGame();
+        Assert.Equal(0.0, g.Estimates["ch1"].P50!.Value);
+        Assert.Equal(600.0, g.Estimates["grind"].P50!.Value);
+        Assert.True(g.Estimates["ch5"].P50 < g.Estimates["miss"].P50, "редкое должно быть позже");
+        Assert.True(g.Estimates["miss"].P90 > g.Estimates["miss"].P50, "P90 больше P50");
+    }
+
+    public static void Estimator_NoCompletionTime_NoEstimates()
+    {
+        var g = SampleGame();
+        g.CompletionMinutes = null;
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.Equal(0, g.Estimates.Count);
+    }
+
+    public static void ManualEstimate_Wins()
+    {
+        var g = SampleGame();
+        g.ManualEstimates["grind"] = 5;
+        var row = GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "grind");
+        Assert.Equal(5.0, row.EstimateMinutes);
+        Assert.True(row.EstimateIsManual);
+    }
+
+    public static void Status_ManualThenSteam()
+    {
+        var g = SampleGame();
+        var s = g.StateOf("ch5");
+        s.ManualDone = true;
+        s.Note = "играл под другим AppID";
+        Assert.Equal(EffectiveStatus.ManualDone, GameLogic.StatusOf(s));
+
+        var t = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000);
+        var fresh = GameLogic.ApplySteamState(g, new[] { ("ch5", true, (DateTimeOffset?)t) }, DateTimeOffset.Now);
+        Assert.Equal(1, fresh.Count);
+        Assert.Equal(EffectiveStatus.Unlocked, GameLogic.StatusOf(g.States["ch5"]));
+        Assert.Equal("играл под другим AppID", g.States["ch5"].Note);
+
+        fresh = GameLogic.ApplySteamState(g, new[] { ("ch5", true, (DateTimeOffset?)t) }, DateTimeOffset.Now);
+        Assert.Equal(0, fresh.Count);
+    }
+
+    public static void Planner_StageOrder()
+    {
+        var g = SampleGame();
+        var plan = Planner.Build(g, Percentile.P50);
+        var order = plan.Ordered.Select(r => r.ApiName).ToList();
+        Assert.Equal("miss", order[0]);
+        Assert.True(order.IndexOf("ch1") < order.IndexOf("ch5"), "сюжет по времени");
+        Assert.Equal("grind", order[^1]);
+    }
+
+    public static void Planner_SkipsDone_AndRemaining()
+    {
+        var g = SampleGame();
+        g.StateOf("grind").ManualDone = true;
+        var plan = Planner.Build(g, Percentile.P50);
+        Assert.True(plan.Ordered.All(r => r.ApiName != "grind"), "сделанное не в плане");
+        // сюжетный путь = max(miss, ch5, ch1); плюс misc отдельно
+        var miss = g.Estimates["miss"].P50!.Value;
+        var misc = g.Estimates["misc"].P50!.Value;
+        Assert.Equal(Math.Round(miss + misc, 1), Math.Round(plan.RemainingMinutes!.Value, 1));
+    }
+
+    public static void Planner_RemainingCappedByCompletion()
+    {
+        var g = SampleGame();
+        g.PlaytimeMinutes = 590;
+        var plan = Planner.Build(g, Percentile.P50);
+        Assert.True(plan.RemainingMinutes <= 10.0001, $"остаток {plan.RemainingMinutes} не больше 10");
+    }
+
+    public static void Planner_Groups()
+    {
+        var g = SampleGame();
+        g.Achievements.Add(new AchievementDef { ApiName = "nd", Name = "No death", Description = "Finish without dying", GlobalPercent = 1 });
+        GameLogic.AutoClassify(g);
+        g.TagOf("miss").Group = "Финальный забег";
+        g.TagOf("nd").Group = "финальный забег";
+        var plan = Planner.Build(g, Percentile.P50);
+        var section = plan.Sections.Single(s => s.Stage == PlanStage.Missable);
+        Assert.Equal(1, section.Groups.Count);
+        Assert.Equal(2, section.Groups[0].Items.Count);
+    }
+
+    public static void Query_FiltersAndSort()
+    {
+        var g = SampleGame();
+        g.StateOf("ch1").SteamUnlocked = true;
+        var q = new AchievementQuery { HideDone = true, Sort = SortMode.Rarity };
+        var rows = q.Apply(g, Percentile.P50);
+        Assert.True(rows.All(r => r.ApiName != "ch1"));
+        Assert.Equal("grind", rows[0].ApiName);
+
+        q = new AchievementQuery { Search = "feather" };
+        Assert.Equal(1, q.Apply(g, Percentile.P50).Count);
+
+        q = new AchievementQuery();
+        q.Kinds.Add(AchievementKind.Story);
+        Assert.Equal(2, q.Apply(g, Percentile.P50).Count);
+    }
+
+    public static void Export_CsvHasBomAndEscapes()
+    {
+        var g = SampleGame();
+        g.StateOf("misc").ManualDone = true;
+        g.StateOf("misc").Note = "сделал; но \"не засчиталось\"";
+        var bytes = Exporter.ToCsv(g, ExportScope.ManualOnly);
+        Assert.True(bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF, "BOM");
+        var text = Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+        var lines = text.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        Assert.True(lines[1].Contains("\"сделал; но \"\"не засчиталось\"\"\""), lines[1]);
+        Assert.True(lines[1].Contains("done_not_counted"));
+    }
+
+    public static void TagPack_RoundTrip()
+    {
+        var g = SampleGame();
+        GameLogic.SetKind(g, "misc", AchievementKind.Missable);
+        g.TagOf("ch5").Group = "Глава 5";
+        g.ManualEstimates["grind"] = 120;
+        var json = TagPack.From(g).ToJson();
+
+        var g2 = SampleGame();
+        var applied = TagPack.FromJson(json).ApplyTo(g2);
+        Assert.Equal(3, applied);
+        Assert.Equal(AchievementKind.Missable, g2.Tags["misc"].Kind);
+        Assert.Equal(KindSource.Manual, g2.Tags["misc"].Source);
+        Assert.Equal("Глава 5", g2.Tags["ch5"].Group);
+        Assert.Equal(120.0, g2.ManualEstimates["grind"]);
+    }
+
+    public static void BinaryKeyValue_SchemaParse()
+    {
+        // Собираем бинарный KV вручную: { "480" { "stats" { "1" { type=4 bits { "0" { name, display{...}, permission } } } } } }
+        var ms = new MemoryStream();
+        void B(byte b) => ms.WriteByte(b);
+        void S(string s) { var x = Encoding.UTF8.GetBytes(s); ms.Write(x); B(0); }
+        void Str(string k, string v) { B(1); S(k); S(v); }
+        void Int(string k, int v) { B(2); S(k); ms.Write(BitConverter.GetBytes(v)); }
+        void Open(string k) { B(0); S(k); }
+        void End() => B(8);
+
+        Open("480"); Open("stats"); Open("1");
+        Int("type_int", 4);
+        Open("bits");
+        Open("0");
+        Str("name", "ACH_WIN");
+        Int("permission", 2);
+        Open("display");
+        Open("name"); Str("english", "Winner"); Str("russian", "Победитель"); End();
+        Open("desc"); Str("english", "Win a game"); End();
+        Int("hidden", 1);
+        Str("icon", "abc.jpg");
+        End(); // display
+        End(); // 0
+        End(); // bits
+        End(); // 1
+        End(); // stats
+        End(); // 480
+        End(); // root
+
+        ms.Position = 0;
+        var root = BinaryKeyValue.Read(ms);
+        var list = StatsSchemaReader.Read(root, 480, "russian");
+        Assert.Equal(1, list.Count);
+        Assert.Equal("ACH_WIN", list[0].ApiName);
+        Assert.Equal("Победитель", list[0].Name);
+        Assert.Equal("Win a game", list[0].Description);
+        Assert.True(list[0].Hidden);
+        Assert.True(list[0].Protected);
+        Assert.Equal("https://cdn.steamstatic.com/steamcommunity/public/images/apps/480/abc.jpg", StatsSchemaReader.IconUrl(480, list[0].Icon));
+    }
+
+    public static void Vdf_LoginUsers()
+    {
+        const string vdf = """
+        "users"
+        {
+            "76561198000000001"
+            {
+                "AccountName"   "old"
+                "PersonaName"   "Old"
+                "MostRecent"    "0"
+            }
+            // comment
+            "76561198000000002"
+            {
+                "AccountName"   "usus"
+                "PersonaName"   "Usus \"Cimex\""
+                "MostRecent"    "1"
+            }
+        }
+        """;
+        var u = TextVdf.MostRecentUser(vdf);
+        Assert.Equal(76561198000000002UL, u!.Value.SteamId);
+        Assert.Equal("Usus \"Cimex\"", u.Value.PersonaName);
+    }
+
+    public static void Completionist_ParseMedian()
+    {
+        const string html = """
+        <div class="stat"><span class="value">22h 20m</span><span class="label">Completion Playtime Median</span></div>
+        <div class="stat"><span class="value">32h 47m</span><span class="label">Completion Playtime Avg.</span></div>
+        """;
+        Assert.Equal(22 * 60 + 20.0, AC.Infrastructure.CompletionTimeSource.ParseMedian(html));
+        Assert.Equal((double?)null, AC.Infrastructure.CompletionTimeSource.ParseMedian("<p>nothing</p>"));
+        Assert.Equal(45.0, AC.Infrastructure.CompletionTimeSource.ParseMedian("<b>Completion Playtime Median</b> <i>45m</i>"));
+    }
+
+    public static void JsonStore_RoundTripAndLog()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new AC.Infrastructure.JsonStore(dir);
+            var g = SampleGame();
+            g.StateOf("misc").ManualDone = true;
+            g.StateOf("misc").Note = "заметка";
+            g.PendingUnlocks.Add("misc");
+            GameLogic.SetKind(g, "ch1", AchievementKind.Grind);
+            store.SaveGame(g);
+
+            var back = store.LoadGame(1)!;
+            Assert.Equal(5, back.Achievements.Count);
+            Assert.True(back.States["misc"].ManualDone);
+            Assert.Equal("заметка", back.States["misc"].Note);
+            Assert.Equal(AchievementKind.Grind, back.Tags["ch1"].Kind);
+            Assert.Equal(KindSource.Manual, back.Tags["ch1"].Source);
+            Assert.Equal("misc", back.PendingUnlocks.Single());
+
+            var s = store.LoadSettings();
+            s.SteamId64 = 76561198000000002UL;
+            s.WriteMode = AC.Infrastructure.WriteMode.Queue;
+            store.SaveSettings(s);
+            var s2 = store.LoadSettings();
+            Assert.Equal(76561198000000002UL, s2.SteamId64);
+            Assert.Equal(AC.Infrastructure.WriteMode.Queue, s2.WriteMode);
+            Assert.Equal(';', s2.CsvSeparator);
+
+            store.AppendLog(new AC.Infrastructure.UnlockLogEntry { At = DateTimeOffset.Now, AppId = 1, ApiName = "misc", Action = "unlock", Ok = true });
+            store.AppendLog(new AC.Infrastructure.UnlockLogEntry { At = DateTimeOffset.Now, AppId = 2, ApiName = "x", Action = "unlock", Ok = false, Error = "e" });
+            Assert.Equal(1, store.ReadLog(1).Count);
+            Assert.Equal(2, store.ReadLog().Count);
+
+            File.WriteAllText(store.GamePath(3), "{ broken");
+            Assert.True(store.LoadGame(3) is null, "битый файл - null");
+            Assert.True(Directory.GetFiles(Path.Combine(dir, "games"), "3.json.broken-*").Length == 1, "копия битого файла");
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    public static void Playtime_OverrideAndOffset()
+    {
+        var g = SampleGame();
+        g.PlaytimeMinutes = 6000; // 100 ч в Steam, но достижения добавили позже
+        Assert.Equal(0.0, Planner.Build(g, Percentile.P50).RemainingMinutes);
+
+        g.PlaytimeOffsetMinutes = 5900; // 98 ч 20 мин было до достижений
+        Assert.Equal(100.0, g.EffectivePlaytimeMinutes);
+        var withOffset = Planner.Build(g, Percentile.P50).RemainingMinutes!.Value;
+        Assert.True(withOffset > 0, "с вычетом есть остаток");
+
+        g.PlaytimeOverrideMinutes = 0; // своё значение важнее вычета
+        Assert.Equal(0.0, g.EffectivePlaytimeMinutes);
+        Assert.True(Planner.Build(g, Percentile.P50).RemainingMinutes >= withOffset);
+
+        g.PlaytimeOffsetMinutes = 99999;
+        g.PlaytimeOverrideMinutes = null;
+        Assert.Equal(0.0, g.EffectivePlaytimeMinutes);
+    }
+}

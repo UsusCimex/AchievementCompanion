@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Помощник для чтения и записи достижений через Steam-клиент.
+    Внутри - SAM.API из Steam Achievement Manager (gibbed, zlib), папка SAM.API.
+    x86, потому что SAM.API грузит 32-битный steamclient.dll.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <PlatformTarget>x86</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Код SAM.API написан без nullable-аннотаций -->
+    <Nullable>disable</Nullable>
+    <RootNamespace>AC.SteamBridge</RootNamespace>
+    <AssemblyName>AC.SteamBridge</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>$(NoWarn);CA1416;SYSLIB1054</NoWarn>
+  </PropertyGroup>
+  <!-- На Windows собираем self-contained x86: тогда не нужен отдельно установленный x86 .NET runtime.
+       На других ОС (сборка для проверки) - обычная сборка. -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AC.Core\AC.Core.csproj" />
+  </ItemGroup>
+</Project>

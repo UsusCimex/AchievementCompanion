@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Тесты без внешних пакетов: обычное консольное приложение, запуск dotnet run, проект tests/AC.Core.Tests.
+       Код возврата 0 - все тесты прошли. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AC.Core\AC.Core.csproj" />
+    <ProjectReference Include="..\..\src\AC.Infrastructure\AC.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

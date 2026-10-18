@@ -1,0 +1,99 @@
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Interop;
+using AC.Infrastructure;
+
+namespace AC.App;
+
+public partial class MainWindow : Window
+{
+    private readonly MainViewModel _vm;
+    private HotkeyManager? _hotkeys;
+    private OverlayWindow? _overlay;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        _vm = new MainViewModel(GameService.CreateDefault());
+        DataContext = _vm;
+        _vm.Toast += text => _overlay?.ShowToast(text);
+        Loaded += async (_, _) => await _vm.StartAsync();
+    }
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        _hotkeys = new HotkeyManager(new WindowInteropHelper(this).Handle);
+        RegisterHotkeys();
+    }
+
+    private void RegisterHotkeys()
+    {
+        if (_hotkeys is null) return;
+        _hotkeys.UnregisterAll();
+        var s = _vm.Service.Settings;
+        var problems = new List<string>();
+        if (!_hotkeys.Register(s.OverlayToggleHotkey, ToggleOverlay)) problems.Add(s.OverlayToggleHotkey);
+        if (!_hotkeys.Register(s.OverlayInteractHotkey, () => EnsureOverlay().ToggleInteractive())) problems.Add(s.OverlayInteractHotkey);
+        if (problems.Count > 0)
+            _vm.StatusMessage = "Не удалось назначить горячие клавиши (заняты или неверный формат): " + string.Join(", ", problems);
+    }
+
+    private OverlayWindow EnsureOverlay()
+    {
+        if (_overlay is null)
+        {
+            _overlay = new OverlayWindow(_vm);
+            _overlay.Closed += (_, _) => _overlay = null;
+        }
+        return _overlay;
+    }
+
+    private void ToggleOverlay()
+    {
+        var o = EnsureOverlay();
+        if (o.IsVisible) o.Hide();
+        else o.Show();
+    }
+
+    private void OnToggleOverlay(object sender, RoutedEventArgs e) => ToggleOverlay();
+
+    private void OnOpenSettings(object sender, RoutedEventArgs e)
+    {
+        var dlg = new SettingsWindow(_vm.Service) { Owner = this };
+        if (dlg.ShowDialog() == true)
+        {
+            _vm.SettingsChanged();
+            RegisterHotkeys();
+            _overlay?.ApplySettings();
+            _vm.StatusMessage = "Настройки сохранены";
+        }
+    }
+
+    private void OnExportMenu(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { ContextMenu: { } menu } button)
+        {
+            menu.PlacementTarget = button;
+            menu.DataContext = DataContext;
+            menu.IsOpen = true;
+        }
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        _overlay?.SavePosition();
+        // Пока окно живо - снимаем горячие клавиши (после уничтожения окна UnregisterHotKey не сработает).
+        _hotkeys?.Dispose();
+        _hotkeys = null;
+        base.OnClosing(e);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _overlay?.Close();
+        _vm.Dispose();
+        base.OnClosed(e);
+    }
+}

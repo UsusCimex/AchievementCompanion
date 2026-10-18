@@ -1,0 +1,50 @@
+<Window x:Class="AC.App.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Achievement Companion - оверлей"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight" MaxWidth="420" Foreground="White">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+
+        <DataTemplate x:Key="OverlayItem">
+            <DockPanel Margin="0,2">
+                <Button DockPanel.Dock="Right" Content="Сделал" VerticalAlignment="Center"
+                        Command="{Binding DataContext.Main.OverlayMarkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}"
+                        Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
+                <TextBlock DockPanel.Dock="Right" Text="{Binding Estimate}" Foreground="#BBB" Margin="8,0,0,0" VerticalAlignment="Center" />
+                <StackPanel>
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Description}" Foreground="#CCC" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+            </DockPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Border x:Name="OverlayPanel" CornerRadius="6" Padding="12,10" Width="380" MouseLeftButtonDown="OnPanelMouseDown">
+        <StackPanel>
+            <TextBlock Text="{Binding Main.GameTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding Main.ProgressText}" Foreground="#CCC" FontSize="11" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Toast}" Foreground="#FFD27F" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Visibility="{Binding HasToast, Converter={StaticResource BoolToVis}}" />
+
+            <TextBlock Text="Не пропусти" Margin="0,8,0,2" Foreground="#FF9E7F" FontWeight="SemiBold"
+                       Visibility="{Binding HasMissable, Converter={StaticResource BoolToVis}}" />
+            <ItemsControl ItemsSource="{Binding Main.OverlayMissable}" ItemTemplate="{StaticResource OverlayItem}" />
+
+            <TextBlock Text="Ближайшие" Margin="0,8,0,2" Foreground="#9FD3FF" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding Main.OverlayNearest}" ItemTemplate="{StaticResource OverlayItem}" />
+
+            <TextBlock Text="{Binding ModeHint}" Foreground="#888" FontSize="10" Margin="0,8,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+    </Border>
+</Window>

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>AC.App</RootNamespace>
+    <AssemblyName>AchievementCompanion</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Помощник - self-contained exe, приложение - нет; ссылка нужна только для порядка сборки. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AC.Infrastructure\AC.Infrastructure.csproj" />
+    <!-- Только чтобы помощник собирался раньше приложения; его сборка в приложение не подключается. -->
+    <ProjectReference Include="..\AC.SteamBridge\AC.SteamBridge.csproj" ReferenceOutputAssembly="false" Private="false"
+                      GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" OutputItemType="_SteamBridgeOutput" />
+  </ItemGroup>
+
+  <!-- Кладём помощник AC.SteamBridge (x86) в подпапку bridge рядом с приложением. -->
+  <Target Name="CopySteamBridge" AfterTargets="Build">
+    <PropertyGroup>
+      <_BridgeDir>@(_SteamBridgeOutput->'%(RootDir)%(Directory)')</_BridgeDir>
+      <_BridgeDir Condition="'$(_BridgeDir)' == ''">$(MSBuildThisFileDirectory)..\AC.SteamBridge\bin\$(Configuration)\net10.0\win-x86\</_BridgeDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_BridgeFiles Include="$(_BridgeDir)**\*.*" Exclude="$(_BridgeDir)publish\**" />
+    </ItemGroup>
+    <Warning Condition="'@(_BridgeFiles)' == ''" Text="Не найден собранный AC.SteamBridge в $(_BridgeDir). Собери решение целиком (AchievementCompanion.sln)." />
+    <Copy SourceFiles="@(_BridgeFiles)" DestinationFiles="@(_BridgeFiles->'$(OutDir)bridge\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- То же для dotnet publish: помощник должен лежать и в папке публикации. -->
+  <Target Name="PublishSteamBridge" AfterTargets="Publish" DependsOnTargets="CopySteamBridge">
+    <Copy SourceFiles="@(_BridgeFiles)" DestinationFiles="@(_BridgeFiles->'$(PublishDir)bridge\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

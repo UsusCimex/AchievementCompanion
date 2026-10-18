@@ -1,0 +1,83 @@
+<Window x:Class="AC.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:AC.App"
+        Title="Настройки" Width="560" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <StackPanel Margin="14">
+        <TextBlock Text="Steam" Style="{StaticResource Header}" Margin="0,0,0,4" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Web API ключ:" VerticalAlignment="Center" />
+            <PasswordBox Grid.Row="0" Grid.Column="1" x:Name="ApiKeyBox" Margin="0,2" />
+            <Button Grid.Row="0" Grid.Column="2" Content="Получить ключ" Margin="6,2,0,2" Click="OnGetKey" />
+
+            <TextBlock Grid.Row="1" Text="SteamID64:" VerticalAlignment="Center" />
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="SteamIdBox" Margin="0,2" />
+            <Button Grid.Row="1" Grid.Column="2" Content="Взять из Steam" Margin="6,2,0,2" Click="OnDetectSteamId" />
+
+            <TextBlock Grid.Row="2" Text="Язык схемы:" VerticalAlignment="Center" />
+            <ComboBox Grid.Row="2" Grid.Column="1" x:Name="LanguageBox" Margin="0,2"
+                      ItemsSource="{x:Static local:Options.Languages}" />
+
+            <TextBlock Grid.Row="3" Grid.ColumnSpan="3" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Text="Ключ хранится зашифрованным (Windows DPAPI) в %LocalAppData%\AchievementCompanion. Для статуса из Web API в настройках приватности Steam должны быть открыты &quot;Сведения об играх&quot;." />
+        </Grid>
+
+        <TextBlock Text="Автообновление статуса" Style="{StaticResource Header}" />
+        <ComboBox x:Name="StatusSourceBox" ItemsSource="{x:Static local:Options.StatusSources}" />
+        <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                   Text="Статус обновляется сам: когда Steam переписывает файл статистики игры и по таймеру, пока игра запущена. Полученное в игре становится &quot;открыто&quot; без ручной отметки. Без API-ключа всегда используется Steam-клиент." />
+
+        <TextBlock Text="Запись в Steam" Style="{StaticResource Header}" />
+        <ComboBox x:Name="WriteModeBox" ItemsSource="{x:Static local:Options.WriteModes}" />
+        <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                   Text="Запись идёт через помощник на основе SAM.API. Время открытия в Steam будет временем записи. Защищённые достижения (ставит только сервер игры) записать нельзя. Каждая запись пишется в журнал unlock_log.jsonl." />
+
+        <TextBlock Text="Отображение" Style="{StaticResource Header}" />
+        <CheckBox x:Name="HideSpoilersBox" Content="Прятать описания скрытых достижений, пока они не получены" />
+
+        <TextBlock Text="Оверлей" Style="{StaticResource Header}" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Показать / скрыть:" VerticalAlignment="Center" />
+            <TextBox Grid.Row="0" Grid.Column="1" x:Name="ToggleHotkeyBox" Margin="0,2" />
+            <TextBlock Grid.Row="1" Text="Режим кликов:" VerticalAlignment="Center" />
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="InteractHotkeyBox" Margin="0,2" />
+            <TextBlock Grid.Row="2" Text="Непрозрачность фона:" VerticalAlignment="Center" />
+            <Slider Grid.Row="2" Grid.Column="1" x:Name="OpacitySlider" Minimum="0.2" Maximum="1" Margin="0,4" />
+            <TextBlock Grid.Row="3" Text="Сколько &quot;ближайших&quot;:" VerticalAlignment="Center" />
+            <TextBox Grid.Row="3" Grid.Column="1" x:Name="NearestBox" Margin="0,2" Width="60" HorizontalAlignment="Left" />
+            <TextBlock Grid.Row="4" Text="Опрос статуса в игре, сек:" VerticalAlignment="Center" />
+            <TextBox Grid.Row="4" Grid.Column="1" x:Name="PollBox" Margin="0,2" Width="60" HorizontalAlignment="Left" />
+        </Grid>
+        <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                   Text="Сочетания вида Ctrl+Shift+A. Оверлей виден в оконном и полноэкранном-оконном (borderless) режиме игры." />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Сохранить" IsDefault="True" Click="OnSave" />
+            <Button Content="Отмена" IsCancel="True" Margin="0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>AC.Infrastructure</RootNamespace>
+    <!-- Реестр и DPAPI есть только на Windows; вызовы помечены SupportedOSPlatform. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AC.Core\AC.Core.csproj" />
+  </ItemGroup>
+</Project>
