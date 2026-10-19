@@ -2,7 +2,7 @@ using AC.Core;
 
 namespace AC.Infrastructure;
 
-/// <summary>Что делать с Steam при ручной отметке (раздел 6 ТЗ).</summary>
+/// <summary>Что делать с Steam при ручной отметке.</summary>
 public enum WriteMode
 {
     /// <summary>Только отметка в приложении, Steam не трогаем.</summary>

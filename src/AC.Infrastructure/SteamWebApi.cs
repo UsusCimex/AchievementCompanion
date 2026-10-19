@@ -16,7 +16,7 @@ public sealed record PlayerAchievement(string ApiName, bool Achieved, DateTimeOf
 public sealed record ReviewAuthor(ulong SteamId, double PlaytimeAtReview, double PlaytimeForever, DateTimeOffset? ReviewedAt, DateTimeOffset? LastPlayed);
 
 /// <summary>
-/// Клиент официального Steam Web API (раздел 2.1 ТЗ).
+/// Клиент официального Steam Web API.
 /// Лимит Valve - 100 000 запросов в сутки на ключ; приложение кеширует схему на сутки.
 /// </summary>
 public sealed class SteamWebApi(HttpClient http)

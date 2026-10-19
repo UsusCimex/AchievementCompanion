@@ -4,10 +4,10 @@ namespace AC.Core;
 public sealed class PlayerSample
 {
     public ulong SteamId { get; init; }
-    /// <summary>Открытые достижения: api-имя -> время открытия.</summary>
+    /// <summary>Открытые достижения: api-имя и время открытия.</summary>
     public Dictionary<string, DateTimeOffset> Unlocks { get; init; } = new();
     /// <summary>
-    /// Опорные точки "момент -> наиграно минут": обзор (время и наигранное на момент обзора),
+    /// Опорные точки "момент - наиграно минут": обзор (время и наигранное на момент обзора),
     /// последний запуск (время и наигранное всего). По ним восстанавливаем, сколько было наиграно к каждому открытию.
     /// </summary>
     public List<(DateTimeOffset At, double PlayedMinutes)> Anchors { get; init; } = new();
@@ -83,7 +83,7 @@ public static class SampleStats
         return new SampleResult(n, percent, times, completion, completions.Count);
     }
 
-    /// <summary>Функция "момент -> наиграно минут" по опорным точкам (кусочно-линейно, от 0 в момент первого открытия).</summary>
+    /// <summary>Сколько было наиграно минут к моменту, по опорным точкам (кусочно-линейно, от 0 в момент первого открытия).</summary>
     internal static Func<DateTimeOffset, double?> BuildCurve(PlayerSample p)
     {
         var first = p.Unlocks.Values.Min();

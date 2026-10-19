@@ -21,7 +21,7 @@ public enum StatusFilter
     NotCounted = 3,
 }
 
-/// <summary>Фильтры и сортировка списка (раздел 3 ТЗ).</summary>
+/// <summary>Фильтры и сортировка списка.</summary>
 public sealed class AchievementQuery
 {
     public SortMode Sort { get; set; } = SortMode.Plan;

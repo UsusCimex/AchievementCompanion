@@ -5,7 +5,7 @@ using Microsoft.Win32;
 namespace AC.Infrastructure;
 
 /// <summary>
-/// Чтение локального Steam без сети и без доступа к процессу игры (раздел 2.2 ТЗ):
+/// Чтение локального Steam без сети и без доступа к процессу игры:
 /// реестр, loginusers.vdf, appcache/stats.
 /// </summary>
 [SupportedOSPlatform("windows")]
