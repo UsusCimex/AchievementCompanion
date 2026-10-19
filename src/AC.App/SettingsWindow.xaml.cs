@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
+using AC.Core;
 using AC.Infrastructure;
 
 namespace AC.App;
@@ -28,9 +29,7 @@ public partial class SettingsWindow : Window
         NearestBox.Text = s.OverlayNearestCount.ToString(CultureInfo.InvariantCulture);
         PollBox.Text = s.PollSeconds.ToString(CultureInfo.InvariantCulture);
         DataDirBox.Text = AppPaths.DataRoot;
-        DataDirHint.Text = AppPaths.IsPortable
-            ? "Портативный режим: данные лежат в папке data рядом с программой."
-            : $"Игры, настройки, кеш картинок и журнал ошибок (app.log). Чтобы держать данные рядом с программой, создай рядом с ней папку data; другую папку можно задать переменной окружения {AppPaths.DataDirVariable}.";
+        DataDirHint.Text = AppPaths.IsPortable ? Loc.T("settings.dataPortable") : Loc.T("settings.dataHint", AppPaths.DataDirVariable);
     }
 
     private void OnOpenDataDir(object sender, RoutedEventArgs e) =>
@@ -42,11 +41,7 @@ public partial class SettingsWindow : Window
     private void OnManualUnlocksClick(object sender, RoutedEventArgs e)
     {
         if (ManualUnlocksBox.IsChecked != true) return;
-        var answer = MessageBox.Show(this,
-            "Появятся галочка \"Сделал\" для достижений, которые не засчитались, и запись достижений в твой Steam-аккаунт.\n\n" +
-            "Valve такую запись официально не поддерживает, а сайты-рейтинги (Steam Hunters, completionist.me) могут пометить профиль, " +
-            "если много достижений откроется разом. Записанное можно снять, каждая запись попадает в журнал.\n\nВключить?",
-            Title, MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        var answer = MessageBox.Show(this, Loc.T("dialog.manualUnlocks"), Title, MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (answer != MessageBoxResult.Yes) ManualUnlocksBox.IsChecked = false;
     }
 
@@ -55,11 +50,11 @@ public partial class SettingsWindow : Window
         var u = SteamLocal.MostRecentUser();
         if (u is null)
         {
-            MessageBox.Show(this, "Не нашёл loginusers.vdf - Steam не установлен или ни разу не входили.", Title);
+            MessageBox.Show(this, Loc.T("dialog.noLoginUsers"), Title);
             return;
         }
         SteamIdBox.Text = u.Value.SteamId.ToString(CultureInfo.InvariantCulture);
-        MessageBox.Show(this, $"Найден аккаунт: {u.Value.PersonaName}", Title);
+        MessageBox.Show(this, Loc.T("dialog.accountFound", u.Value.PersonaName), Title);
     }
 
     private void OnSave(object sender, RoutedEventArgs e)
@@ -70,7 +65,7 @@ public partial class SettingsWindow : Window
         ulong steamId = 0;
         if (idText.Length > 0 && (!ulong.TryParse(idText, out steamId) || steamId < SteamLocal.SteamId64Base))
         {
-            MessageBox.Show(this, "SteamID64 - 17-значное число, начинается с 7656119...", Title);
+            MessageBox.Show(this, Loc.T("dialog.badSteamId"), Title);
             return;
         }
 
@@ -78,7 +73,7 @@ public partial class SettingsWindow : Window
         {
             if (!HotkeyManager.TryParse(hk, out _, out _))
             {
-                MessageBox.Show(this, $"Не понял сочетание \"{hk}\". Пример: Ctrl+Shift+A", Title);
+                MessageBox.Show(this, Loc.T("dialog.badHotkey", hk), Title);
                 return;
             }
         }

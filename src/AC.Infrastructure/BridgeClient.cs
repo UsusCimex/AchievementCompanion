@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using AC.Core;
 
 namespace AC.Infrastructure;
 
@@ -63,7 +64,7 @@ public sealed class BridgeClient
     private async Task<BridgeResultDto> RunAsync(string[] args, CancellationToken ct)
     {
         if (!Exists)
-            return new BridgeResultDto { Ok = false, Error = $"не найден помощник {ExePath}" };
+            return new BridgeResultDto { Ok = false, Error = Loc.T("error.bridgeMissing", ExePath) };
 
         // Steam считает процесс игрой: два помощника одновременно ни к чему.
         await OneAtATime.WaitAsync(ct);
@@ -80,7 +81,7 @@ public sealed class BridgeClient
             };
             foreach (var a in args) psi.ArgumentList.Add(a);
 
-            using var p = Process.Start(psi) ?? throw new InvalidOperationException("помощник не запустился");
+            using var p = Process.Start(psi) ?? throw new InvalidOperationException(Loc.T("error.bridgeStart"));
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(45));
             var stdoutTask = p.StandardOutput.ReadToEndAsync(timeout.Token);
@@ -92,7 +93,7 @@ public sealed class BridgeClient
             catch (OperationCanceledException)
             {
                 try { p.Kill(entireProcessTree: true); } catch { }
-                return new BridgeResultDto { Ok = false, Error = "помощник не ответил за 45 секунд" };
+                return new BridgeResultDto { Ok = false, Error = Loc.T("error.bridgeTimeout") };
             }
 
             var stdout = (await stdoutTask).Trim();
@@ -100,14 +101,14 @@ public sealed class BridgeClient
             if (line.Length == 0)
             {
                 var err = (await stderrTask).Trim();
-                return new BridgeResultDto { Ok = false, Error = "пустой ответ помощника" + (err.Length > 0 ? ": " + err : "") };
+                return new BridgeResultDto { Ok = false, Error = err.Length > 0 ? Loc.T("error.bridgeEmptyWith", err) : Loc.T("error.bridgeEmpty") };
             }
             return JsonSerializer.Deserialize<BridgeResultDto>(line, Json)
-                   ?? new BridgeResultDto { Ok = false, Error = "не удалось разобрать ответ помощника" };
+                   ?? new BridgeResultDto { Ok = false, Error = Loc.T("error.bridgeParse") };
         }
         catch (JsonException e)
         {
-            return new BridgeResultDto { Ok = false, Error = "плохой JSON от помощника: " + e.Message };
+            return new BridgeResultDto { Ok = false, Error = Loc.T("error.bridgeJson", e.Message) };
         }
         finally
         {

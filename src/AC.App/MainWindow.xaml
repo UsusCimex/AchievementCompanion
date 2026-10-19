@@ -84,7 +84,7 @@
         <Style x:Key="RevealButton" TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="ToolTip" Value="Секретное достижение: нажми, чтобы прочитать описание" />
+            <Setter Property="ToolTip" Value="{local:Tr card.revealTip}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -94,7 +94,7 @@
                                     BorderBrush="{DynamicResource ControlStrokeColorSecondaryBrush}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE7B3;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                    <TextBlock Text="Показать" FontSize="12" VerticalAlignment="Center" />
+                                    <TextBlock Text="{local:Tr card.reveal}" FontSize="12" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Border>
                         </Border>
@@ -227,26 +227,26 @@
                             <TextBlock Text="{Binding Group}" Style="{StaticResource ChipText}" />
                         </Border>
                         <Border Style="{StaticResource Chip}" Visibility="{Binding IsHidden, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="секрет" Style="{StaticResource ChipText}" />
+                            <TextBlock Text="{local:Tr card.hidden}" Style="{StaticResource ChipText}" />
                         </Border>
                         <Border Style="{StaticResource Chip}" Visibility="{Binding IsProtected, Converter={StaticResource BoolToVis}}"
-                                ToolTip="Ставит только сервер игры, записать в Steam нельзя">
-                            <TextBlock Text="защищено" Style="{StaticResource ChipText}" />
+                                ToolTip="{local:Tr card.protectedTip}">
+                            <TextBlock Text="{local:Tr card.protected}" Style="{StaticResource ChipText}" />
                         </Border>
                         <Border Style="{StaticResource Chip}" Visibility="{Binding IsPendingWrite, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="в очереди в Steam" Style="{StaticResource ChipText}" />
+                            <TextBlock Text="{local:Tr card.queued}" Style="{StaticResource ChipText}" />
                         </Border>
                     </WrapPanel>
 
                     <Border Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0"
                             Visibility="{Binding DataContext.ManualUnlocks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                         <StackPanel Style="{StaticResource CardActions}" Orientation="Horizontal">
-                            <CheckBox Content="Сделал" MinWidth="0" VerticalAlignment="Center" Margin="0,0,8,0"
+                            <CheckBox Content="{local:Tr card.done}" MinWidth="0" VerticalAlignment="Center" Margin="0,0,8,0"
                                       IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       Visibility="{Binding IsUnlocked, Converter={StaticResource InverseVis}}"
-                                      ToolTip="Выполнено, но в Steam не засчиталось" />
-                            <Button Content="В Steam" Padding="10,3"
-                                    ToolTip="Записать достижение в Steam сейчас (как в SAM)"
+                                      ToolTip="{local:Tr card.doneTip}" />
+                            <Button Content="{local:Tr card.toSteam}" Padding="10,3"
+                                    ToolTip="{local:Tr card.toSteamTip}"
                                     Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}"
                                     Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
@@ -268,7 +268,7 @@
                 <CheckBox MinWidth="0" VerticalAlignment="Center" Margin="0,0,4,0"
                           IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                           Visibility="{Binding DataContext.ManualUnlocks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Сделал (в Steam не засчиталось)" />
+                          ToolTip="{local:Tr plan.doneTip}" />
                 <Border Grid.Column="1" Width="32" Height="32" CornerRadius="4" VerticalAlignment="Center"
                         Background="{DynamicResource SubtleFillColorSecondaryBrush}">
                     <Border CornerRadius="4" local:RemoteImage.DecodeWidth="64" local:RemoteImage.Url="{Binding Icon}" />
@@ -300,36 +300,36 @@
             <DockPanel Margin="16">
                 <StackPanel DockPanel.Dock="Top">
                     <TextBlock Text="Achievement Companion" Style="{StaticResource Subtitle}" />
-                    <TextBlock Text="Помощник для прохождения на 100%" Style="{StaticResource Caption}" Margin="0,2,0,14" />
+                    <TextBlock Text="{local:Tr library.tagline}" Style="{StaticResource Caption}" Margin="0,2,0,14" />
                     <Grid Margin="0,0,0,10">
                         <TextBox x:Name="LibrarySearch" Padding="32,5,6,6" Text="{Binding LibraryFilter, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Text="&#xE721;" Style="{StaticResource Glyph}" Margin="11,0,0,0" HorizontalAlignment="Left" IsHitTestVisible="False"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                        <TextBlock Text="Поиск по библиотеке" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                        <TextBlock Text="{local:Tr library.search}" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                    Visibility="{Binding Text, ElementName=LibrarySearch, Converter={StaticResource EmptyToCollapsed}, ConverterParameter=invert}" />
                     </Grid>
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
-                    <TextBlock Text="Открыть по AppID" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                    <TextBlock Text="{local:Tr library.openByAppId}" Style="{StaticResource Caption}" Margin="0,0,0,4" />
                     <DockPanel Margin="0,0,0,8">
-                        <Button DockPanel.Dock="Right" Content="Открыть" Margin="8,0,0,0" Command="{Binding LoadAppIdCommand}" />
+                        <Button DockPanel.Dock="Right" Content="{local:Tr library.open}" Margin="8,0,0,0" Command="{Binding LoadAppIdCommand}" />
                         <TextBox Text="{Binding AppIdInput, UpdateSourceTrigger=PropertyChanged}" />
                     </DockPanel>
                     <Button HorizontalAlignment="Stretch" Margin="0,0,0,8" Command="{Binding RefreshLibraryCommand}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72C;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
-                            <TextBlock Text="Обновить библиотеку" />
+                            <TextBlock Text="{local:Tr library.refresh}" />
                         </StackPanel>
                     </Button>
                     <Button HorizontalAlignment="Stretch" Margin="0,0,0,8" Click="OnOpenSettings">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
-                            <TextBlock Text="Настройки" />
+                            <TextBlock Text="{local:Tr settings.title}" />
                         </StackPanel>
                     </Button>
-                    <CheckBox Content="Переключаться на запущенную игру" IsChecked="{Binding AutoFollow}" />
+                    <CheckBox Content="{local:Tr library.follow}" IsChecked="{Binding AutoFollow}" />
                 </StackPanel>
 
                 <ListBox ItemsSource="{Binding LibraryView}" SelectedItem="{Binding SelectedLibraryGame}" HorizontalContentAlignment="Stretch"
@@ -387,13 +387,13 @@
                         Visibility="{Binding HasGame, Converter={StaticResource InverseVis}}">
                 <TextBlock Text="&#xE8F1;" Style="{StaticResource Glyph}" FontSize="48" HorizontalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                <TextBlock Text="Выбери игру слева" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" Margin="0,12,0,4" />
-                <TextBlock Text="или запусти её в Steam - приложение переключится само" Style="{StaticResource Caption}" HorizontalAlignment="Center" />
+                <TextBlock Text="{local:Tr empty.title}" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" Margin="0,12,0,4" />
+                <TextBlock Text="{local:Tr empty.hint}" Style="{StaticResource Caption}" HorizontalAlignment="Center" />
                 <StackPanel Margin="0,16,0,0" HorizontalAlignment="Center"
                             Visibility="{Binding HasApiKey, Converter={StaticResource InverseVis}}">
-                    <TextBlock Text="Чтобы загрузить библиотеку и статус из Steam, задай SteamID и Web API ключ" Style="{StaticResource Caption}"
+                    <TextBlock Text="{local:Tr empty.needKey}" Style="{StaticResource Caption}"
                                HorizontalAlignment="Center" />
-                    <Button Content="Открыть настройки" HorizontalAlignment="Center" Margin="0,8,0,0" Click="OnOpenSettings"
+                    <Button Content="{local:Tr empty.openSettings}" HorizontalAlignment="Center" Margin="0,8,0,0" Click="OnOpenSettings"
                             Style="{DynamicResource AccentButtonStyle}" />
                 </StackPanel>
             </StackPanel>
@@ -439,21 +439,21 @@
                         <UniformGrid Columns="3" Margin="0,12,0,0">
                             <Border Style="{StaticResource HeroTile}" Margin="0,0,8,0">
                                 <StackPanel>
-                                    <TextBlock Text="Открыто" FontSize="12" Foreground="#AEB8C4" />
+                                    <TextBlock Text="{local:Tr game.unlocked}" FontSize="12" Foreground="#AEB8C4" />
                                     <TextBlock Text="{Binding StatUnlocked}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
                                     <TextBlock Text="{Binding StatUnlockedSub}" FontSize="12" Foreground="#AEB8C4" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Border>
                             <Border Style="{StaticResource HeroTile}" Margin="0,0,8,0" ToolTip="{Binding RemainingText}">
                                 <StackPanel>
-                                    <TextBlock Text="До 100%" FontSize="12" Foreground="#AEB8C4" />
+                                    <TextBlock Text="{local:Tr game.toComplete}" FontSize="12" Foreground="#AEB8C4" />
                                     <TextBlock Text="{Binding StatRemaining}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
                                     <TextBlock Text="{Binding StatRemainingSub}" FontSize="12" Foreground="#AEB8C4" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Border>
                             <Border Style="{StaticResource HeroTile}">
                                 <StackPanel>
-                                    <TextBlock Text="Наиграно" FontSize="12" Foreground="#AEB8C4" />
+                                    <TextBlock Text="{local:Tr game.played}" FontSize="12" Foreground="#AEB8C4" />
                                     <TextBlock Text="{Binding StatPlayed}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
                                     <TextBlock Text="{Binding StatPlayedSub}" FontSize="12" Foreground="#AEB8C4" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
@@ -465,17 +465,17 @@
 
             <WrapPanel Grid.Row="1" Margin="0,12,0,4" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
                 <Button Margin="0,0,8,8" Padding="12,6" Command="{Binding RefreshStateCommand}" Style="{DynamicResource AccentButtonStyle}"
-                        ToolTip="Статус из источника, выбранного в настройках (Web API или Steam-клиент)">
+                        ToolTip="{local:Tr toolbar.refreshTip}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE72C;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
-                        <TextBlock Text="Обновить статус" />
+                        <TextBlock Text="{local:Tr toolbar.refresh}" />
                     </StackPanel>
                 </Button>
                 <Button Margin="0,0,8,8" Padding="12,6" Click="OnToggleOverlay"
-                        ToolTip="Показать или скрыть оверлей (горячая клавиша в настройках)">
+                        ToolTip="{local:Tr toolbar.overlayTip}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE7F4;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
-                        <TextBlock Text="Оверлей" />
+                        <TextBlock Text="{local:Tr toolbar.overlay}" />
                     </StackPanel>
                 </Button>
                 <Button Margin="0,0,8,8" Padding="12,6" Command="{Binding FlushQueueCommand}"
@@ -487,39 +487,39 @@
                 </Button>
                 <Button Margin="0,0,8,8" Padding="12,6" Click="OnDropDown">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Ещё" />
+                        <TextBlock Text="{local:Tr toolbar.more}" />
                         <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10" Margin="8,1,0,0" />
                     </StackPanel>
                     <Button.ContextMenu>
                         <ContextMenu>
-                            <MenuItem Header="Обновить схему и проценты" Command="{Binding ReloadCommand}"
-                                      ToolTip="Перекачать список достижений и глобальные проценты">
+                            <MenuItem Header="{local:Tr menu.reload}" Command="{Binding ReloadCommand}"
+                                      ToolTip="{local:Tr menu.reloadTip}">
                                 <MenuItem.Icon>
                                     <TextBlock Text="&#xE895;" Style="{StaticResource Glyph}" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Прочитать статус через Steam-клиент" Command="{Binding ReadViaBridgeCommand}"
-                                      ToolTip="Работает при скрытом профиле; на пару секунд покажет тебя в игре">
+                            <MenuItem Header="{local:Tr menu.readClient}" Command="{Binding ReadViaBridgeCommand}"
+                                      ToolTip="{local:Tr menu.readClientTip}">
                                 <MenuItem.Icon>
                                     <TextBlock Text="&#xE896;" Style="{StaticResource Glyph}" />
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Экспорт">
+                            <MenuItem Header="{local:Tr menu.export}">
                                 <MenuItem.Icon>
                                     <TextBlock Text="&#xE74E;" Style="{StaticResource Glyph}" />
                                 </MenuItem.Icon>
-                                <MenuItem Header="Не засчитанные - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="manual"
+                                <MenuItem Header="{local:Tr menu.exportManualCsv}" Command="{Binding ExportCsvCommand}" CommandParameter="manual"
                                           Visibility="{Binding ManualUnlocks, Converter={StaticResource BoolToVis}}" />
-                                <MenuItem Header="Не засчитанные - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="manual"
+                                <MenuItem Header="{local:Tr menu.exportManualJson}" Command="{Binding ExportJsonCommand}" CommandParameter="manual"
                                           Visibility="{Binding ManualUnlocks, Converter={StaticResource BoolToVis}}" />
                                 <Separator Visibility="{Binding ManualUnlocks, Converter={StaticResource BoolToVis}}" />
-                                <MenuItem Header="Все достижения - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="all" />
-                                <MenuItem Header="Все достижения - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="all" />
+                                <MenuItem Header="{local:Tr menu.exportAllCsv}" Command="{Binding ExportCsvCommand}" CommandParameter="all" />
+                                <MenuItem Header="{local:Tr menu.exportAllJson}" Command="{Binding ExportJsonCommand}" CommandParameter="all" />
                             </MenuItem>
-                            <MenuItem Header="Разметка (типы, группы, оценки)">
-                                <MenuItem Header="Сохранить в файл..." Command="{Binding ExportTagsCommand}" />
-                                <MenuItem Header="Загрузить из файла..." Command="{Binding ImportTagsCommand}" />
+                            <MenuItem Header="{local:Tr menu.tags}">
+                                <MenuItem Header="{local:Tr menu.tagsSave}" Command="{Binding ExportTagsCommand}" />
+                                <MenuItem Header="{local:Tr menu.tagsLoad}" Command="{Binding ImportTagsCommand}" />
                             </MenuItem>
                         </ContextMenu>
                     </Button.ContextMenu>
@@ -527,7 +527,7 @@
             </WrapPanel>
 
             <TabControl Grid.Row="2" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
-                <TabItem Header="Достижения">
+                <TabItem Header="{local:Tr tabs.achievements}">
                     <DockPanel Margin="0,10,0,0">
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4" LastChildFill="False">
                             <Grid Width="280" Margin="0,0,12,8">
@@ -535,46 +535,46 @@
                                          Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
                                 <TextBlock Text="&#xE721;" Style="{StaticResource Glyph}" Margin="11,0,0,0" HorizontalAlignment="Left" IsHitTestVisible="False"
                                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                                <TextBlock Text="Название, описание, группа, заметка" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                <TextBlock Text="{local:Tr list.search}" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
                                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                            Visibility="{Binding Text, ElementName=SearchBox, Converter={StaticResource EmptyToCollapsed}, ConverterParameter=invert}" />
                             </Grid>
-                            <ComboBox Width="140" Margin="0,0,8,8" ToolTip="Тип" ItemsSource="{x:Static local:Options.KindFilters}" SelectedItem="{Binding KindFilter}" />
-                            <ComboBox Width="190" Margin="0,0,4,8" ToolTip="Сортировка" ItemsSource="{x:Static local:Options.Sorts}" SelectedItem="{Binding SelectedSort}" />
-                            <ToggleButton Margin="0,0,8,8" Padding="9,7" IsChecked="{Binding Descending}" ToolTip="Обратный порядок">
+                            <ComboBox Width="140" Margin="0,0,8,8" ToolTip="{local:Tr list.kindTip}" ItemsSource="{x:Static local:Options.KindFilters}" SelectedItem="{Binding KindFilter}" />
+                            <ComboBox Width="190" Margin="0,0,4,8" ToolTip="{local:Tr list.sortTip}" ItemsSource="{x:Static local:Options.Sorts}" SelectedItem="{Binding SelectedSort}" />
+                            <ToggleButton Margin="0,0,8,8" Padding="9,7" IsChecked="{Binding Descending}" ToolTip="{local:Tr list.reverseTip}">
                                 <TextBlock Text="&#xE8CB;" Style="{StaticResource Glyph}" />
                             </ToggleButton>
                             <ComboBox Width="160" Margin="0,0,0,8" ItemsSource="{x:Static local:Options.Percentiles}" SelectedItem="{Binding SelectedPercentile}"
-                                      ToolTip="По какой доле игроков оценивать время: медиана - типичный игрок, p75 и p90 - с запасом" />
+                                      ToolTip="{local:Tr list.percentileTip}" />
                         </DockPanel>
 
                         <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                             <RadioButton Style="{StaticResource FilterChip}"
                                          IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.All}}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Все" />
+                                    <TextBlock Text="{local:Tr list.all}" />
                                     <TextBlock Text="{Binding CountAll}" Margin="6,0,0,0" Opacity="0.7" />
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton Style="{StaticResource FilterChip}"
                                          IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.Open}}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Не получены" />
+                                    <TextBlock Text="{local:Tr list.open}" />
                                     <TextBlock Text="{Binding CountOpen}" Margin="6,0,0,0" Opacity="0.7" />
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton Style="{StaticResource FilterChip}"
                                          IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.Done}}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Получены" />
+                                    <TextBlock Text="{local:Tr list.done}" />
                                     <TextBlock Text="{Binding CountDone}" Margin="6,0,0,0" Opacity="0.7" />
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton Style="{StaticResource FilterChip}" ToolTip="Сделано, но в Steam не засчиталось"
+                            <RadioButton Style="{StaticResource FilterChip}" ToolTip="{local:Tr list.notCountedTip}"
                                          Visibility="{Binding ManualUnlocks, Converter={StaticResource BoolToVis}}"
                                          IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.NotCounted}}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Не засчитаны" />
+                                    <TextBlock Text="{local:Tr list.notCounted}" />
                                     <TextBlock Text="{Binding CountNotCounted}" Margin="6,0,0,0" Opacity="0.7" />
                                 </StackPanel>
                             </RadioButton>
@@ -582,7 +582,7 @@
                             <ToggleButton Style="{StaticResource FilterChip}" IsChecked="{Binding OnlyHidden}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE72E;" Style="{StaticResource Glyph}" FontSize="12" Margin="0,0,6,0" />
-                                    <TextBlock Text="Секретные" />
+                                    <TextBlock Text="{local:Tr list.hidden}" />
                                 </StackPanel>
                             </ToggleButton>
                         </WrapPanel>
@@ -604,18 +604,18 @@
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListBox.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="Записать выбранные в Steam (как в SAM)"
+                                        <MenuItem Header="{local:Tr list.menuWrite}"
                                                   Command="{Binding UnlockInSteamCommand}"
                                                   CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                         <Separator />
-                                        <MenuItem Header="Снять это достижение в Steam"
+                                        <MenuItem Header="{local:Tr list.menuRevert}"
                                                   Command="{Binding RevertCommand}"
                                                   CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     </ContextMenu>
                                 </ListBox.ContextMenu>
                             </ListBox>
 
-                            <TextBlock Text="Ничего не найдено - поменяй фильтры" Style="{StaticResource Caption}"
+                            <TextBlock Text="{local:Tr list.empty}" Style="{StaticResource Caption}"
                                        HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,24,0,0">
                                 <TextBlock.Visibility>
                                     <Binding Path="Items.Count" ElementName="AchievementList">
@@ -632,7 +632,7 @@
                                                 Visibility="{Binding HasSelectedRow, Converter={StaticResource InverseVis}}">
                                         <TextBlock Text="&#xE946;" Style="{StaticResource Glyph}" FontSize="32" HorizontalAlignment="Center"
                                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                                        <TextBlock Text="Выбери достижение, чтобы задать тип, группу, оценку и заметку"
+                                        <TextBlock Text="{local:Tr details.empty}"
                                                    Style="{StaticResource Caption}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0" />
                                     </StackPanel>
 
@@ -661,41 +661,41 @@
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
                                                 </Grid.RowDefinitions>
-                                                <TextBlock Grid.Row="0" Text="Получили" Style="{StaticResource Caption}" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="0" Text="{local:Tr details.percent}" Style="{StaticResource Caption}" Margin="0,0,0,6" />
                                                 <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,0,0,6">
                                                     <Run Text="{Binding Percent, Mode=OneWay}" FontWeight="SemiBold" />
                                                     <Run Text="{Binding RarityText, Mode=OneWay}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 </TextBlock>
-                                                <TextBlock Grid.Row="1" Text="Оценка" Style="{StaticResource Caption}" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="1" Text="{local:Tr details.estimate}" Style="{StaticResource Caption}" Margin="0,0,0,6" />
                                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Estimate}" Margin="0,0,0,6" ToolTip="{Binding EstimateHint}" />
-                                                <TextBlock Grid.Row="2" Text="Статус" Style="{StaticResource Caption}" Margin="0,0,0,6"
+                                                <TextBlock Grid.Row="2" Text="{local:Tr details.status}" Style="{StaticResource Caption}" Margin="0,0,0,6"
                                                            Visibility="{Binding StatusText, Converter={StaticResource EmptyToCollapsed}}" />
                                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding StatusText}" Margin="0,0,0,6"
                                                            Visibility="{Binding StatusText, Converter={StaticResource EmptyToCollapsed}}" />
-                                                <TextBlock Grid.Row="3" Text="API-имя" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Row="3" Text="{local:Tr details.apiName}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
                                                 <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ApiName, Mode=OneWay}" IsReadOnly="True" />
                                             </Grid>
 
-                                            <TextBlock Text="Тип" Style="{StaticResource Caption}" Margin="0,16,0,2" />
+                                            <TextBlock Text="{local:Tr details.kind}" Style="{StaticResource Caption}" Margin="0,16,0,2" />
                                             <ComboBox ItemsSource="{x:Static local:Options.Kinds}" DisplayMemberPath="Title" SelectedValuePath="Value"
                                                       SelectedValue="{Binding Kind, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch" />
 
-                                            <TextBlock Text="Группа &quot;за один заход&quot; (глава, локация, режим)" Style="{StaticResource Caption}" Margin="0,10,0,2" />
+                                            <TextBlock Text="{local:Tr details.group}" Style="{StaticResource Caption}" Margin="0,10,0,2" />
                                             <TextBox Text="{Binding Group, UpdateSourceTrigger=LostFocus}" />
-                                            <TextBlock Text="Определена по описанию автоматически" Style="{StaticResource Caption}" Margin="0,2,0,0"
+                                            <TextBlock Text="{local:Tr details.groupAuto}" Style="{StaticResource Caption}" Margin="0,2,0,0"
                                                        Visibility="{Binding GroupIsAuto, Converter={StaticResource BoolToVis}}" />
 
-                                            <TextBlock Text="Своя оценка, часов от начала игры (пусто - авто)" Style="{StaticResource Caption}" Margin="0,10,0,2" />
+                                            <TextBlock Text="{local:Tr details.ownEstimate}" Style="{StaticResource Caption}" Margin="0,10,0,2" />
                                             <TextBox Text="{Binding EstimateInput, UpdateSourceTrigger=LostFocus}" />
 
-                                            <TextBlock Text="Заметка" Style="{StaticResource Caption}" Margin="0,10,0,2" />
+                                            <TextBlock Text="{local:Tr details.note}" Style="{StaticResource Caption}" Margin="0,10,0,2" />
                                             <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
 
-                                            <TextBlock Text="Как получить" Style="{StaticResource Header}" />
+                                            <TextBlock Text="{local:Tr details.guides}" Style="{StaticResource Header}" />
                                             <WrapPanel>
-                                                <Button Content="Гайды Steam" Margin="0,0,8,8" Padding="10,4"
+                                                <Button Content="{local:Tr details.guideSteam}" Margin="0,0,8,8" Padding="10,4"
                                                         Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="steam" />
-                                                <Button Content="Обсуждения" Margin="0,0,8,8" Padding="10,4"
+                                                <Button Content="{local:Tr details.guideDiscussions}" Margin="0,0,8,8" Padding="10,4"
                                                         Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="discussions" />
                                                 <Button Content="YouTube" Margin="0,0,8,8" Padding="10,4"
                                                         Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="youtube" />
@@ -704,15 +704,15 @@
                                             </WrapPanel>
 
                                             <StackPanel Visibility="{Binding DataContext.ManualUnlocks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
-                                                <CheckBox Content="Сделал, но не засчиталось" Margin="0,12,0,8"
+                                                <CheckBox Content="{local:Tr details.done}" Margin="0,12,0,8"
                                                           IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                           Visibility="{Binding IsUnlocked, Converter={StaticResource InverseVis}}" />
                                                 <WrapPanel>
-                                                    <Button Content="Записать в Steam" Margin="0,0,8,8" Padding="12,5"
+                                                    <Button Content="{local:Tr details.write}" Margin="0,0,8,8" Padding="12,5"
                                                             Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
                                                             Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
-                                                    <Button Content="Снять в Steam" Margin="0,0,8,8" Padding="12,5"
+                                                    <Button Content="{local:Tr details.revert}" Margin="0,0,8,8" Padding="12,5"
                                                             Command="{Binding DataContext.RevertCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
                                                             Visibility="{Binding IsUnlocked, Converter={StaticResource BoolToVis}}" />
@@ -726,7 +726,7 @@
                     </DockPanel>
                 </TabItem>
 
-                <TabItem Header="План до 100%">
+                <TabItem Header="{local:Tr tabs.plan}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                         <StackPanel MaxWidth="980" HorizontalAlignment="Left">
                             <TextBlock Text="{Binding RemainingText}" Style="{StaticResource Subtitle}" TextWrapping="Wrap" />
@@ -760,21 +760,21 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="Время">
+                <TabItem Header="{local:Tr tabs.time}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                         <StackPanel MaxWidth="760" HorizontalAlignment="Left">
                             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                                 <StackPanel>
-                                    <TextBlock Text="Статистика по игрокам" Style="{StaticResource Subtitle}" />
+                                    <TextBlock Text="{local:Tr time.sampleTitle}" Style="{StaticResource Subtitle}" />
                                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,10"
-                                               Text="Берём авторов обзоров игры в Steam с открытым профилем и смотрим, что и когда они открыли: получаем проценты и сколько было наиграно к каждому достижению. Помогает, когда Steam не отдаёт глобальные проценты (как у новых игр). Занимает до минуты." />
+                                               Text="{local:Tr time.sampleHint}" />
                                     <DockPanel Margin="0,0,0,10" Visibility="{Binding HasApiKey, Converter={StaticResource InverseVis}}">
-                                        <Button DockPanel.Dock="Right" Content="Настройки" Margin="8,0,0,0" Click="OnOpenSettings" />
-                                        <TextBlock Text="Нужен Steam Web API ключ - задай его в настройках" VerticalAlignment="Center" TextWrapping="Wrap"
+                                        <Button DockPanel.Dock="Right" Content="{local:Tr settings.title}" Margin="8,0,0,0" Click="OnOpenSettings" />
+                                        <TextBlock Text="{local:Tr time.needKey}" VerticalAlignment="Center" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource SystemFillColorCautionBrush}" />
                                     </DockPanel>
                                     <WrapPanel>
-                                        <Button Content="Собрать статистику" Margin="0,0,8,8" Padding="12,5" Command="{Binding CollectSampleCommand}" />
+                                        <Button Content="{local:Tr time.collect}" Margin="0,0,8,8" Padding="12,5" Command="{Binding CollectSampleCommand}" />
                                     </WrapPanel>
                                     <TextBlock Text="{Binding SampleText}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
                                 </StackPanel>
@@ -782,14 +782,14 @@
 
                             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                                 <StackPanel>
-                                    <TextBlock Text="Время до 100%" Style="{StaticResource Subtitle}" />
+                                    <TextBlock Text="{local:Tr time.completionTitle}" Style="{StaticResource Subtitle}" />
                                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,10"
-                                               Text="Из него считаются оценки по каждому достижению: чем реже достижение, тем позже его обычно получают. Если не задано, оценка выводится из твоего прогресса." />
+                                               Text="{local:Tr time.completionHint}" />
                                     <WrapPanel>
                                         <TextBox Width="90" Text="{Binding CompletionInput, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,8" />
-                                        <TextBlock Text="часов" VerticalAlignment="Center" Margin="0,0,16,8" Style="{StaticResource Muted}" />
-                                        <Button Content="Применить" Margin="0,0,8,8" Command="{Binding ApplyCompletionCommand}" />
-                                        <Button Content="Взять с completionist.me" Margin="0,0,8,8" Command="{Binding FetchCompletionCommand}" />
+                                        <TextBlock Text="{local:Tr time.hours}" VerticalAlignment="Center" Margin="0,0,16,8" Style="{StaticResource Muted}" />
+                                        <Button Content="{local:Tr time.apply}" Margin="0,0,8,8" Command="{Binding ApplyCompletionCommand}" />
+                                        <Button Content="{local:Tr time.fetch}" Margin="0,0,8,8" Command="{Binding FetchCompletionCommand}" />
                                     </WrapPanel>
                                     <TextBlock Text="{Binding CompletionText}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
                                 </StackPanel>
@@ -797,9 +797,9 @@
 
                             <Border Style="{StaticResource Card}">
                                 <StackPanel>
-                                    <TextBlock Text="Время в игре" Style="{StaticResource Subtitle}" />
+                                    <TextBlock Text="{local:Tr time.playtimeTitle}" Style="{StaticResource Subtitle}" />
                                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,10"
-                                               Text="Если много стоял в AFK или достижения добавили в игру позже, поправь, сколько времени реально считать прогрессом." />
+                                               Text="{local:Tr time.playtimeHint}" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="220" />
@@ -810,15 +810,15 @@
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="Реально наиграно, ч" VerticalAlignment="Center" Margin="0,0,0,8"
-                                                   ToolTip="Своё значение вместо времени Steam. Пусто - брать из Steam" />
+                                        <TextBlock Grid.Row="0" Text="{local:Tr time.override}" VerticalAlignment="Center" Margin="0,0,0,8"
+                                                   ToolTip="{local:Tr time.overrideTip}" />
                                         <TextBox Grid.Row="0" Grid.Column="1" Width="90" Margin="0,0,0,8"
                                                  Text="{Binding PlaytimeOverrideInput, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBlock Grid.Row="1" Text="Не считать из Steam, ч" VerticalAlignment="Center" Margin="0,0,0,8"
-                                                   ToolTip="Часы до появления достижений или AFK - вычитаются из времени Steam" />
+                                        <TextBlock Grid.Row="1" Text="{local:Tr time.offset}" VerticalAlignment="Center" Margin="0,0,0,8"
+                                                   ToolTip="{local:Tr time.offsetTip}" />
                                         <TextBox Grid.Row="1" Grid.Column="1" Width="90" Margin="0,0,0,8"
                                                  Text="{Binding PlaytimeOffsetInput, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Button Grid.Row="2" Grid.Column="1" Content="Применить" HorizontalAlignment="Left"
+                                        <Button Grid.Row="2" Grid.Column="1" Content="{local:Tr time.apply}" HorizontalAlignment="Left"
                                                 Command="{Binding ApplyPlaytimeCommand}" />
                                     </Grid>
                                 </StackPanel>

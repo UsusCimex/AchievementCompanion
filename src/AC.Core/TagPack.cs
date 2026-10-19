@@ -65,7 +65,7 @@ public sealed class TagPack
     public string ToJson() => JsonSerializer.Serialize(this, JsonOptions.Pretty);
 
     public static TagPack FromJson(string json) =>
-        JsonSerializer.Deserialize<TagPack>(json, JsonOptions.Pretty) ?? throw new FormatException("Пустой файл разметки");
+        JsonSerializer.Deserialize<TagPack>(json, JsonOptions.Pretty) ?? throw new FormatException(Loc.T("error.emptyTags"));
 }
 
 public sealed class TagPackItem

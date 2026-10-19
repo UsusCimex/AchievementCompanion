@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AC.App"
-        Title="Achievement Companion - оверлей"
+        Title="{local:Tr overlay.title}"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight" MaxWidth="480" Foreground="White">
@@ -67,12 +67,12 @@
                     </Border>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0" HorizontalAlignment="Right"
                                 Visibility="{Binding DataContext.ShowActions, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
-                        <Button Content="Сделал" Style="{StaticResource OvButton}"
-                                ToolTip="Отметить: выполнено, но не засчиталось"
+                        <Button Content="{local:Tr card.done}" Style="{StaticResource OvButton}"
+                                ToolTip="{local:Tr overlay.doneTip}"
                                 Command="{Binding DataContext.Main.OverlayMarkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}" />
-                        <Button Content="В Steam" Style="{StaticResource OvButton}"
-                                ToolTip="Записать в Steam сейчас (как в SAM)"
+                        <Button Content="{local:Tr card.toSteam}" Style="{StaticResource OvButton}"
+                                ToolTip="{local:Tr overlay.toSteamTip}"
                                 Command="{Binding DataContext.Main.OverlayUnlockCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}" />
                     </StackPanel>
@@ -107,11 +107,11 @@
                 <TextBlock Text="{Binding Toast}" FontSize="12" TextWrapping="Wrap" />
             </Border>
 
-            <TextBlock Text="НЕ ПРОПУСТИ" Margin="0,12,0,2" Foreground="{StaticResource OvWarn}" FontWeight="SemiBold" FontSize="11"
+            <TextBlock Text="{local:Tr overlay.missable}" Margin="0,12,0,2" Foreground="{StaticResource OvWarn}" FontWeight="SemiBold" FontSize="11"
                        Visibility="{Binding HasMissable, Converter={StaticResource BoolToVis}}" />
             <ItemsControl ItemsSource="{Binding Main.OverlayMissable}" ItemTemplate="{StaticResource OverlayItem}" />
 
-            <TextBlock Text="БЛИЖАЙШИЕ" Margin="0,12,0,2" Foreground="{StaticResource OvAccent}" FontWeight="SemiBold" FontSize="11" />
+            <TextBlock Text="{local:Tr overlay.nearest}" Margin="0,12,0,2" Foreground="{StaticResource OvAccent}" FontWeight="SemiBold" FontSize="11" />
             <ItemsControl ItemsSource="{Binding Main.OverlayNearest}" ItemTemplate="{StaticResource OverlayItem}" />
 
             <Border Height="1" Background="{StaticResource OvLine}" Margin="0,10,0,6" />

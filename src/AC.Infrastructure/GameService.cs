@@ -104,10 +104,10 @@ public sealed class GameService
                 }
                 catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
                 {
-                    warnings.Add("Схема: " + e.Message);
+                    warnings.Add(Loc.T("warn.schema", e.Message));
                 }
             }
-            else warnings.Add("Нет API-ключа: схема только из локального кеша Steam");
+            else warnings.Add(Loc.T("warn.noKeySchema"));
         }
 
         // Локальная схема даёт описания скрытых и флаг "защищено"; дешёвая, читаем всегда.
@@ -117,7 +117,7 @@ public sealed class GameService
         if (stale || game.Achievements.Any(a => a.GlobalPercent is null))
         {
             var err = await FetchPercentagesAsync(game, ct);
-            if (err != null) warnings.Add("Глобальные %: " + err);
+            if (err != null) warnings.Add(Loc.T("warn.percents", err));
         }
 
         IReadOnlyList<string> fresh = Array.Empty<string>();
@@ -129,7 +129,7 @@ public sealed class GameService
             }
             catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
             {
-                warnings.Add("Статус: " + e.Message);
+                warnings.Add(Loc.T("warn.status", e.Message));
             }
         }
 
@@ -162,7 +162,7 @@ public sealed class GameService
         bool useClient = Settings.StatusSource == StatusSource.SteamClient || !HasApiKey || Settings.SteamId64 == 0;
         if (!useClient) return await RefreshStateAsync(game, ct);
         var (fresh, error) = await RefreshViaBridgeAsync(game, ct);
-        if (error != null) throw new SteamApiException("Steam-клиент: " + error);
+        if (error != null) throw new SteamApiException(Loc.T("error.client", error));
         return fresh;
     }
 
@@ -178,7 +178,7 @@ public sealed class GameService
     public async Task<(IReadOnlyList<string> Fresh, string? Error)> RefreshViaBridgeAsync(GameData game, CancellationToken ct = default)
     {
         var r = await _bridge.ReadAsync(game.AppId, Settings.Language, ct);
-        if (!r.Ok || r.Achievements is null) return (Array.Empty<string>(), r.Error ?? "ошибка помощника");
+        if (!r.Ok || r.Achievements is null) return (Array.Empty<string>(), r.Error ?? Loc.T("error.bridge"));
 
         var byName = game.Achievements.ToDictionary(a => a.ApiName, StringComparer.Ordinal);
         foreach (var a in r.Achievements)
@@ -217,10 +217,10 @@ public sealed class GameService
     {
         RequireKey();
         var key = ApiKey;
-        progress?.Report("Ищу игроков по обзорам Steam...");
+        progress?.Report(Loc.T("sample.searching"));
         var authors = await _api.GetReviewAuthorsAsync(game.AppId, maxAuthors, ct);
         authors = authors.Where(a => a.SteamId != Settings.SteamId64).ToList();
-        if (authors.Count == 0) throw new SteamApiException("У игры нет обзоров в Steam - не из кого собрать выборку");
+        if (authors.Count == 0) throw new SteamApiException(Loc.T("sample.noReviews"));
 
         var samples = new List<PlayerSample>();
         int checkedCount = 0;
@@ -254,7 +254,7 @@ public sealed class GameService
             finally
             {
                 var c = Interlocked.Increment(ref checkedCount);
-                if (c % 10 == 0) progress?.Report($"Проверено профилей: {c} из {authors.Count}, открытых: {samples.Count}");
+                if (c % 10 == 0) progress?.Report(Loc.T("sample.progress", c, authors.Count, samples.Count));
                 gate.Release();
             }
         });
@@ -262,7 +262,7 @@ public sealed class GameService
         ct.ThrowIfCancellationRequested();
 
         if (samples.Count == 0)
-            throw new SteamApiException($"Проверено {authors.Count} авторов обзоров - у всех скрыты сведения об играх");
+            throw new SteamApiException(Loc.T("sample.allPrivate", authors.Count));
 
         // Только считаем: применяет вызывающий к актуальному объекту игры (пока шёл сбор, её могли перезагрузить).
         return SampleStats.Compute(samples, game.Achievements.Select(a => a.ApiName).ToList());
@@ -282,7 +282,7 @@ public sealed class GameService
         try
         {
             var pct = await _api.GetGlobalPercentagesAsync(game.AppId, ct);
-            if (pct.Count == 0) return "Steam не отдал проценты для этой игры";
+            if (pct.Count == 0) return Loc.T("warn.noPercents");
             foreach (var a in game.Achievements)
                 if (pct.TryGetValue(a.ApiName, out var v)) a.GlobalPercent = v;
             return null;
@@ -313,12 +313,12 @@ public sealed class GameService
         }
         _store.SaveGame(game);
         if (toWrite.Count == 0)
-            return new MarkReport(false, skipped.Count > 0 ? "защищено (ставит только сервер игры): " + string.Join(", ", skipped) : "нечего записывать: всё уже открыто");
+            return new MarkReport(false, skipped.Count > 0 ? Loc.T("error.protected", string.Join(", ", skipped)) : Loc.T("error.nothingToWrite"));
 
         var r = await WriteToSteamAsync(game, toWrite, unlock: true, ct);
         _store.SaveGame(game);
         if (skipped.Count > 0)
-            r = r with { Error = (r.Error is null ? "" : r.Error + "; ") + "пропущены защищённые: " + string.Join(", ", skipped) };
+            r = r with { Error = (r.Error is null ? "" : r.Error + "; ") + Loc.T("error.skippedProtected", string.Join(", ", skipped)) };
         return r;
     }
 
@@ -355,7 +355,7 @@ public sealed class GameService
         }
         else if (done && def is { Protected: true } && Settings.WriteMode != WriteMode.MarkOnly)
         {
-            report = new MarkReport(false, "достижение защищено: Steam примет его только от сервера игры");
+            report = new MarkReport(false, Loc.T("error.protectedOne"));
         }
         _store.SaveGame(game);
         return report;
@@ -438,7 +438,7 @@ public sealed class GameService
         {
             foreach (var n in names)
                 _store.AppendLog(new UnlockLogEntry { At = now, AppId = game.AppId, ApiName = n, Action = action, Ok = false, Error = r.Error });
-            return new MarkReport(false, r.Error ?? "помощник не вернул результат");
+            return new MarkReport(false, r.Error ?? Loc.T("error.bridgeNoResult"));
         }
 
         foreach (var c in r.Changes)
@@ -468,12 +468,12 @@ public sealed class GameService
     // ---------- внутреннее ----------
 
     private MarkReport? ManualUnlocksOff() =>
-        Settings.ManualUnlocks ? null : new MarkReport(false, "ручные отметки и запись в Steam выключены в настройках");
+        Settings.ManualUnlocks ? null : new MarkReport(false, Loc.T("error.manualOff"));
 
     private void RequireKey()
     {
-        if (!HasApiKey) throw new SteamApiException("Не задан API-ключ (Настройки)");
-        if (Settings.SteamId64 == 0) throw new SteamApiException("Не задан SteamID64 (Настройки)");
+        if (!HasApiKey) throw new SteamApiException(Loc.T("error.noKey"));
+        if (Settings.SteamId64 == 0) throw new SteamApiException(Loc.T("error.noSteamId"));
     }
 
     /// <summary>

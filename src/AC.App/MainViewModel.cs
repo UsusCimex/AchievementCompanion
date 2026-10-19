@@ -148,9 +148,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Ручные отметки и запись в Steam включены в настройках.</summary>
     public bool ManualUnlocks => _svc.Settings.ManualUnlocks;
 
-    public string PlanHint =>
-        "Сначала миссибл, потом сюжет, прочее и гринд; внутри этапа - по оценке времени от начала игры. Группы задаются в карточке достижения" +
-        (ManualUnlocks ? ", галочка - сделано, но не засчитано." : ".");
+    public string PlanHint => Loc.T(ManualUnlocks ? "plan.hintManual" : "plan.hint");
 
     // ---------- данные текущей игры ----------
 
@@ -172,12 +170,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool HasGame => _game != null;
     public string? HeaderImageUrl => _game is null ? null : SteamImages.Header(_game.AppId);
-
-    private double _progressPercent;
-    public double ProgressPercent { get => _progressPercent; private set => Set(ref _progressPercent, value); }
-
-    private double _progressWithManualPercent;
-    public double ProgressWithManualPercent { get => _progressWithManualPercent; private set => Set(ref _progressWithManualPercent, value); }
 
     // Полоска прогресса из трёх частей: открыто в Steam, сделано без засчёта, осталось (колонки Grid в звёздочках).
     private GridLength _segUnlocked = new(0, GridUnitType.Star);
@@ -212,9 +204,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _gameName = "";
     public string GameName { get => _gameName; private set => Set(ref _gameName, value); }
 
-    private string _gameTitle = "Игра не выбрана";
-    public string GameTitle { get => _gameTitle; private set => Set(ref _gameTitle, value); }
-
     private string _progressText = "";
     public string ProgressText { get => _progressText; private set => Set(ref _progressText, value); }
 
@@ -236,7 +225,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Сколько часов Steam не считать (до появления достижений, AFK).</summary>
     public string PlaytimeOffsetInput { get => _playtimeOffsetInput; set => Set(ref _playtimeOffsetInput, value); }
 
-    private string _statusMessage = "Готово";
+    private string _statusMessage = Loc.T("status.ready");
     public string StatusMessage { get => _statusMessage; set => Set(ref _statusMessage, value); }
 
     private bool _isBusy;
@@ -253,7 +242,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             CommandManager.InvalidateRequerySuggested();
         }
     }
-    public string QueueText => QueueCount > 0 ? $"Отправить в Steam ({QueueCount})" : "Очередь пуста";
+    public string QueueText => QueueCount > 0 ? Loc.T("toolbar.queueSend", QueueCount) : Loc.T("toolbar.queueEmpty");
     public bool QueueVisible => ManualUnlocks && _svc.Settings.WriteMode == WriteMode.Queue;
 
     private bool _autoFollow = true;
@@ -297,7 +286,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (!_svc.HasApiKey)
         {
-            StatusMessage = "Задай API-ключ в настройках: без него работает только локальный кеш Steam";
+            StatusMessage = Loc.T("status.noKey");
         }
         else if (Library.Count == 0)
         {
@@ -311,11 +300,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private async Task RefreshLibraryAsync()
     {
-        await Busy("Загружаю библиотеку...", async () =>
+        await Busy(Loc.T("status.loadingLibrary"), async () =>
         {
             var games = await _svc.RefreshLibraryAsync();
             FillLibrary(games);
-            StatusMessage = "В библиотеке " + Ru.Count(games.Count, "игра", "игры", "игр");
+            StatusMessage = Loc.Plural("status.libraryLoaded", games.Count);
         });
     }
 
@@ -329,7 +318,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (!uint.TryParse(AppIdInput.Trim(), out var id) || id == 0)
         {
-            StatusMessage = "AppID - это число из адреса страницы игры в Steam";
+            StatusMessage = Loc.T("status.badAppId");
             return;
         }
         await LoadAsync(id, Library.FirstOrDefault(g => g.AppId == id)?.Name);
@@ -338,14 +327,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public async Task LoadAsync(uint appId, string? name)
     {
         var seq = ++_loadSeq;
-        await Busy($"Загружаю {name ?? appId.ToString()}...", async () =>
+        await Busy(Loc.T("status.loadingGame", name ?? appId.ToString()), async () =>
         {
             var report = await _svc.LoadGameAsync(appId, name);
             if (seq != _loadSeq) return; // пока грузили, выбрали другую игру
             SetGame(report.Game);
             StatusMessage = report.Warnings.Count > 0
                 ? string.Join(" | ", report.Warnings)
-                : "Загружено " + Ru.Count(report.Game.Achievements.Count, "достижение", "достижения", "достижений");
+                : Loc.Plural("status.gameLoaded", report.Game.Achievements.Count);
             AnnounceNew(report.NewlyUnlocked);
         });
         // При источнике "Steam-клиент" статус при загрузке не читался - читаем сейчас.
@@ -364,15 +353,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_game is null) return;
         var game = _game;
         var progress = new Progress<string>(m => StatusMessage = m);
-        await Busy(auto ? "Steam не отдал проценты - собираю статистику по игрокам..." : "Собираю статистику по игрокам...", async () =>
+        await Busy(Loc.T(auto ? "status.sampleAuto" : "status.sampleCollecting"), async () =>
         {
             var r = await _svc.CollectSampleAsync(game, progress);
             var target = _game?.AppId == game.AppId ? _game! : game;
             _svc.ApplySample(target, r);
             if (!ReferenceEquals(target, _game)) return;
             Recompute(rebuildRows: true);
-            StatusMessage = "Статистика собрана: " + Ru.Count(r.Players, "игрок", "игрока", "игроков") + " с открытым профилем" +
-                            (r.CompletionMedianMinutes is { } c ? $", 100% у {r.Completers}, медиана {TimeEstimator.Format(c)}" : "");
+            StatusMessage = Loc.Plural("status.sampleDone", r.Players) +
+                            (r.CompletionMedianMinutes is { } c ? Loc.T("status.sampleCompletion", r.Completers, TimeEstimator.Format(c)) : "");
         });
     }
 
@@ -395,20 +384,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception e)
         {
-            StatusMessage = "Не удалось открыть браузер: " + e.Message;
+            StatusMessage = Loc.T("status.browserFailed", e.Message);
         }
     }
 
     private async Task ReloadAsync(bool force)
     {
         if (_game is null) return;
-        await Busy("Обновляю схему и статус...", async () =>
+        await Busy(Loc.T("status.reloading"), async () =>
         {
             var seq = ++_loadSeq;
             var report = await _svc.LoadGameAsync(_game.AppId, _game.Name, forceSchema: force);
             if (seq != _loadSeq) return;
             SetGame(report.Game);
-            StatusMessage = report.Warnings.Count > 0 ? string.Join(" | ", report.Warnings) : "Схема и статус обновлены";
+            StatusMessage = report.Warnings.Count > 0 ? string.Join(" | ", report.Warnings) : Loc.T("status.reloaded");
             AnnounceNew(report.NewlyUnlocked);
         });
     }
@@ -427,7 +416,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             bool editing = Keyboard.FocusedElement is FrameworkElement { DataContext: AchievementRowViewModel };
             Recompute(rebuildRows: fresh.Count > 0 && Status != StatusFilter.All && !editing);
             AnnounceNew(fresh);
-            if (fresh.Count == 0) StatusMessage = "Статус обновлён " + DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture);
+            if (fresh.Count == 0) StatusMessage = Loc.T("status.refreshed", DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture));
         }
         finally
         {
@@ -438,30 +427,30 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private async Task ReadViaBridgeAsync()
     {
         if (_game is null) return;
-        await Busy("Читаю через Steam-клиент...", async () =>
+        await Busy(Loc.T("status.readingClient"), async () =>
         {
             var (fresh, error) = await _svc.RefreshViaBridgeAsync(_game);
             if (error != null)
             {
-                StatusMessage = "Помощник: " + error;
+                StatusMessage = Loc.T("status.bridgeError", error);
                 return;
             }
             Recompute(rebuildRows: true);
             AnnounceNew(fresh);
-            StatusMessage = "Статус прочитан через Steam-клиент";
+            StatusMessage = Loc.T("status.readClient");
         });
     }
 
     private async Task FlushQueueAsync()
     {
         if (_game is null) return;
-        if (MessageBox.Show($"Записать в Steam {Ru.Count(QueueCount, "достижение", "достижения", "достижений")} из очереди?", "Achievement Companion",
+        if (MessageBox.Show(Loc.Plural("dialog.flushQueue", QueueCount), "Achievement Companion",
                 MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
-        await Busy("Записываю в Steam...", async () =>
+        await Busy(Loc.T("status.writing"), async () =>
         {
             var r = await _svc.FlushQueueAsync(_game);
             Recompute(rebuildRows: true);
-            StatusMessage = r.Error is null ? "Очередь отправлена в Steam" : "Не всё записалось: " + r.Error;
+            StatusMessage = r.Error is null ? Loc.T("status.queueSent") : Loc.T("status.writePartial", r.Error);
         });
     }
 
@@ -479,12 +468,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (rows.Count == 0) return;
 
         if (!fromOverlay && rows.Count > 1 &&
-            MessageBox.Show($"Записать в Steam {Ru.Count(rows.Count, "достижение", "достижения", "достижений")}?", "Achievement Companion",
+            MessageBox.Show(Loc.Plural("dialog.writeSelected", rows.Count), "Achievement Companion",
                 MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
             return;
 
         var game = _game;
-        await Busy("Записываю в Steam...", async () =>
+        await Busy(Loc.T("status.writing"), async () =>
         {
             var r = await _svc.UnlockInSteamAsync(game, rows.Select(x => x.ApiName).ToList());
             if (!ReferenceEquals(game, _game)) return;
@@ -492,10 +481,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var names = string.Join(", ", rows.Select(x => x.Name));
             if (r.SteamWritten)
             {
-                StatusMessage = "Записано в Steam: " + names + (r.Error is null ? "" : " | " + r.Error);
-                Toast?.Invoke("В Steam: " + names);
+                StatusMessage = Loc.T("status.written", names) + (r.Error is null ? "" : " | " + r.Error);
+                Toast?.Invoke(Loc.T("status.writtenToast", names));
             }
-            else StatusMessage = "Не записано: " + (r.Error ?? "неизвестная ошибка");
+            else StatusMessage = Loc.T("status.notWritten", r.Error ?? Loc.T("status.unknownError"));
         });
     }
 
@@ -503,31 +492,31 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (_game is null || row is null) return;
         if (!_svc.WasWrittenByApp(_game.AppId, row.ApiName) &&
-            MessageBox.Show("Это достижение получено не через приложение. Всё равно снять его в Steam?",
+            MessageBox.Show(Loc.T("dialog.revertForeign"),
                 "Achievement Companion", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-        await Busy("Снимаю в Steam...", async () =>
+        await Busy(Loc.T("status.reverting"), async () =>
         {
             var r = await _svc.RevertInSteamAsync(_game, row.ApiName);
             Recompute(rebuildRows: false);
-            StatusMessage = r.Error is null ? $"Снято в Steam: {row.Name}" : "Ошибка: " + r.Error;
+            StatusMessage = r.Error is null ? Loc.T("status.reverted", row.Name) : Loc.T("status.error", r.Error);
         });
     }
 
     private async Task FetchCompletionAsync()
     {
         if (_game is null) return;
-        await Busy("Спрашиваю completionist.me...", async () =>
+        await Busy(Loc.T("status.fetchingCompletion"), async () =>
         {
             var m = await _svc.FetchCompletionAsync(_game);
             if (m is null)
             {
-                StatusMessage = "completionist.me не дал время (мало прошедших или сайт недоступен) - введи часы вручную";
+                StatusMessage = Loc.T("status.completionFailed");
                 return;
             }
             CompletionInput = (m.Value / 60).ToString("0.#", CultureInfo.CurrentCulture);
             _completionFetchedText = CompletionInput;
             Recompute(rebuildRows: false);
-            StatusMessage = "Время до 100% взято с completionist.me";
+            StatusMessage = Loc.T("status.completionFetched");
         });
     }
 
@@ -536,7 +525,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_game is null) return;
         if (_game.CompletionMinutes is not null && _completionFetchedText.Length > 0 && CompletionInput == _completionFetchedText)
         {
-            StatusMessage = "Время до 100% не менялось";
+            StatusMessage = Loc.T("status.completionSame");
             return;
         }
         var s = CompletionInput.Trim().Replace(',', '.');
@@ -545,14 +534,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var h) || h <= 0)
             {
-                StatusMessage = "Время до 100% - число часов, например 35 или 12,5";
+                StatusMessage = Loc.T("status.completionBad");
                 return;
             }
             minutes = h * 60;
         }
         _svc.SetCompletionMinutes(_game, minutes, "manual");
         Recompute(rebuildRows: false);
-        StatusMessage = minutes is null ? "Время до 100% сброшено" : "Оценки времени пересчитаны";
+        StatusMessage = Loc.T(minutes is null ? "status.completionReset" : "status.estimatesUpdated");
     }
 
     private void ApplyPlaytime()
@@ -560,14 +549,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_game is null) return;
         if (!TryParseHours(PlaytimeOverrideInput, out var overrideMin) || !TryParseHours(PlaytimeOffsetInput, out var offsetMin))
         {
-            StatusMessage = "Время - число часов, например 120 или 7,5. Пусто - не задано";
+            StatusMessage = Loc.T("status.playtimeBad");
             return;
         }
         _svc.SetPlaytime(_game, overrideMin, offsetMin ?? 0);
         Recompute(rebuildRows: false);
-        StatusMessage = overrideMin is not null
-            ? "Наиграно задано вручную"
-            : offsetMin is > 0 ? "Часть времени Steam не учитывается" : "Наиграно берётся из Steam";
+        StatusMessage = Loc.T(overrideMin is not null ? "status.playtimeManual"
+            : offsetMin is > 0 ? "status.playtimeOffset" : "status.playtimeSteam");
     }
 
     /// <summary>Пусто - null (успех), число часов >= 0 - минуты, иначе ошибка.</summary>
@@ -593,8 +581,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var report = await _svc.SetManualDoneAsync(_game, row.ApiName, done);
             if (report.Error != null) StatusMessage = report.Error;
-            else if (report.SteamWritten) StatusMessage = $"Записано в Steam: {row.Name}";
-            else StatusMessage = done ? $"Отмечено: {row.Name}" : $"Отметка снята: {row.Name}";
+            else if (report.SteamWritten) StatusMessage = Loc.T("status.written", row.Name);
+            else StatusMessage = Loc.T(done ? "status.marked" : "status.unmarked", row.Name);
         }
         catch (Exception e)
         {
@@ -653,11 +641,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (format == "csv") File.WriteAllBytes(dlg.FileName, Exporter.ToCsv(_game, scope, _svc.Settings.CsvSeparator));
             else File.WriteAllText(dlg.FileName, Exporter.ToJson(_game, scope));
-            StatusMessage = "Сохранено: " + dlg.FileName;
+            StatusMessage = Loc.T("status.saved", dlg.FileName);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            StatusMessage = "Не удалось сохранить (файл открыт в другой программе?): " + e.Message;
+            StatusMessage = Loc.T("status.saveFailedLocked", e.Message);
         }
     }
 
@@ -669,11 +657,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             File.WriteAllText(dlg.FileName, TagPack.From(_game).ToJson());
-            StatusMessage = "Разметка сохранена: " + dlg.FileName;
+            StatusMessage = Loc.T("status.tagsSaved", dlg.FileName);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            StatusMessage = "Не удалось сохранить: " + e.Message;
+            StatusMessage = Loc.T("status.saveFailed", e.Message);
         }
     }
 
@@ -686,11 +674,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var n = _svc.ImportTags(_game, File.ReadAllText(dlg.FileName));
             Recompute(rebuildRows: true);
-            StatusMessage = "Разметка применена к " + Ru.Count(n, "достижению", "достижениям", "достижениям");
+            StatusMessage = Loc.Plural("status.tagsApplied", n);
         }
         catch (Exception e) when (e is FormatException or System.Text.Json.JsonException or IOException or UnauthorizedAccessException)
         {
-            StatusMessage = "Файл разметки не читается: " + e.Message;
+            StatusMessage = Loc.T("status.tagsBad", e.Message);
         }
     }
 
@@ -699,7 +687,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void SetGame(GameData game)
     {
         _game = game;
-        GameTitle = $"{game.Name} ({game.AppId})";
         GameName = game.Name.Length > 0 ? game.Name : $"AppID {game.AppId}";
         SelectedRow = null;
         OnPropertyChanged(nameof(HasGame));
@@ -774,62 +761,59 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         foreach (var s in plan.Sections)
         {
             var groups = s.Groups.Select(g => new PlanGroupViewModel(
-                g.Label.Length > 0 ? g.Label : "Без группы",
-                g.LongestMinutes is null ? "" : "до " + TimeEstimator.Format(g.LongestMinutes),
+                g.Label.Length > 0 ? g.Label : Loc.T("plan.noGroup"),
+                g.LongestMinutes is null ? "" : Loc.T("plan.upTo", TimeEstimator.Format(g.LongestMinutes)),
                 g.Items.Select(i => new AchievementRowViewModel(this, i)).ToList())).ToList();
             PlanSections.Add(new PlanSectionViewModel($"{Options.StageTitle(s.Stage)} ({s.Count})", groups));
         }
 
         var (u, m, total) = GameLogic.Progress(_game);
-        double steamPct = total == 0 ? 0 : 100.0 * u / total;
-        double withManual = total == 0 ? 0 : 100.0 * (u + m) / total;
-        ProgressText = $"В Steam открыто {u} из {total} ({steamPct:0}%)" +
-                       (m > 0 ? $", ещё {m} сделано, но не засчитано - вместе {withManual:0}%" : "");
-        ProgressShort = $"{u} из {total} ({steamPct:0}%)" + (m > 0 ? $", +{m} не засчитано" : "");
-        ProgressPercent = steamPct;
-        ProgressWithManualPercent = withManual;
+        var steamPct = Number(total == 0 ? 0 : 100.0 * u / total);
+        var withManual = Number(total == 0 ? 0 : 100.0 * (u + m) / total);
+        ProgressText = Loc.T("game.progress", u, total, steamPct) + (m > 0 ? Loc.T("game.progressManual", m, withManual) : "");
+        ProgressShort = Loc.T("overlay.progress", u, total, steamPct) + (m > 0 ? Loc.T("overlay.progressManual", m) : "");
         SegUnlocked = new GridLength(u, GridUnitType.Star);
         SegManual = new GridLength(m, GridUnitType.Star);
         SegRest = new GridLength(total == 0 ? 1 : Math.Max(0, total - u - m), GridUnitType.Star);
         StatUnlocked = $"{u} / {total}";
-        StatUnlockedSub = m > 0 ? $"{steamPct:0}%, +{m} не засчитано" : $"{steamPct:0}% в Steam";
+        StatUnlockedSub = m > 0 ? Loc.T("game.unlockedSubManual", steamPct, m) : Loc.T("game.unlockedSub", steamPct);
 
-        RemainingText = plan.IsComplete ? "Все достижения получены"
-            : plan.Overtime
-                ? $"Наиграно больше, чем обычно уходит на 100% ({TimeEstimator.Format(_game.UsedCompletionMinutes)}), а открыто не всё - остаток не оценить. " +
-                  "Если часть времени не в счёт (AFK, часы до появления достижений), поправь это во вкладке \"Время\""
+        RemainingText = plan.IsComplete ? Loc.T("plan.complete")
+            : plan.Overtime ? Loc.T("plan.overtime", TimeEstimator.Format(_game.UsedCompletionMinutes))
             : plan.RemainingMinutes is { } rem
-                ? $"До 100% примерно {TimeEstimator.Format(rem)}" +
-                  (plan.Pace > 1.05 ? $" с учётом твоего темпа (в {plan.Pace:0.#} раза медленнее медианы)" : "") +
-                  (plan.UnknownEstimateCount > 0 ? "; без оценки " + Ru.Count(plan.UnknownEstimateCount, "достижение", "достижения", "достижений") : "")
-            : _game.Achievements.All(a => a.Percent is null)
-                ? "До 100%: нет оценки - Steam не отдал глобальные проценты. Обнови схему (меню \"Ещё\") или собери статистику во вкладке \"Время\""
-                : "До 100%: нет оценки - задай время до 100% во вкладке \"Время\" или получи пару достижений, тогда оценка появится сама";
+                ? Loc.T("plan.remaining", TimeEstimator.Format(rem)) +
+                  (plan.Pace > 1.05 ? Loc.T("plan.pace", Number(plan.Pace, "0.#")) : "") +
+                  (plan.UnknownEstimateCount > 0 ? Loc.Plural("plan.unknown", plan.UnknownEstimateCount) : "")
+            : Loc.T(_game.Achievements.All(a => a.Percent is null) ? "plan.noPercents" : "plan.noEstimate");
 
-        StatRemaining = plan.IsComplete ? "100%" : plan.RemainingMinutes is { } rm ? "~" + TimeEstimator.Format(rm) : "нет оценки";
-        StatRemainingSub = plan.IsComplete ? "всё получено"
-            : plan.Overtime ? "наиграно больше обычного"
-            : plan.RemainingMinutes is null ? "задай во вкладке \"Время\""
+        StatRemaining = plan.IsComplete ? "100%" : plan.RemainingMinutes is { } rm ? "~" + TimeEstimator.Format(rm) : Loc.T("game.noEstimate");
+        StatRemainingSub = plan.IsComplete ? Loc.T("game.allDone")
+            : plan.Overtime ? Loc.T("game.overtime")
+            : plan.RemainingMinutes is null ? Loc.T("game.setInTime")
             : CompletionSourceTitle(_game);
         var played = TimeEstimator.Format(_game.EffectivePlaytimeMinutes);
+        var steamPlayed = TimeEstimator.Format(_game.PlaytimeMinutes);
         StatPlayed = played;
-        StatPlayedSub = _game.PlaytimeOverrideMinutes is not null ? "задано вручную"
-            : _game.PlaytimeOffsetMinutes > 0 ? $"из {TimeEstimator.Format(_game.PlaytimeMinutes)} в Steam"
-            : "по данным Steam";
-        var playedNote = _game.PlaytimeOverrideMinutes is not null ? " (задано вручную)"
-            : _game.PlaytimeOffsetMinutes > 0 ? $" (из {TimeEstimator.Format(_game.PlaytimeMinutes)} в Steam)"
+        StatPlayedSub = _game.PlaytimeOverrideMinutes is not null ? Loc.T("game.playedManual")
+            : _game.PlaytimeOffsetMinutes > 0 ? Loc.T("game.playedOf", steamPlayed)
+            : Loc.T("game.playedSteam");
+        var playedNote = _game.PlaytimeOverrideMinutes is not null ? Loc.T("time.playedNoteManual")
+            : _game.PlaytimeOffsetMinutes > 0 ? Loc.T("time.playedNoteOf", steamPlayed)
             : "";
-        CompletionText = (_game.CompletionMinutes is { } cm
-            ? $"Время до 100% по игре: {TimeEstimator.Format(cm)} ({(_game.CompletionSource == "manual" ? "вручную" : _game.CompletionSource)}), "
+        CompletionText = _game.CompletionMinutes is { } cm
+            ? Loc.T("time.summaryKnown", TimeEstimator.Format(cm),
+                _game.CompletionSource == "manual" ? Loc.T("time.sourceManual") : _game.CompletionSource, played, playedNote)
             : _game.DerivedCompletionMinutes is { } dm
-                ? $"Время до 100%: примерно {TimeEstimator.Format(dm)} (оценка по твоему прогрессу), "
-                : "") + $"наиграно {played}{playedNote}";
+                ? Loc.T("time.summaryDerived", TimeEstimator.Format(dm), played, playedNote)
+                : Loc.T("time.summaryPlayed", played, playedNote);
 
         SampleText = _game.SampleFetchedAt is { } sf
-            ? $"Выборка: {_game.SamplePlayers} игроков с открытым профилем (авторы обзоров Steam), " +
-              (_game.SampleCompletionMinutes is { } sc ? $"на 100% прошли {_game.SampleCompleters}, медиана {TimeEstimator.Format(sc)}" : "на 100% пока никто не прошёл") +
-              $". Собрано {sf.ToLocalTime():dd.MM.yyyy}."
-            : "Выборка не собиралась. Пригодится, если Steam не отдаёт проценты или нет данных о времени.";
+            ? Loc.T("time.sample", _game.SamplePlayers,
+                _game.SampleCompletionMinutes is { } sc
+                    ? Loc.T("time.sampleCompleters", _game.SampleCompleters, TimeEstimator.Format(sc))
+                    : Loc.T("time.sampleNoCompleters"),
+                sf.ToLocalTime().ToString("dd.MM.yyyy", CultureInfo.CurrentCulture))
+            : Loc.T("time.sampleNone");
         QueueCount = _game.PendingUnlocks.Count;
         UpdateOverlayLists(all);
 
@@ -840,10 +824,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Откуда время до 100% - коротко, для шапки.</summary>
     private static string CompletionSourceTitle(GameData g) =>
-        g.CompletionMinutes is > 0 ? (g.CompletionSource == "manual" ? "задано вручную" : "по " + g.CompletionSource)
-        : g.SampleCompletionMinutes is > 0 ? "по выборке игроков"
-        : g.DerivedCompletionMinutes is > 0 ? "по твоему прогрессу"
-        : "по оценкам достижений";
+        g.CompletionMinutes is > 0
+            ? g.CompletionSource == "manual" ? Loc.T("game.sourceManual") : Loc.T("game.sourceSite", g.CompletionSource)
+            : Loc.T(g.SampleCompletionMinutes is > 0 ? "game.sourceSample"
+                : g.DerivedCompletionMinutes is > 0 ? "game.sourceProgress"
+                : "game.sourceEstimates");
+
+    private static string Number(double value, string format = "0") => value.ToString(format, CultureInfo.CurrentCulture);
 
     private void UpdateOverlayLists(IReadOnlyList<AchievementRow> all)
     {
@@ -924,7 +911,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (_game is null || apiNames.Count == 0) return;
         var names = apiNames.Select(n => _game.Achievements.FirstOrDefault(a => a.ApiName == n)?.Name ?? n).ToList();
-        var text = "Открыто: " + string.Join(", ", names);
+        var text = Loc.T("status.newlyUnlocked", string.Join(", ", names));
         StatusMessage = text;
         Toast?.Invoke(text);
     }
@@ -955,7 +942,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void OnError(Exception e)
     {
         AppLog.Error("Команда", e);
-        StatusMessage = "Ошибка: " + e.Message;
+        StatusMessage = Loc.T("status.error", e.Message);
     }
 
     private static string Sanitize(string s)

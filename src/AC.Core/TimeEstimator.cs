@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace AC.Core;
 
 /// <summary>
@@ -94,9 +96,9 @@ public static class TimeEstimator
     {
         if (minutes is null) return "-";
         var m = minutes.Value;
-        if (m < 1) return "<1 мин";
-        if (m < 60) return $"{m:0} мин";
+        if (m < 1) return Loc.T("units.lessMinute");
+        if (m < 60) return Loc.T("units.minutes", m.ToString("0", CultureInfo.CurrentCulture));
         var h = m / 60.0;
-        return h < 10 ? $"{h:0.#} ч" : $"{h:0} ч";
+        return Loc.T("units.hours", h.ToString(h < 10 ? "0.#" : "0", CultureInfo.CurrentCulture));
     }
 }

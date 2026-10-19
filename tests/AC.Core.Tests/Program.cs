@@ -319,17 +319,50 @@ static class Tests
         Assert.Equal("Пройдите главу 1", g.Achievements[0].Description); // пустое из Web API не затирает известное
     }
 
-    public static void Ru_Plural()
+    public static void Loc_PluralCategories()
     {
-        string P(int n) => Ru.Count(n, "достижение", "достижения", "достижений");
-        Assert.Equal("1 достижение", P(1));
-        Assert.Equal("2 достижения", P(2));
-        Assert.Equal("5 достижений", P(5));
-        Assert.Equal("11 достижений", P(11));
-        Assert.Equal("21 достижение", P(21));
-        Assert.Equal("32 достижения", P(32));
-        Assert.Equal("112 достижений", P(112));
-        Assert.Equal("0 достижений", P(0));
+        string Ru(long n) => Loc.Category("ru", n);
+        Assert.Equal("one", Ru(1));
+        Assert.Equal("few", Ru(2));
+        Assert.Equal("many", Ru(5));
+        Assert.Equal("many", Ru(11));
+        Assert.Equal("one", Ru(21));
+        Assert.Equal("few", Ru(32));
+        Assert.Equal("many", Ru(112));
+        Assert.Equal("many", Ru(0));
+        Assert.Equal("one", Loc.Category("en", 1));
+        Assert.Equal("other", Loc.Category("en", 0));
+        Assert.Equal("other", Loc.Category("en", 21));
+    }
+
+    /// <summary>Ключи в коде есть в файлах перевода, а в файлах нет лишних.</summary>
+    public static void Loc_KeysMatchCode()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "AchievementCompanion.sln"))) root = root.Parent;
+        Assert.True(root != null, "не найден корень репозитория");
+        var src = Path.Combine(root!.FullName, "src");
+        var sections = Loc.Keys(Loc.Fallback).Select(k => k.Split('.')[0]).ToHashSet();
+        var used = new HashSet<string>();
+        foreach (var file in Directory.EnumerateFiles(src, "*.*", SearchOption.AllDirectories)
+                     .Where(f => (f.EndsWith(".cs") || f.EndsWith(".xaml")) && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")))
+        {
+            var text = File.ReadAllText(file);
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(text, @"(?:""|\{local:Tr )([a-z][A-Za-z]*)\.([a-z][A-Za-z0-9]*)[""}]"))
+            {
+                // имена файлов вроде "settings.json" похожи на ключи
+                if (m.Groups[2].Value is "json" or "jsonl" or "log" or "exe" or "dll" or "bin" or "vdf") continue;
+                if (sections.Contains(m.Groups[1].Value)) used.Add(m.Groups[1].Value + "." + m.Groups[2].Value);
+            }
+        }
+        foreach (var lang in Loc.Languages)
+        {
+            var keys = Loc.Keys(lang).Select(k => k.Split('#')[0]).ToHashSet();
+            var missing = used.Where(k => !keys.Contains(k)).ToList();
+            Assert.True(missing.Count == 0, $"{lang}: нет ключей {string.Join(", ", missing)}");
+            var unused = keys.Where(k => !used.Contains(k)).ToList();
+            Assert.True(unused.Count == 0, $"{lang}: лишние ключи {string.Join(", ", unused)}");
+        }
     }
 
     public static void BinaryKeyValue_SchemaParse()

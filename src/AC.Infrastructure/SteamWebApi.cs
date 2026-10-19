@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using AC.Core;
 
 namespace AC.Infrastructure;
 
@@ -29,7 +30,7 @@ public sealed class SteamWebApi(HttpClient http)
             $"{Base}/IPlayerService/GetOwnedGames/v1/?key={Esc(key)}&steamid={steamId}&include_appinfo=1&include_played_free_games=1&format=json", ct);
         var list = new List<OwnedGame>();
         if (!doc.RootElement.TryGetProperty("response", out var resp) || !resp.TryGetProperty("games", out var games))
-            throw new SteamApiException("Steam не вернул библиотеку: профиль скрыт или ключ привязан к другому аккаунту");
+            throw new SteamApiException(Loc.T("error.noLibrary"));
         foreach (var g in games.EnumerateArray())
         {
             long last = g.TryGetProperty("rtime_last_played", out var lp) ? lp.GetInt64() : 0;
@@ -105,19 +106,19 @@ public sealed class SteamWebApi(HttpClient http)
         }
         catch (SteamApiException e) when (e.Status is HttpStatusCode.Forbidden)
         {
-            throw new SteamApiException("Steam ответил 403: профиль скрыт (\"Сведения об играх\" в приватности Steam) или ключ неверный. Можно прочитать статус через помощник", e.Status);
+            throw new SteamApiException(Loc.T("error.forbidden"), e.Status);
         }
 
         using (doc)
         {
             if (!doc.RootElement.TryGetProperty("playerstats", out var ps))
-                throw new SteamApiException("Пустой ответ GetPlayerAchievements");
+                throw new SteamApiException(Loc.T("error.emptyAchievements"));
             if (ps.TryGetProperty("success", out var ok) && ok.ValueKind == JsonValueKind.False)
             {
                 var err = Str(ps, "error");
                 if (err.Contains("not public", StringComparison.OrdinalIgnoreCase))
-                    throw new SteamApiException("Профиль скрыт: открой \"Сведения об играх\" в настройках приватности Steam или используй чтение через помощник", HttpStatusCode.Forbidden);
-                throw new SteamApiException("Steam: " + (err.Length > 0 ? err : "ошибка GetPlayerAchievements"));
+                    throw new SteamApiException(Loc.T("error.privateProfile"), HttpStatusCode.Forbidden);
+                throw new SteamApiException(Loc.T("error.steam", err.Length > 0 ? err : Loc.T("error.playerAchievements")));
             }
             var list = new List<PlayerAchievement>();
             if (ps.TryGetProperty("achievements", out var achs))
@@ -179,9 +180,9 @@ public sealed class SteamWebApi(HttpClient http)
     {
         using var resp = await http.GetAsync(url, ct);
         if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden && !allowErrorBody)
-            throw new SteamApiException("Steam отклонил ключ (401/403): проверь API-ключ в настройках", resp.StatusCode);
+            throw new SteamApiException(Loc.T("error.badKey"), resp.StatusCode);
         if (resp.StatusCode == HttpStatusCode.TooManyRequests)
-            throw new SteamApiException("Steam ограничил частоту запросов (429), попробуй позже", resp.StatusCode);
+            throw new SteamApiException(Loc.T("error.rateLimited"), resp.StatusCode);
 
         var body = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
@@ -197,7 +198,7 @@ public sealed class SteamWebApi(HttpClient http)
                 }
                 catch (JsonException) { }
             }
-            throw new SteamApiException($"Steam ответил {(int)resp.StatusCode}", resp.StatusCode);
+            throw new SteamApiException(Loc.T("error.http", (int)resp.StatusCode), resp.StatusCode);
         }
         try
         {
@@ -205,7 +206,7 @@ public sealed class SteamWebApi(HttpClient http)
         }
         catch (JsonException)
         {
-            throw new SteamApiException("Steam вернул не JSON");
+            throw new SteamApiException(Loc.T("error.notJson"));
         }
     }
 

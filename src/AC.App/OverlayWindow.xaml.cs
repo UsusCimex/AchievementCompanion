@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using AC.Core;
 
 namespace AC.App;
 
@@ -33,10 +34,16 @@ public sealed class OverlayViewModel : ObservableObject
     /// <summary>Кнопки "Сделал" и "В Steam" у пунктов: только в режиме кликов и если отметки включены.</summary>
     public bool ShowActions => IsInteractive && Main.ManualUnlocks;
 
-    public string ModeHint => IsInteractive
-        ? (Main.ManualUnlocks ? "Режим кликов: можно отмечать и перетаскивать. " : "Режим кликов: можно перетаскивать. ") +
-          $"{Main.Service.Settings.OverlayInteractHotkey} - вернуть в игру"
-        : $"{Main.Service.Settings.OverlayToggleHotkey} - скрыть, {Main.Service.Settings.OverlayInteractHotkey} - режим кликов";
+    public string ModeHint
+    {
+        get
+        {
+            var s = Main.Service.Settings;
+            return IsInteractive
+                ? Loc.T(Main.ManualUnlocks ? "overlay.interactMark" : "overlay.interactDrag", s.OverlayInteractHotkey)
+                : Loc.T("overlay.keys", s.OverlayToggleHotkey, s.OverlayInteractHotkey);
+        }
+    }
 
     public void RefreshHints()
     {

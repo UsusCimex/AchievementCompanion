@@ -20,7 +20,9 @@ public sealed class LibraryItemViewModel : ObservableObject
     public string Name => Game.Name;
     public string HeaderUrl => Game.HeaderUrl;
 
-    public string PlaytimeText => Game.PlaytimeMinutes > 0 ? TimeEstimator.Format(Game.PlaytimeMinutes) + " в игре" : "не запускалась";
+    public string PlaytimeText => Game.PlaytimeMinutes > 0
+        ? Loc.T("library.played", TimeEstimator.Format(Game.PlaytimeMinutes))
+        : Loc.T("library.neverPlayed");
 
     public GameSummary? Summary
     {

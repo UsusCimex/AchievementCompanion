@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using AC.Core;
 using AC.Infrastructure;
 
 namespace AC.App;
@@ -37,7 +38,7 @@ public partial class MainWindow : Window
         if (!_hotkeys.Register(s.OverlayToggleHotkey, ToggleOverlay)) problems.Add(s.OverlayToggleHotkey);
         if (!_hotkeys.Register(s.OverlayInteractHotkey, () => EnsureOverlay().ToggleInteractive())) problems.Add(s.OverlayInteractHotkey);
         if (problems.Count > 0)
-            _vm.StatusMessage = "Не удалось назначить горячие клавиши (заняты или неверный формат): " + string.Join(", ", problems);
+            _vm.StatusMessage = Loc.T("status.hotkeysFailed", string.Join(", ", problems));
     }
 
     private OverlayWindow EnsureOverlay()
@@ -67,7 +68,7 @@ public partial class MainWindow : Window
         _vm.SettingsChanged();
         RegisterHotkeys();
         _overlay?.ApplySettings();
-        _vm.StatusMessage = "Настройки сохранены";
+        _vm.StatusMessage = Loc.T("status.settingsSaved");
     }
 
     /// <summary>В контекстном меню списка только запись в Steam - без неё меню не нужно.</summary>

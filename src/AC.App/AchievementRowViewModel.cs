@@ -54,14 +54,21 @@ public sealed class AchievementRowViewModel : ObservableObject
     public bool HasKind => _kind != AchievementKind.Unknown;
 
     /// <summary>Подпись редкости по глобальному проценту.</summary>
-    public string RarityText => (_row.Def.Percent switch
+    public string RarityText
     {
-        null => "",
-        < 5 => "очень редкое",
-        < 20 => "редкое",
-        < 50 => "необычное",
-        _ => "частое",
-    }) + (_row.Def.PercentFromSample ? " (по выборке)" : "");
+        get
+        {
+            if (_row.Def.Percent is not { } p) return "";
+            var rarity = Loc.T(p switch
+            {
+                < 5 => "rarity.veryRare",
+                < 20 => "rarity.rare",
+                < 50 => "rarity.uncommon",
+                _ => "rarity.common",
+            });
+            return _row.Def.PercentFromSample ? Loc.T("rarity.fromSample", rarity) : rarity;
+        }
+    }
 
     /// <summary>0 - нет данных, 1 - частое, 2 - необычное, 3 - редкое, 4 - очень редкое. Для цвета.</summary>
     public int RarityLevel => _row.Def.Percent switch
@@ -78,25 +85,31 @@ public sealed class AchievementRowViewModel : ObservableObject
     {
         get
         {
-            if (_row.EstimateIsManual) return "Своя оценка";
+            if (_row.EstimateIsManual) return Loc.T("estimate.own");
             var est = _owner.Game?.Estimates.GetValueOrDefault(ApiName);
             return est?.Source switch
             {
-                AC.Core.SampleStats.SourceName => $"Замер по {est.SampleSize} игрокам: сколько у них было наиграно к этому достижению",
-                AC.Core.TimeEstimator.SourceName => "Оценка по редкости и времени до 100%",
-                _ => "Нет оценки",
+                AC.Core.SampleStats.SourceName => Loc.T("estimate.sample", est.SampleSize),
+                AC.Core.TimeEstimator.SourceName => Loc.T("estimate.model"),
+                _ => Loc.T("estimate.none"),
             };
         }
     }
 
     public string Description =>
         _row.Def.Description.Length > 0 ? _row.Def.Description :
-        _row.Def.Hidden ? "Секретное достижение, описание Steam не отдал" : "";
+        _row.Def.Hidden ? Loc.T("card.noDescription") : "";
 
     /// <summary>Для оверлея: описание всегда видно, скрытые помечены.</summary>
-    public string OverlayDescription =>
-        (_row.Def.Hidden ? "[секрет] " : "") +
-        (_row.Def.Description.Length > 0 ? _row.Def.Description : _row.Def.Hidden ? "описание Steam не отдал" : "");
+    public string OverlayDescription
+    {
+        get
+        {
+            var text = _row.Def.Description.Length > 0 ? _row.Def.Description
+                : _row.Def.Hidden ? Loc.T("overlay.noDescription") : "";
+            return _row.Def.Hidden ? Loc.T("overlay.hidden", text) : text;
+        }
+    }
 
     /// <summary>Можно записать в Steam: запись включена в настройках, достижение ещё не открыто и не защищено.</summary>
     public bool CanWriteToSteam => _owner.ManualUnlocks && !IsUnlocked && !IsProtected;
@@ -118,8 +131,10 @@ public sealed class AchievementRowViewModel : ObservableObject
 
     public string StatusText => _row.Status switch
     {
-        EffectiveStatus.Unlocked => _row.UnlockTime is { } t ? "Открыто " + t.ToLocalTime().ToString("dd.MM.yyyy", CultureInfo.CurrentCulture) : "Открыто",
-        EffectiveStatus.ManualDone => "Сделано, не засчитано",
+        EffectiveStatus.Unlocked => _row.UnlockTime is { } t
+            ? Loc.T("card.unlockedAt", t.ToLocalTime().ToString("dd.MM.yyyy", CultureInfo.CurrentCulture))
+            : Loc.T("card.unlocked"),
+        EffectiveStatus.ManualDone => Loc.T("card.manualDone"),
         _ => "",
     };
 
@@ -183,7 +198,7 @@ public sealed class AchievementRowViewModel : ObservableObject
             {
                 if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var h) || h <= 0)
                 {
-                    _owner.StatusMessage = $"\"{value}\" - не число часов, оценка не изменена";
+                    _owner.StatusMessage = Loc.T("status.estimateBad", value);
                     return;
                 }
                 minutes = h * 60;

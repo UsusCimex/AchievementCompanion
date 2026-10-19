@@ -68,10 +68,10 @@ public static class KindClassifier
             var m = Place.Match(text);
             if (!m.Success) continue;
             var kind = m.Groups["kind"].Value.ToLowerInvariant();
-            var label = kind.StartsWith("ch") || kind.StartsWith("глав") ? "Глава"
-                : kind.StartsWith("ep") || kind.StartsWith("эпизод") ? "Эпизод"
-                : "Акт";
-            return $"{label} {m.Groups["n"].Value.ToUpperInvariant()}";
+            var label = kind.StartsWith("ch") || kind.StartsWith("глав") ? "group.chapter"
+                : kind.StartsWith("ep") || kind.StartsWith("эпизод") ? "group.episode"
+                : "group.act";
+            return Loc.T(label, m.Groups["n"].Value.ToUpperInvariant());
         }
         return null;
     }

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
+using AC.Core;
 using AC.Infrastructure;
 
 namespace AC.App;
@@ -83,7 +84,7 @@ public partial class App : Application
     private static void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         AppLog.Error("Ошибка интерфейса", e.Exception);
-        MessageBox.Show(e.Exception.Message, "Achievement Companion - ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(e.Exception.Message, Loc.T("dialog.errorTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
     }
 }

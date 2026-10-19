@@ -6,4 +6,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="AC.Core.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Lang\*.json" LogicalName="AC.Core.Lang.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>
