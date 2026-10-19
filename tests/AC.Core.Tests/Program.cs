@@ -397,6 +397,12 @@ static class Tests
             Assert.Equal(KindSource.Auto, back.Tags["ch5"].GroupSource!.Value);
             Assert.True(back.Tags["grind"].GroupSource is null && back.Tags["grind"].GroupIsManual, "старый файл: группа ручная");
 
+            // сводка для библиотеки обновляется при сохранении и собирается заново, если файла нет
+            var summary = new AC.Infrastructure.GameSummary { Unlocked = 0, Manual = 1, Total = 5 };
+            Assert.Equal(summary, store.LoadSummaries()[1]);
+            File.Delete(Path.Combine(dir, "summary.json"));
+            Assert.Equal(summary, new AC.Infrastructure.JsonStore(dir).LoadSummaries()[1]);
+
             var s = store.LoadSettings();
             s.SteamId64 = 76561198000000002UL;
             s.WriteMode = AC.Infrastructure.WriteMode.Queue;
