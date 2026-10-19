@@ -16,14 +16,21 @@ public sealed record PlanSection(PlanStage Stage, IReadOnlyList<PlanGroup> Group
     public int Count => Groups.Sum(g => g.Items.Count);
 }
 
+/// <param name="Pace">Во сколько раз игрок медленнее медианы (1 - не медленнее или не знаем).</param>
+/// <param name="Overtime">Наиграно больше, чем обычно уходит на 100%, а открыто не всё: остаток не оценить.</param>
 public sealed record Plan(
     IReadOnlyList<PlanSection> Sections,
     double? RemainingMinutes,
     double? CompletionCapMinutes,
-    int UnknownEstimateCount)
+    int UnknownEstimateCount,
+    double Pace = 1,
+    bool Overtime = false)
 {
     /// <summary>Плоский порядок прохождения.</summary>
     public IEnumerable<AchievementRow> Ordered => Sections.SelectMany(s => s.Groups).SelectMany(g => g.Items);
+
+    /// <summary>Неоткрытых не осталось.</summary>
+    public bool IsComplete => Sections.Count == 0;
 }
 
 /// <summary>
@@ -33,6 +40,12 @@ public sealed record Plan(
 /// </summary>
 public static class Planner
 {
+    /// <summary>
+    /// Насколько игрок может быть медленнее медианы, чтобы мы ещё верили его темпу.
+    /// Больше - это скорее AFK или часы до появления достижений (они правятся во вкладке "Время").
+    /// </summary>
+    public const double MaxPace = 3;
+
     public static Plan Build(GameData game, Percentile p)
     {
         var open = GameLogic.BuildRows(game, p).Where(r => !r.IsDone).ToList();
@@ -58,10 +71,26 @@ public static class Planner
             sections.Add(new PlanSection(stage, groups));
         }
 
-        double? remaining = Remaining(sections, game.EffectivePlaytimeMinutes, out int unknown);
-        double? cap = game.UsedCompletionMinutes is > 0 ? Math.Max(0, game.UsedCompletionMinutes.Value - game.EffectivePlaytimeMinutes) : null;
+        double played = game.EffectivePlaytimeMinutes;
+        double? total = game.UsedCompletionMinutes is > 0 ? game.UsedCompletionMinutes : null;
+        double pace = PaceOf(game, total);
+        int unknown = sections.SelectMany(s => s.Groups).SelectMany(g => g.Items).Count(r => r.EstimateMinutes is null);
+        bool overtime = sections.Count > 0 && total is { } t && played >= t * pace;
+        double? cap = total is { } t2 ? Math.Max(0, t2 * pace - played) : null;
+        double? remaining = overtime ? null : Remaining(sections, played, pace);
         if (remaining.HasValue && cap.HasValue) remaining = Math.Min(remaining.Value, cap.Value);
-        return new Plan(sections, remaining, cap, unknown);
+        return new Plan(sections, remaining, cap, unknown, pace, overtime);
+    }
+
+    /// <summary>
+    /// Во сколько раз игрок медленнее медианы - по своему прогрессу (TimeEstimator.PersonalCompletion).
+    /// Быстрее медианы не ускоряем (запас не вредит), медленнее - не больше MaxPace.
+    /// </summary>
+    public static double PaceOf(GameData game, double? total)
+    {
+        if (total is not > 0) return 1;
+        var own = TimeEstimator.PersonalCompletion(game);
+        return own is { } o && o > total.Value ? Math.Min(o / total.Value, MaxPace) : 1;
     }
 
     public static PlanStage StageOf(AchievementKind kind) => kind switch
@@ -76,10 +105,10 @@ public static class Planner
     /// Остаток = (самое позднее среди неоткрытых сюжетных и миссибл - уже наиграно)
     /// + сумма по группам "прочее" и "гринд" (за группу - самая долгая в ней).
     /// Оценки здесь - "время от начала игры", поэтому сюжетные перекрываются, а не складываются.
+    /// Считаем на шкале медианы: наигранное и свои оценки делим на темп, а ответ умножаем обратно.
     /// </summary>
-    private static double? Remaining(IReadOnlyList<PlanSection> sections, double playedMinutes, out int unknown)
+    private static double? Remaining(IReadOnlyList<PlanSection> sections, double playedMinutes, double pace)
     {
-        unknown = sections.SelectMany(s => s.Groups).SelectMany(g => g.Items).Count(r => r.EstimateMinutes is null);
         bool any = false;
         double mainPath = 0;
         double extra = 0;
@@ -88,19 +117,26 @@ public static class Planner
         {
             foreach (var g in s.Groups)
             {
-                if (g.LongestMinutes is null) continue;
+                double? longest = null;
+                foreach (var r in g.Items)
+                {
+                    if (r.EstimateMinutes is not { } m) continue;
+                    var onScale = r.EstimateIsManual ? m / pace : m;
+                    longest = Math.Max(longest ?? 0, onScale);
+                }
+                if (longest is null) continue;
                 any = true;
                 if (s.Stage is PlanStage.Missable or PlanStage.Story)
-                    mainPath = Math.Max(mainPath, g.LongestMinutes.Value);
+                    mainPath = Math.Max(mainPath, longest.Value);
                 else
-                    extra += g.LongestMinutes.Value;
+                    extra += longest.Value;
             }
         }
 
         if (!any) return null;
         // "Прочее" и "гринд" тоже оценены от начала игры; если игрок уже наиграл больше,
         // чем сюжетный путь, вычитаем наигранное только из сюжетной части.
-        return Math.Max(0, mainPath - playedMinutes) + extra;
+        return (Math.Max(0, mainPath - playedMinutes / pace) + extra) * pace;
     }
 
     private sealed class RowOrder : IComparer<AchievementRow>

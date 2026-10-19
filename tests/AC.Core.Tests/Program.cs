@@ -147,6 +147,33 @@ static class Tests
         Assert.True(plan.RemainingMinutes <= 10.0001, $"остаток {plan.RemainingMinutes} не больше 10");
     }
 
+    public static void Planner_PaceFromOwnProgress()
+    {
+        // Медленный игрок: наиграно 500 из 600 медианных минут, а открыто только раннее (ch5 - около 29% шкалы).
+        var g = SampleGame();
+        g.PlaytimeMinutes = 500;
+        g.StateOf("ch5").SteamUnlocked = true;
+        var plan = Planner.Build(g, Percentile.P50);
+        Assert.True(plan.Pace > 2.5 && plan.Pace <= Planner.MaxPace, $"темп {plan.Pace}");
+        Assert.True(!plan.Overtime, "ещё не перебор");
+        Assert.True(plan.RemainingMinutes > 600, $"остаток {plan.RemainingMinutes} с учётом темпа");
+
+        // Быстрый игрок: медиану не ускоряем.
+        g.PlaytimeMinutes = 60;
+        plan = Planner.Build(g, Percentile.P50);
+        Assert.Equal(1.0, plan.Pace);
+        Assert.True(plan.RemainingMinutes <= 540.0001, $"остаток {plan.RemainingMinutes}");
+    }
+
+    public static void Planner_CompleteGame()
+    {
+        var g = SampleGame();
+        foreach (var a in g.Achievements) g.StateOf(a.ApiName).SteamUnlocked = true;
+        var plan = Planner.Build(g, Percentile.P50);
+        Assert.True(plan.IsComplete, "всё открыто");
+        Assert.True(!plan.Overtime, "у пройденной игры нет перебора");
+    }
+
     public static void Planner_Groups()
     {
         var g = SampleGame();
@@ -352,7 +379,9 @@ static class Tests
     {
         var g = SampleGame();
         g.PlaytimeMinutes = 6000; // 100 ч в Steam, но достижения добавили позже
-        Assert.Equal(0.0, Planner.Build(g, Percentile.P50).RemainingMinutes);
+        var over = Planner.Build(g, Percentile.P50);
+        Assert.True(over.Overtime, "наиграно больше, чем уходит на 100%");
+        Assert.Equal((double?)null, over.RemainingMinutes);
 
         g.PlaytimeOffsetMinutes = 5900; // 98 ч 20 мин было до достижений
         Assert.Equal(100.0, g.EffectivePlaytimeMinutes);

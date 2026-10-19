@@ -81,6 +81,16 @@ public static class TimeEstimator
         return Math.Round(played / sMax, 0);
     }
 
+    /// <summary>Время до 100% по своему прогрессу (см. DeriveCompletion) или null, если судить рано.</summary>
+    public static double? PersonalCompletion(GameData game)
+    {
+        var withPct = game.Achievements.Where(a => a.Percent is > 0).ToList();
+        if (withPct.Count == 0) return null;
+        double max = withPct.Max(a => a.Percent!.Value);
+        double min = withPct.Min(a => a.Percent!.Value);
+        return DeriveCompletion(game, withPct, max, Math.Log(max / min));
+    }
+
     public static string Format(double? minutes)
     {
         if (minutes is null) return "-";
