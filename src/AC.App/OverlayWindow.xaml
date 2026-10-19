@@ -76,7 +76,7 @@
                                 CommandParameter="{Binding}" />
                         <Button Content="В Steam" Style="{StaticResource OvButton}"
                                 ToolTip="Записать в Steam сейчас (как в SAM)"
-                                Command="{Binding DataContext.Main.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Command="{Binding DataContext.Main.OverlayUnlockCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}" />
                     </StackPanel>
                 </StackPanel>

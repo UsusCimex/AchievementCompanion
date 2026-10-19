@@ -126,5 +126,5 @@ internal static class StoreJson
 
 public static class SteamImages
 {
-    public static string Header(uint appId) => $"https://cdn.akamai.steamstatic.com/steam/apps/{appId}/header.jpg";
+    public static string Header(uint appId) => $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/header.jpg";
 }

@@ -43,6 +43,7 @@ public sealed class UrlToImageConverter : IValueConverter
         int width = parameter is string p && int.TryParse(p, out var w) ? w : 0;
         var key = url + "|" + width;
         if (Cache.TryGetValue(key, out var cached)) return cached;
+        if (Cache.Count > 600) Cache.Clear();
         try
         {
             var img = new System.Windows.Media.Imaging.BitmapImage();
@@ -51,6 +52,9 @@ public sealed class UrlToImageConverter : IValueConverter
             if (width > 0) img.DecodePixelWidth = width;
             img.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
             img.CreateOptions = System.Windows.Media.Imaging.BitmapCreateOptions.IgnoreColorProfile;
+            // Не удалось скачать - убираем из кеша, чтобы в следующий раз попробовать снова.
+            img.DownloadFailed += (_, _) => Cache.Remove(key);
+            img.DecodeFailed += (_, _) => Cache.Remove(key);
             img.EndInit();
             Cache[key] = img;
             return img;

@@ -56,7 +56,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ExportTagsCommand = new RelayCommand(ExportTags, () => _game != null);
         ImportTagsCommand = new RelayCommand(ImportTags, () => _game != null);
         RevertCommand = new AsyncCommand(p => RevertAsync(p as AchievementRowViewModel), OnError, p => p is AchievementRowViewModel { IsUnlocked: true });
-        UnlockInSteamCommand = new AsyncCommand(UnlockInSteamAsync, OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
+        UnlockInSteamCommand = new AsyncCommand(p => UnlockInSteamAsync(p, fromOverlay: false), OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
+        OverlayUnlockCommand = new AsyncCommand(p => UnlockInSteamAsync(p, fromOverlay: true), OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
         OverlayMarkCommand = new RelayCommand(p => { if (p is AchievementRowViewModel r) MarkDoneFromOverlay(r); });
 
         _runningTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -250,6 +251,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AsyncCommand RevertCommand { get; }
     /// <summary>Записать в Steam сразу, как в SAM. Параметр - строка или список выбранных строк.</summary>
     public AsyncCommand UnlockInSteamCommand { get; }
+    /// <summary>То же из оверлея: без диалогов (окно могло бы спрятаться за игрой).</summary>
+    public AsyncCommand OverlayUnlockCommand { get; }
     public RelayCommand OverlayMarkCommand { get; }
 
     public async Task StartAsync()
@@ -381,13 +384,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _ => Array.Empty<AchievementRowViewModel>(),
     };
 
-    private async Task UnlockInSteamAsync(object? p)
+    private async Task UnlockInSteamAsync(object? p, bool fromOverlay)
     {
         if (_game is null) return;
         var rows = RowsFrom(p).Where(r => r.CanWriteToSteam).ToList();
         if (rows.Count == 0) return;
 
-        if (!_svc.Settings.WriteModeConfirmed)
+        if (fromOverlay && !_svc.Settings.WriteModeConfirmed)
+        {
+            const string msg = "Сначала один раз запиши любое достижение из главного окна - там нужно подтвердить запись в Steam";
+            StatusMessage = msg;
+            Toast?.Invoke(msg);
+            return;
+        }
+
+        if (fromOverlay) { /* без подтверждений: пользователь в игре */ }
+        else if (!_svc.Settings.WriteModeConfirmed)
         {
             var answer = MessageBox.Show(
                 "Достижение будет записано в твой Steam-аккаунт через Steam-клиент, как в SAM.\n\n" +
