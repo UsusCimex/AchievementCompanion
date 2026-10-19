@@ -25,15 +25,17 @@ public static class TimeEstimator
         game.DerivedCompletionMinutes = null;
 
         var withPct = game.Achievements
-            .Where(a => a.GlobalPercent is > 0)
+            .Where(a => a.Percent is > 0)
             .ToList();
         if (withPct.Count == 0) return;
 
-        double max = withPct.Max(a => a.GlobalPercent!.Value);
-        double min = withPct.Min(a => a.GlobalPercent!.Value);
+        double max = withPct.Max(a => a.Percent!.Value);
+        double min = withPct.Min(a => a.Percent!.Value);
         double span = Math.Log(max / min);
 
-        var total = game.CompletionMinutes is > 0 ? game.CompletionMinutes : null;
+        var total = game.CompletionMinutes is > 0 ? game.CompletionMinutes
+            : game.SampleCompletionMinutes is > 0 ? game.SampleCompletionMinutes
+            : null;
         if (total is null)
         {
             game.DerivedCompletionMinutes = DeriveCompletion(game, withPct, max, span);
@@ -43,7 +45,9 @@ public static class TimeEstimator
 
         foreach (var a in withPct)
         {
-            double share = span > 1e-9 ? Math.Log(max / a.GlobalPercent!.Value) / span : 0.5;
+            // Есть замер по выборке игроков - он точнее модели, не трогаем.
+            if (game.Estimates.TryGetValue(a.ApiName, out var measured) && measured.Source == SampleStats.SourceName) continue;
+            double share = span > 1e-9 ? Math.Log(max / a.Percent!.Value) / span : 0.5;
             double p50 = Math.Round(total.Value * share, 1);
             game.Estimates[a.ApiName] = new TimeEstimate
             {
@@ -71,7 +75,7 @@ public static class TimeEstimator
         {
             var st = game.States.GetValueOrDefault(a.ApiName);
             if (st is null || !(st.SteamUnlocked || st.ManualDone)) continue;
-            sMax = Math.Max(sMax, Math.Log(max / a.GlobalPercent!.Value) / span);
+            sMax = Math.Max(sMax, Math.Log(max / a.Percent!.Value) / span);
         }
         if (sMax < 0.15) return null;
         return Math.Round(played / sMax, 0);

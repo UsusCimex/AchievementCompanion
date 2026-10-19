@@ -38,7 +38,7 @@ public static class Exporter
                 r.UnlockTime?.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "",
                 r.Kind.ToString().ToLowerInvariant(),
                 r.Group,
-                r.Def.GlobalPercent?.ToString("0.0", CultureInfo.InvariantCulture) ?? "",
+                r.Def.Percent?.ToString("0.0", CultureInfo.InvariantCulture) ?? "",
                 r.Note,
             };
             sb.AppendLine(string.Join(separator, fields.Select(f => Escape(f, separator))));
@@ -63,7 +63,7 @@ public static class Exporter
                 date = r.UnlockTime,
                 kind = r.Kind.ToString().ToLowerInvariant(),
                 group = r.Group,
-                global_pct = r.Def.GlobalPercent,
+                global_pct = r.Def.Percent,
                 note = r.Note,
             }),
         };

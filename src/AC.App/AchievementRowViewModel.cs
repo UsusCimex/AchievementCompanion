@@ -62,14 +62,40 @@ public sealed class AchievementRowViewModel : ObservableObject
     public bool HasKind => _kind != AchievementKind.Unknown;
 
     /// <summary>Подпись редкости по глобальному проценту.</summary>
-    public string RarityText => _row.Def.GlobalPercent switch
+    public string RarityText => (_row.Def.Percent switch
     {
         null => "",
         < 5 => "очень редкое",
         < 20 => "редкое",
         < 50 => "необычное",
         _ => "частое",
+    }) + (_row.Def.PercentFromSample ? " (по выборке)" : "");
+
+    /// <summary>0 - нет данных, 1 - частое, 2 - необычное, 3 - редкое, 4 - очень редкое. Для цвета.</summary>
+    public int RarityLevel => _row.Def.Percent switch
+    {
+        null => 0,
+        < 5 => 4,
+        < 20 => 3,
+        < 50 => 2,
+        _ => 1,
     };
+
+    /// <summary>Откуда оценка времени - для подсказки.</summary>
+    public string EstimateHint
+    {
+        get
+        {
+            if (_row.EstimateIsManual) return "Своя оценка";
+            var est = _owner.Game?.Estimates.GetValueOrDefault(ApiName);
+            return est?.Source switch
+            {
+                AC.Core.SampleStats.SourceName => $"Замер по {est.SampleSize} игрокам: сколько у них было наиграно к этому достижению",
+                AC.Core.TimeEstimator.SourceName => "Оценка по редкости и времени до 100%",
+                _ => "Нет оценки",
+            };
+        }
+    }
 
     public string Description =>
         Spoiler ? "Скрытое достижение. Нажми \"Показать\" в карточке справа или наведи курсор" :
@@ -96,8 +122,8 @@ public sealed class AchievementRowViewModel : ObservableObject
         }
     }
 
-    public string Percent => _row.Def.GlobalPercent is { } p ? p.ToString("0.0", CultureInfo.CurrentCulture) + "%" : "-";
-    public double PercentValue => _row.Def.GlobalPercent ?? -1;
+    public string Percent => _row.Def.Percent is { } p ? p.ToString("0.0", CultureInfo.CurrentCulture) + "%" : "-";
+    public double PercentValue => _row.Def.Percent ?? -1;
 
     public string Estimate => TimeEstimator.Format(_row.EstimateMinutes) + (_row.EstimateIsManual ? " *" : "");
 
@@ -193,7 +219,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         nameof(Description), nameof(Tooltip), nameof(Icon), nameof(Percent), nameof(PercentValue),
         nameof(Estimate), nameof(Badges), nameof(StatusText), nameof(ManualDone), nameof(OverlayDescription),
         nameof(CanWriteToSteam), nameof(IsSpoilerHidden), nameof(IsHidden), nameof(IsLocked), nameof(IsManualStatus),
-        nameof(IsPendingWrite), nameof(RarityText),
+        nameof(IsPendingWrite), nameof(RarityText), nameof(RarityLevel), nameof(EstimateHint),
     };
 
     /// <summary>Подменяет данные строки после пересчёта, не пересоздавая объект (чтобы не терять фокус).</summary>

@@ -57,12 +57,12 @@ public sealed class AchievementQuery
             case SortMode.Time:
                 list = list.OrderBy(r => r.EstimateMinutes is null)
                            .ThenBy(r => r.EstimateMinutes)
-                           .ThenByDescending(r => r.Def.GlobalPercent ?? -1)
+                           .ThenByDescending(r => r.Def.Percent ?? -1)
                            .ToList();
                 break;
             case SortMode.Rarity:
-                list = list.OrderBy(r => r.Def.GlobalPercent is null)
-                           .ThenBy(r => r.Def.GlobalPercent)
+                list = list.OrderBy(r => r.Def.Percent is null)
+                           .ThenBy(r => r.Def.Percent)
                            .ToList();
                 break;
             case SortMode.Name:

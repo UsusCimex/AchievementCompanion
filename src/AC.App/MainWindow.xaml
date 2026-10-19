@@ -9,8 +9,29 @@
     <Window.Resources>
         <!-- Карточка достижения в списке -->
         <DataTemplate x:Key="AchievementCard">
-            <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,6">
+            <Border Style="{StaticResource Card}" Padding="0" Margin="0,0,0,6">
                 <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <!-- Полоска статуса слева: зелёная - открыто, жёлтая - сделано, но не засчитано -->
+                    <Border CornerRadius="8,0,0,8">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsUnlocked}" Value="True">
+                                        <Setter Property="Background" Value="#2EA043" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsManualStatus}" Value="True">
+                                        <Setter Property="Background" Value="#D29922" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                <Grid Grid.Column="1" Margin="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="60" />
                         <ColumnDefinition Width="*" />
@@ -53,11 +74,27 @@
 
                     <StackPanel Grid.Column="2" MinWidth="170" HorizontalAlignment="Right">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding Percent}" FontSize="16" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <TextBlock Text="{Binding Percent}" FontSize="16" FontWeight="SemiBold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding RarityLevel}" Value="4">
+                                                <Setter Property="Foreground" Value="#E0A100" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding RarityLevel}" Value="3">
+                                                <Setter Property="Foreground" Value="#A371F7" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding RarityLevel}" Value="2">
+                                                <Setter Property="Foreground" Value="#3B8EEA" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                         <TextBlock Text="{Binding RarityText}" HorizontalAlignment="Right" Style="{StaticResource Caption}" />
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0" ToolTip="Оценка времени от начала игры">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0" ToolTip="{Binding EstimateHint}">
                             <TextBlock Text="&#xE823;" Style="{StaticResource Glyph}" FontSize="12" Margin="0,0,4,0"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             <TextBlock Text="{Binding Estimate}" Style="{StaticResource Caption}" />
@@ -93,6 +130,7 @@
                                     Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
                         </StackPanel>
                     </StackPanel>
+                </Grid>
                 </Grid>
             </Border>
         </DataTemplate>
@@ -188,15 +226,31 @@
                 <TextBlock Text="или запусти её в Steam - приложение переключится само" Style="{StaticResource Caption}" HorizontalAlignment="Center" />
             </StackPanel>
 
-            <!-- Шапка игры -->
-            <Border Grid.Row="0" Style="{StaticResource Card}" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
-                <Grid>
+            <!-- Шапка игры: фон - широкая картинка из библиотеки Steam под тёмным градиентом -->
+            <Grid Grid.Row="0" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
+                <Border CornerRadius="10" Background="#141A23" />
+                <Border CornerRadius="10">
+                    <Border.Background>
+                        <ImageBrush Stretch="UniformToFill" AlignmentY="Center"
+                                    ImageSource="{Binding HeroImageUrl, Converter={StaticResource UrlToImage}, ConverterParameter=1600}" />
+                    </Border.Background>
+                </Border>
+                <Border CornerRadius="10">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#F2141A23" Offset="0" />
+                            <GradientStop Color="#CC141A23" Offset="0.55" />
+                            <GradientStop Color="#66141A23" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <Grid Margin="20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Border Width="276" Height="129" CornerRadius="6" VerticalAlignment="Top"
-                            Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                    <Border Width="276" Height="129" CornerRadius="6" VerticalAlignment="Top" Background="#22FFFFFF">
                         <Border CornerRadius="6">
                             <Border.Background>
                                 <ImageBrush Stretch="UniformToFill"
@@ -206,36 +260,38 @@
                     </Border>
 
                     <StackPanel Grid.Column="1" Margin="20,0,0,0">
-                        <TextBlock Text="{Binding GameName}" Style="{StaticResource Title}" TextTrimming="CharacterEllipsis" />
-                        <ProgressBar Height="6" Maximum="100" Margin="0,10,0,4" Value="{Binding ProgressPercent, Mode=OneWay}" />
-                        <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding GameName}" FontSize="26" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" />
+                        <ProgressBar Height="6" Maximum="100" Margin="0,10,0,4" Value="{Binding ProgressPercent, Mode=OneWay}"
+                                     Foreground="#66C0F4" Background="#33FFFFFF" BorderThickness="0" />
+                        <TextBlock Text="{Binding ProgressText}" FontSize="12" Foreground="#C7D0DA" TextWrapping="Wrap" />
 
                         <UniformGrid Columns="3" Margin="0,12,0,0">
-                            <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,0,8,0" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                            <Border CornerRadius="8" Padding="12,8" Margin="0,0,8,0" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="Открыто" Style="{StaticResource Caption}" />
-                                    <TextBlock Text="{Binding StatUnlocked}" Style="{StaticResource StatValue}" />
-                                    <TextBlock Text="{Binding StatUnlockedSub}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="Открыто" FontSize="12" Foreground="#AEB8C4" />
+                                    <TextBlock Text="{Binding StatUnlocked}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
+                                    <TextBlock Text="{Binding StatUnlockedSub}" FontSize="12" Foreground="#AEB8C4" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,0,8,0" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                            <Border CornerRadius="8" Padding="12,8" Margin="0,0,8,0" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                                    ToolTip="{Binding RemainingText}">
                                 <StackPanel>
-                                    <TextBlock Text="До 100%" Style="{StaticResource Caption}" />
-                                    <TextBlock Text="{Binding StatRemaining}" Style="{StaticResource StatValue}" />
-                                    <TextBlock Text="{Binding StatRemainingSub}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" ToolTip="{Binding RemainingText}" />
+                                    <TextBlock Text="До 100%" FontSize="12" Foreground="#AEB8C4" />
+                                    <TextBlock Text="{Binding StatRemaining}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
+                                    <TextBlock Text="{Binding StatRemainingSub}" FontSize="12" Foreground="#AEB8C4" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource Card}" Padding="12,8" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                            <Border CornerRadius="8" Padding="12,8" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="Наиграно" Style="{StaticResource Caption}" />
-                                    <TextBlock Text="{Binding StatPlayed}" Style="{StaticResource StatValue}" />
-                                    <TextBlock Text="{Binding StatPlayedSub}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="Наиграно" FontSize="12" Foreground="#AEB8C4" />
+                                    <TextBlock Text="{Binding StatPlayed}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
+                                    <TextBlock Text="{Binding StatPlayedSub}" FontSize="12" Foreground="#AEB8C4" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Border>
                         </UniformGrid>
                     </StackPanel>
                 </Grid>
-            </Border>
+            </Grid>
 
             <!-- Действия -->
             <WrapPanel Grid.Row="1" Margin="0,12,0,4" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
@@ -399,7 +455,7 @@
                                                     <Run Text="{Binding RarityText, Mode=OneWay}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 </TextBlock>
                                                 <TextBlock Grid.Row="1" Text="Оценка" Style="{StaticResource Caption}" Margin="0,0,0,6" />
-                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Estimate}" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Estimate}" Margin="0,0,0,6" ToolTip="{Binding EstimateHint}" />
                                                 <TextBlock Grid.Row="2" Text="Статус" Style="{StaticResource Caption}" Margin="0,0,0,6" />
                                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding StatusText}" Margin="0,0,0,6" />
                                                 <TextBlock Grid.Row="3" Text="API-имя" Style="{StaticResource Caption}" />
@@ -418,6 +474,20 @@
 
                                             <TextBlock Text="Заметка" Style="{StaticResource Caption}" Margin="0,10,0,2" />
                                             <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+
+                                            <TextBlock Text="Как получить" Style="{StaticResource Header}" />
+                                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,6"
+                                                       Text="Откроет в браузере поиск по этому достижению." />
+                                            <WrapPanel>
+                                                <Button Content="Гайды Steam" Margin="0,0,8,8" Padding="10,4"
+                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="steam" />
+                                                <Button Content="Обсуждения" Margin="0,0,8,8" Padding="10,4"
+                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="discussions" />
+                                                <Button Content="YouTube" Margin="0,0,8,8" Padding="10,4"
+                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="youtube" />
+                                                <Button Content="Google" Margin="0,0,8,8" Padding="10,4"
+                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="google" />
+                                            </WrapPanel>
 
                                             <WrapPanel Margin="0,16,0,0">
                                                 <CheckBox Content="Сделал, но не засчиталось" Margin="0,0,0,8"
@@ -500,6 +570,18 @@
                 <TabItem Header="Время">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                         <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="Статистика по игрокам" Style="{StaticResource Subtitle}" />
+                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,10"
+                                               Text="Берём авторов обзоров игры в Steam и у кого открыт профиль - смотрим, что и когда они открыли. Получаем проценты и сколько было наиграно к каждому достижению. Помогает, когда Steam не отдаёт глобальные проценты (как у новых игр). Нужен API-ключ, занимает до минуты." />
+                                    <WrapPanel>
+                                        <Button Content="Собрать статистику" Margin="0,0,8,8" Padding="12,5" Command="{Binding CollectSampleCommand}" />
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding SampleText}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
                             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                                 <StackPanel>
                                     <TextBlock Text="Время до 100%" Style="{StaticResource Subtitle}" />

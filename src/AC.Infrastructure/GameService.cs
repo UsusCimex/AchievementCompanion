@@ -206,6 +206,68 @@ public sealed class GameService
         return (fresh, null);
     }
 
+    /// <summary>
+    /// Своя статистика по выборке игроков: берём авторов обзоров игры, читаем их достижения
+    /// (у кого открыт профиль) и считаем проценты и время до каждого достижения.
+    /// Нужен API-ключ. Около сотни запросов, обычно 20-60 секунд.
+    /// </summary>
+    public async Task<SampleResult> CollectSampleAsync(GameData game, IProgress<string>? progress = null,
+        int maxAuthors = 300, int targetPlayers = 80, CancellationToken ct = default)
+    {
+        RequireKey();
+        var key = ApiKey;
+        progress?.Report("Ищу игроков по обзорам Steam...");
+        var authors = await _api.GetReviewAuthorsAsync(game.AppId, maxAuthors, ct);
+        authors = authors.Where(a => a.SteamId != Settings.SteamId64).ToList();
+        if (authors.Count == 0) throw new SteamApiException("У игры нет обзоров в Steam - не из кого собрать выборку");
+
+        var samples = new List<PlayerSample>();
+        int checkedCount = 0;
+        using var gate = new SemaphoreSlim(4);
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var tasks = authors.Select(async a =>
+        {
+            try { await gate.WaitAsync(stop.Token); }
+            catch (OperationCanceledException) { return; }
+            try
+            {
+                if (stop.IsCancellationRequested) return;
+                var list = await _api.GetPlayerAchievementsAsync(key, a.SteamId, game.AppId, stop.Token);
+                var unlocks = list.Where(x => x.Achieved && x.UnlockTime is not null)
+                                  .ToDictionary(x => x.ApiName, x => x.UnlockTime!.Value, StringComparer.Ordinal);
+                var sample = new PlayerSample { SteamId = a.SteamId, Unlocks = unlocks };
+                if (a.ReviewedAt is { } rv && a.PlaytimeAtReview > 0) sample.Anchors.Add((rv, a.PlaytimeAtReview));
+                if (a.LastPlayed is { } lp && a.PlaytimeForever > 0) sample.Anchors.Add((lp, a.PlaytimeForever));
+                lock (samples)
+                {
+                    samples.Add(sample);
+                    if (samples.Count >= targetPlayers) stop.Cancel();
+                }
+            }
+            catch (Exception e) when (e is SteamApiException or HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
+            {
+                // скрытый профиль или сбой - пропускаем игрока
+            }
+            finally
+            {
+                var c = Interlocked.Increment(ref checkedCount);
+                if (c % 10 == 0) progress?.Report($"Проверено профилей: {c} из {authors.Count}, открытых: {samples.Count}");
+                gate.Release();
+            }
+        });
+        await Task.WhenAll(tasks);
+        ct.ThrowIfCancellationRequested();
+
+        if (samples.Count == 0)
+            throw new SteamApiException($"Проверено {authors.Count} авторов обзоров - у всех скрыты сведения об играх");
+
+        var result = SampleStats.Compute(samples, game.Achievements.Select(a => a.ApiName).ToList());
+        SampleStats.Apply(game, result, DateTimeOffset.Now);
+        TimeEstimator.EstimateFromGlobalPercent(game);
+        _store.SaveGame(game);
+        return result;
+    }
+
     /// <summary>Глобальные проценты (ключ не нужен). Возвращает текст ошибки или null.</summary>
     private async Task<string?> FetchPercentagesAsync(GameData game, CancellationToken ct)
     {

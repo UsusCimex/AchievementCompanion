@@ -13,6 +13,8 @@ public sealed record SchemaEntry(string ApiName, string Name, string Description
 
 public sealed record PlayerAchievement(string ApiName, bool Achieved, DateTimeOffset? UnlockTime);
 
+public sealed record ReviewAuthor(ulong SteamId, double PlaytimeAtReview, double PlaytimeForever, DateTimeOffset? ReviewedAt, DateTimeOffset? LastPlayed);
+
 /// <summary>
 /// Клиент официального Steam Web API (раздел 2.1 ТЗ).
 /// Лимит Valve - 100 000 запросов в сутки на ключ; приложение кеширует схему на сутки.
@@ -131,6 +133,47 @@ public sealed class SteamWebApi(HttpClient http)
             return list;
         }
     }
+
+    /// <summary>
+    /// Авторы обзоров игры в магазине Steam (публичный API, ключ не нужен): SteamID, наиграно на момент обзора,
+    /// наиграно всего и когда играл последний раз. Это наш источник игроков для своей статистики.
+    /// </summary>
+    public async Task<List<ReviewAuthor>> GetReviewAuthorsAsync(uint appId, int max, CancellationToken ct = default)
+    {
+        var result = new List<ReviewAuthor>();
+        var seen = new HashSet<ulong>();
+        string cursor = "*";
+        for (int page = 0; page < 20 && result.Count < max; page++)
+        {
+            using var doc = await GetJsonAsync(
+                $"https://store.steampowered.com/appreviews/{appId}?json=1&filter=recent&language=all&review_type=all&purchase_type=all&num_per_page=100&cursor={Esc(cursor)}", ct);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("reviews", out var reviews) || reviews.GetArrayLength() == 0) break;
+            foreach (var r in reviews.EnumerateArray())
+            {
+                if (!r.TryGetProperty("author", out var au)) continue;
+                if (!ulong.TryParse(Str(au, "steamid"), out var id) || !seen.Add(id)) continue;
+                result.Add(new ReviewAuthor(
+                    id,
+                    Num(au, "playtime_at_review"),
+                    Num(au, "playtime_forever"),
+                    Unix(r, "timestamp_created"),
+                    Unix(au, "last_played")));
+                if (result.Count >= max) break;
+            }
+            var next = Str(root, "cursor");
+            if (next.Length == 0 || next == cursor) break;
+            cursor = next;
+        }
+        return result;
+    }
+
+    private static double Num(JsonElement e, string prop) =>
+        e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+
+    private static DateTimeOffset? Unix(JsonElement e, string prop) =>
+        e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number && v.GetInt64() > 0
+            ? DateTimeOffset.FromUnixTimeSeconds(v.GetInt64()) : null;
 
     private async Task<JsonDocument> GetJsonAsync(string url, CancellationToken ct, bool allowErrorBody = false)
     {

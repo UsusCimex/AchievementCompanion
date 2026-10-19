@@ -370,4 +370,45 @@ static class Tests
         Assert.Equal((double?)null, g.DerivedCompletionMinutes);
         Assert.Equal(1000.0, g.Estimates["grind"].P50!.Value);
     }
+
+    public static void SampleStats_PercentAndTimes()
+    {
+        var t0 = DateTimeOffset.FromUnixTimeSeconds(1_760_000_000);
+        PlayerSample P(int hoursTotal, params (string Name, double HoursIn)[] unl)
+        {
+            // играл ровно 1 час реального времени = 60 минут игры, чтобы проверить пересчёт
+            var p = new PlayerSample();
+            foreach (var (n, h) in unl) p.Unlocks[n] = t0.AddHours(h);
+            p.Anchors.Add((t0.AddHours(hoursTotal), hoursTotal * 60));
+            return p;
+        }
+        var players = new List<PlayerSample>
+        {
+            P(10, ("a", 0), ("b", 2), ("c", 10)),
+            P(10, ("a", 0), ("b", 4), ("c", 8)),
+            P(5, ("a", 0), ("b", 3)),
+            P(5, ("a", 0)),
+        };
+        var names = new[] { "a", "b", "c" };
+        var r = SampleStats.Compute(players, names);
+        Assert.Equal(4, r.Players);
+        Assert.Equal(100.0, r.Percent["a"]);
+        Assert.Equal(75.0, r.Percent["b"]);
+        Assert.Equal(50.0, r.Percent["c"]);
+        Assert.Equal(180.0, r.Times["b"].P50!.Value); // медиана 2, 3, 4 часов
+        Assert.Equal(2, r.Completers);
+        Assert.Equal(540.0, r.CompletionMedianMinutes); // 8 и 10 часов
+
+        var g = SampleGame();
+        g.Achievements.Clear();
+        foreach (var n in names) g.Achievements.Add(new AchievementDef { ApiName = n, Name = n });
+        g.CompletionMinutes = null;
+        SampleStats.Apply(g, r, DateTimeOffset.Now);
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.Equal(75.0, g.Achievements[1].Percent);
+        Assert.True(g.Achievements[1].PercentFromSample);
+        Assert.Equal(180.0, g.Estimates["b"].P50!.Value); // замер не перезаписан моделью
+        Assert.Equal(SampleStats.SourceName, g.Estimates["b"].Source);
+        Assert.Equal(540.0, g.UsedCompletionMinutes);
+    }
 }

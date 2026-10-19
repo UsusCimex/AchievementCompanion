@@ -121,7 +121,7 @@ public static class Planner
                 if (c != 0) return c;
             }
             // частые раньше редких
-            int pc = (y.Def.GlobalPercent ?? -1).CompareTo(x.Def.GlobalPercent ?? -1);
+            int pc = (y.Def.Percent ?? -1).CompareTo(x.Def.Percent ?? -1);
             if (pc != 0) return pc;
             return string.CompareOrdinal(x.ApiName, y.ApiName);
         }

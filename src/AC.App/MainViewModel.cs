@@ -51,6 +51,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         FetchCompletionCommand = new AsyncCommand(FetchCompletionAsync, OnError, () => _game != null);
         ApplyCompletionCommand = new RelayCommand(ApplyCompletion, () => _game != null);
         ApplyPlaytimeCommand = new RelayCommand(ApplyPlaytime, () => _game != null);
+        CollectSampleCommand = new AsyncCommand(() => CollectSampleAsync(auto: false), OnError, () => _game != null && _svc.HasApiKey);
+        OpenGuideCommand = new RelayCommand(p => OpenGuide(p as string), _ => _game != null && SelectedRow != null);
         ExportCsvCommand = new RelayCommand(p => Export("csv", p as string == "manual"), _ => _game != null);
         ExportJsonCommand = new RelayCommand(p => Export("json", p as string == "manual"), _ => _game != null);
         ExportTagsCommand = new RelayCommand(ExportTags, () => _game != null);
@@ -244,6 +246,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AsyncCommand FetchCompletionCommand { get; }
     public RelayCommand ApplyCompletionCommand { get; }
     public RelayCommand ApplyPlaytimeCommand { get; }
+    /// <summary>Собрать свою статистику по авторам обзоров (проценты и время).</summary>
+    public AsyncCommand CollectSampleCommand { get; }
+    /// <summary>Открыть в браузере, как получить выбранное достижение: steam, discussions, youtube, google.</summary>
+    public RelayCommand OpenGuideCommand { get; }
+
+    private string _sampleText = "";
+    public string SampleText { get => _sampleText; private set => Set(ref _sampleText, value); }
+
+    public string? HeroImageUrl => _game is null ? null : SteamImages.Hero(_game.AppId);
     public RelayCommand ExportCsvCommand { get; }
     public RelayCommand ExportJsonCommand { get; }
     public RelayCommand ExportTagsCommand { get; }
@@ -309,6 +320,49 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (seq == _loadSeq && _game?.AppId == appId &&
             (_svc.Settings.StatusSource == StatusSource.SteamClient || !_svc.HasApiKey) && _svc.Bridge.Exists)
             await SafeAsync(RefreshStateAsync);
+
+        // Steam не отдал проценты (так бывает у новых игр) - один раз сами собираем статистику по игрокам.
+        if (seq == _loadSeq && _game is { } g && g.AppId == appId && _svc.HasApiKey &&
+            g.Achievements.Count > 0 && g.Achievements.All(a => a.GlobalPercent is null) && g.SampleFetchedAt is null)
+            await SafeAsync(() => CollectSampleAsync(auto: true));
+    }
+
+    private async Task CollectSampleAsync(bool auto)
+    {
+        if (_game is null) return;
+        var game = _game;
+        var progress = new Progress<string>(m => StatusMessage = m);
+        await Busy(auto ? "Steam не отдал проценты - собираю статистику по игрокам..." : "Собираю статистику по игрокам...", async () =>
+        {
+            var r = await _svc.CollectSampleAsync(game, progress);
+            if (!ReferenceEquals(game, _game)) return;
+            Recompute(rebuildRows: true);
+            StatusMessage = $"Статистика собрана: {r.Players} игроков с открытым профилем" +
+                            (r.CompletionMedianMinutes is { } c ? $", 100% у {r.Completers}, медиана {TimeEstimator.Format(c)}" : "");
+        });
+    }
+
+    private void OpenGuide(string? kind)
+    {
+        if (_game is null || SelectedRow is null) return;
+        var game = _game.Name.Length > 0 ? _game.Name : _game.AppId.ToString(CultureInfo.InvariantCulture);
+        var ach = SelectedRow.Name;
+        string q(string s) => Uri.EscapeDataString(s);
+        var url = kind switch
+        {
+            "steam" => $"https://steamcommunity.com/app/{_game.AppId}/guides/?searchText={q(ach)}&browsefilter=trend&requiredtags%5B%5D=-1",
+            "discussions" => $"https://steamcommunity.com/app/{_game.AppId}/discussions/search/?q={q(ach)}",
+            "youtube" => $"https://www.youtube.com/results?search_query={q(game + " " + ach + " achievement")}",
+            _ => $"https://www.google.com/search?q={q("\"" + game + "\" \"" + ach + "\" achievement guide")}",
+        };
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception e)
+        {
+            StatusMessage = "Не удалось открыть браузер: " + e.Message;
+        }
     }
 
     private async Task ReloadAsync(bool force)
@@ -639,6 +693,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedRow = null;
         OnPropertyChanged(nameof(HasGame));
         OnPropertyChanged(nameof(HeaderImageUrl));
+        OnPropertyChanged(nameof(HeroImageUrl));
         CompletionInput = Hours(game.CompletionMinutes);
         _completionFetchedText = game.CompletionSource == "manual" ? "" : CompletionInput;
         PlaytimeOverrideInput = Hours(game.PlaytimeOverrideMinutes);
@@ -701,7 +756,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     i.Def.Name,
                     i.Def.Hidden && HideSpoilers ? "(скрытое)" : i.Def.Description,
                     TimeEstimator.Format(i.EstimateMinutes),
-                    i.Def.GlobalPercent is { } pc ? pc.ToString("0.0", CultureInfo.CurrentCulture) + "%" : "-",
+                    i.Def.Percent is { } pc ? pc.ToString("0.0", CultureInfo.CurrentCulture) + "%" : "-",
                     Options.KindTitle(i.Kind))).ToList())).ToList();
             PlanSections.Add(new PlanSectionViewModel($"{Options.StageTitle(s.Stage)} ({s.Count})", groups));
         }
@@ -717,7 +772,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         StatUnlockedSub = m > 0 ? $"{steamPct:0}% в Steam, +{m} не засчитано" : $"{steamPct:0}% в Steam";
         RemainingText = plan.RemainingMinutes is { } rem
             ? $"До 100% примерно {TimeEstimator.Format(rem)}" + (plan.UnknownEstimateCount > 0 ? $" (без оценки: {plan.UnknownEstimateCount})" : "")
-            : _game.Achievements.All(a => a.GlobalPercent is null)
+            : _game.Achievements.All(a => a.Percent is null)
                 ? "До 100%: нет оценки - Steam не отдал глобальные проценты (нажми \"Обновить схему\")"
                 : "До 100%: нет оценки - задай время до 100% или получи пару достижений, тогда оценка появится сама";
 
@@ -740,6 +795,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 ? $"Время до 100%: примерно {TimeEstimator.Format(dm)} (оценка по твоему прогрессу), "
                 : "") + $"наиграно {played}{playedNote}";
 
+        SampleText = _game.SampleFetchedAt is { } sf
+            ? $"Выборка: {_game.SamplePlayers} игроков с открытым профилем (авторы обзоров Steam), " +
+              (_game.SampleCompletionMinutes is { } sc ? $"на 100% прошли {_game.SampleCompleters}, медиана {TimeEstimator.Format(sc)}" : "на 100% пока никто не прошёл") +
+              $". Собрано {sf.ToLocalTime():dd.MM.yyyy}."
+            : "Выборка не собиралась. Пригодится, если Steam не отдаёт проценты или нет данных о времени.";
         QueueCount = _game.PendingUnlocks.Count;
         UpdateOverlayLists(all);
     }
@@ -755,7 +815,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         foreach (var r in all.Where(r => !r.IsDone && r.Kind != AchievementKind.Missable)
                              .OrderBy(r => r.EstimateMinutes is null)
                              .ThenBy(r => r.EstimateMinutes)
-                             .ThenByDescending(r => r.Def.GlobalPercent ?? -1)
+                             .ThenByDescending(r => r.Def.Percent ?? -1)
                              .Take(Math.Max(1, _svc.Settings.OverlayNearestCount)))
             OverlayNearest.Add(new AchievementRowViewModel(this, r));
     }

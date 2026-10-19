@@ -126,5 +126,8 @@ internal static class StoreJson
 
 public static class SteamImages
 {
+    /// <summary>Широкая картинка из библиотеки Steam (фон шапки).</summary>
+    public static string Hero(uint appId) => $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/library_hero.jpg";
+
     public static string Header(uint appId) => $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/header.jpg";
 }

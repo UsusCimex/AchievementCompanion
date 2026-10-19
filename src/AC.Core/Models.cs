@@ -36,8 +36,17 @@ public sealed class AchievementDef
     public bool Hidden { get; set; }
     public string IconUrl { get; set; } = "";
     public string IconGrayUrl { get; set; } = "";
-    /// <summary>Глобальный процент получения, 0..100. null - неизвестно.</summary>
+    /// <summary>Глобальный процент получения из Steam, 0..100. null - Steam не отдал.</summary>
     public double? GlobalPercent { get; set; }
+    /// <summary>Процент по своей выборке игроков (если Steam глобальную статистику не отдаёт).</summary>
+    public double? SamplePercent { get; set; }
+
+    /// <summary>Процент, который показываем и по которому считаем: из Steam, иначе из выборки.</summary>
+    [JsonIgnore]
+    public double? Percent => GlobalPercent ?? SamplePercent;
+
+    [JsonIgnore]
+    public bool PercentFromSample => GlobalPercent is null && SamplePercent is not null;
     /// <summary>Защищено: ставится только сервером игры, досчитать через Steam-клиент нельзя.</summary>
     public bool Protected { get; set; }
 }
@@ -134,7 +143,18 @@ public sealed class GameData
 
     /// <summary>Время до 100%, которым реально пользуются оценки: заданное или выведенное.</summary>
     [JsonIgnore]
-    public double? UsedCompletionMinutes => CompletionMinutes is > 0 ? CompletionMinutes : DerivedCompletionMinutes;
+    public double? UsedCompletionMinutes =>
+        CompletionMinutes is > 0 ? CompletionMinutes :
+        SampleCompletionMinutes is > 0 ? SampleCompletionMinutes :
+        DerivedCompletionMinutes;
+
+    /// <summary>Медиана времени до 100% по выборке игроков.</summary>
+    public double? SampleCompletionMinutes { get; set; }
+    /// <summary>Сколько игроков в выборке (с открытым профилем).</summary>
+    public int SamplePlayers { get; set; }
+    /// <summary>Сколько из них прошли на 100%.</summary>
+    public int SampleCompleters { get; set; }
+    public DateTimeOffset? SampleFetchedAt { get; set; }
 
     public AchievementState StateOf(string apiName)
     {
