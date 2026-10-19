@@ -208,6 +208,23 @@ static class Tests
         Assert.Equal(120.0, g2.ManualEstimates["grind"]);
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static void MergeSchema_KeepsKnownData()
+    {
+        var g = SampleGame();
+        g.Achievements[0].SamplePercent = 42;
+        g.Achievements[0].Protected = true;
+        var entries = g.Achievements
+            .Select(a => new AC.Infrastructure.SchemaEntry(a.ApiName, a.Name + "!", "", a.Hidden, "icon.jpg", "gray.jpg"))
+            .ToList();
+        AC.Infrastructure.GameService.MergeSchema(g, entries);
+        Assert.Equal(42.0, g.Achievements[0].SamplePercent);
+        Assert.True(g.Achievements[0].Protected);
+        Assert.Equal(90.0, g.Achievements[0].GlobalPercent);
+        Assert.Equal("Глава 1!", g.Achievements[0].Name);
+        Assert.Equal("Пройдите главу 1", g.Achievements[0].Description); // пустое из Web API не затирает известное
+    }
+
     public static void BinaryKeyValue_SchemaParse()
     {
         // Собираем бинарный KV вручную: { "480" { "stats" { "1" { type=4 bits { "0" { name, display{...}, permission } } } } } }

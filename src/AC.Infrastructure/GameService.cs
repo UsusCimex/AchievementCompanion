@@ -468,7 +468,11 @@ public sealed class GameService
         if (Settings.SteamId64 == 0) throw new SteamApiException("Не задан SteamID64 (Настройки)");
     }
 
-    private static void MergeSchema(GameData game, IReadOnlyList<SchemaEntry> entries)
+    /// <summary>
+    /// Новая схема из Web API поверх старой: всё, что Web API не отдаёт (описания скрытых, проценты,
+    /// проценты по выборке, флаг "защищено"), переносим из уже известного.
+    /// </summary>
+    internal static void MergeSchema(GameData game, IReadOnlyList<SchemaEntry> entries)
     {
         var old = game.Achievements.ToDictionary(a => a.ApiName, StringComparer.Ordinal);
         var list = new List<AchievementDef>(entries.Count);
@@ -485,6 +489,7 @@ public sealed class GameService
                 IconUrl = e.Icon,
                 IconGrayUrl = e.IconGray,
                 GlobalPercent = prev?.GlobalPercent,
+                SamplePercent = prev?.SamplePercent,
                 Protected = prev?.Protected ?? false,
             });
         }
