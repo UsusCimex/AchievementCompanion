@@ -73,7 +73,7 @@
                         <ComboBox x:Name="ThemeBox" ItemsSource="{x:Static local:Options.Themes}" Width="220" HorizontalAlignment="Left" Margin="0,0,0,12" />
                         <CheckBox x:Name="HideSpoilersBox" Content="Прятать описания скрытых достижений, пока они не получены" />
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
-                                   Text="В оверлее описания скрытых видны всегда." />
+                                   Text="Спрятанное описание размыто - нажми на него, чтобы прочитать. В оверлее описания скрытых видны всегда." />
                     </StackPanel>
                 </Border>
 

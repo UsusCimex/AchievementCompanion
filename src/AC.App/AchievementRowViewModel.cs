@@ -18,6 +18,7 @@ public sealed class AchievementRowViewModel : ObservableObject
     {
         _owner = owner;
         _row = row;
+        RevealCommand = new RelayCommand(() => _owner.Reveal(ApiName));
         _manualDone = row.Status == EffectiveStatus.ManualDone;
         _kind = row.Kind;
         _group = row.Group;
@@ -36,27 +37,18 @@ public sealed class AchievementRowViewModel : ObservableObject
 
     public string Name => _row.Def.Name.Length > 0 ? _row.Def.Name : _row.ApiName;
 
-    private bool Spoiler => _row.Def.Hidden && !_row.IsDone && _owner.HideSpoilers && !_revealed;
+    /// <summary>Описание секретного неполученного достижения размыто, пока его не открыли кликом.</summary>
+    public bool IsSpoilerHidden =>
+        _row.Def.Hidden && !_row.IsDone && _row.Def.Description.Length > 0 && _owner.HideSpoilers && !_owner.IsRevealed(ApiName);
 
-    private bool _revealed;
-    /// <summary>Пользователь попросил показать описание скрытого достижения.</summary>
-    public bool Revealed
-    {
-        get => _revealed;
-        set
-        {
-            if (!Set(ref _revealed, value)) return;
-            OnPropertyChanged(nameof(Description));
-            OnPropertyChanged(nameof(IsSpoilerHidden));
-        }
-    }
+    public RelayCommand RevealCommand { get; }
 
-    /// <summary>Описание спрятано (секретное, не получено, спойлеры скрываются).</summary>
-    public bool IsSpoilerHidden => Spoiler;
+    public void RefreshSpoiler() => OnPropertyChanged(nameof(IsSpoilerHidden));
 
     public bool IsHidden => _row.Def.Hidden;
     public bool IsLocked => _row.Status == EffectiveStatus.Locked;
     public bool IsManualStatus => _row.Status == EffectiveStatus.ManualDone;
+    public bool GroupIsAuto => _row.GroupIsAuto;
     public bool IsPendingWrite => _owner.IsPending(ApiName);
     public string KindTitle => Options.KindTitle(_kind);
     public bool HasKind => _kind != AchievementKind.Unknown;
@@ -98,11 +90,8 @@ public sealed class AchievementRowViewModel : ObservableObject
     }
 
     public string Description =>
-        Spoiler ? "Скрытое достижение. Нажми \"Показать\" в карточке справа или наведи курсор" :
         _row.Def.Description.Length > 0 ? _row.Def.Description :
-        _row.Def.Hidden ? "Скрытое достижение (описание Steam не отдал)" : "";
-
-    public string Tooltip => _row.Def.Description.Length > 0 ? _row.Def.Description : _row.ApiName;
+        _row.Def.Hidden ? "Секретное достижение, описание Steam не отдал" : "";
 
     /// <summary>Для оверлея: описание всегда видно, скрытые помечены.</summary>
     public string OverlayDescription =>
@@ -126,14 +115,6 @@ public sealed class AchievementRowViewModel : ObservableObject
     public double PercentValue => _row.Def.Percent ?? -1;
 
     public string Estimate => TimeEstimator.Format(_row.EstimateMinutes) + (_row.EstimateIsManual ? " *" : "");
-
-    public string Badges =>
-        string.Join(" ", new[]
-        {
-            _row.Def.Hidden ? "секрет" : null,
-            _row.Def.Protected ? "защищено" : null,
-            _owner.IsPending(ApiName) ? "в очереди" : null,
-        }.Where(s => s != null));
 
     public string StatusText => _row.Status switch
     {
@@ -216,10 +197,10 @@ public sealed class AchievementRowViewModel : ObservableObject
     private static readonly string[] Derived =
     {
         nameof(Def), nameof(Status), nameof(IsDone), nameof(IsUnlocked), nameof(IsProtected), nameof(Name),
-        nameof(Description), nameof(Tooltip), nameof(Icon), nameof(Percent), nameof(PercentValue),
-        nameof(Estimate), nameof(Badges), nameof(StatusText), nameof(ManualDone), nameof(OverlayDescription),
+        nameof(Description), nameof(Icon), nameof(Percent), nameof(PercentValue),
+        nameof(Estimate), nameof(StatusText), nameof(ManualDone), nameof(OverlayDescription),
         nameof(CanWriteToSteam), nameof(IsSpoilerHidden), nameof(IsHidden), nameof(IsLocked), nameof(IsManualStatus),
-        nameof(IsPendingWrite), nameof(RarityText), nameof(RarityLevel), nameof(EstimateHint),
+        nameof(GroupIsAuto), nameof(IsPendingWrite), nameof(RarityText), nameof(RarityLevel), nameof(EstimateHint),
     };
 
     /// <summary>Подменяет данные строки после пересчёта, не пересоздавая объект (чтобы не терять фокус).</summary>

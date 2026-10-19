@@ -9,13 +9,24 @@ public enum SortMode
     UnlockTime = 4,
 }
 
+/// <summary>Фильтр по статусу (чипы над списком).</summary>
+public enum StatusFilter
+{
+    All = 0,
+    /// <summary>Не получены: ни в Steam, ни ручной отметкой.</summary>
+    Open = 1,
+    /// <summary>Получены: открыты в Steam или отмечены вручную.</summary>
+    Done = 2,
+    /// <summary>Сделано, но в Steam не засчитано.</summary>
+    NotCounted = 3,
+}
+
 /// <summary>Фильтры и сортировка списка (раздел 3 ТЗ).</summary>
 public sealed class AchievementQuery
 {
     public SortMode Sort { get; set; } = SortMode.Plan;
     public bool Descending { get; set; }
-    public bool HideDone { get; set; }
-    public bool OnlyManual { get; set; }
+    public StatusFilter Status { get; set; }
     public bool OnlyHidden { get; set; }
     /// <summary>Пусто - все типы.</summary>
     public HashSet<AchievementKind> Kinds { get; } = new();
@@ -25,8 +36,13 @@ public sealed class AchievementQuery
     {
         IEnumerable<AchievementRow> rows = GameLogic.BuildRows(game, p);
 
-        if (HideDone) rows = rows.Where(r => !r.IsDone);
-        if (OnlyManual) rows = rows.Where(r => r.Status == EffectiveStatus.ManualDone);
+        rows = Status switch
+        {
+            StatusFilter.Open => rows.Where(r => !r.IsDone),
+            StatusFilter.Done => rows.Where(r => r.IsDone),
+            StatusFilter.NotCounted => rows.Where(r => r.Status == EffectiveStatus.ManualDone),
+            _ => rows,
+        };
         if (OnlyHidden) rows = rows.Where(r => r.Def.Hidden);
         if (Kinds.Count > 0) rows = rows.Where(r => Kinds.Contains(r.Kind));
         if (!string.IsNullOrWhiteSpace(Search))

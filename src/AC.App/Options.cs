@@ -42,9 +42,9 @@ public static class Options
 
     public static IReadOnlyList<Option<Percentile>> Percentiles { get; } = new[]
     {
-        new Option<Percentile>(Percentile.P50, "Медиана (p50)"),
-        new Option<Percentile>(Percentile.P75, "p75"),
-        new Option<Percentile>(Percentile.P90, "p90"),
+        new Option<Percentile>(Percentile.P50, "Оценка: медиана"),
+        new Option<Percentile>(Percentile.P75, "Оценка: p75"),
+        new Option<Percentile>(Percentile.P90, "Оценка: p90"),
     };
 
     public static IReadOnlyList<Option<AppTheme>> Themes { get; } = new[]

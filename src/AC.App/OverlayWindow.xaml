@@ -13,6 +13,7 @@
         <SolidColorBrush x:Key="OvLine" Color="#33FFFFFF" />
         <SolidColorBrush x:Key="OvAccent" Color="#66C0F4" />
         <SolidColorBrush x:Key="OvWarn" Color="#FFB37A" />
+        <SolidColorBrush x:Key="OvManual" Color="#D29922" />
         <SolidColorBrush x:Key="OvPill" Color="#26FFFFFF" />
 
         <Style TargetType="TextBlock">
@@ -87,11 +88,19 @@
                 <Border DockPanel.Dock="Left" Width="3" CornerRadius="2" Background="{StaticResource OvAccent}" Margin="0,2,10,2" />
                 <StackPanel>
                     <TextBlock Text="{Binding Main.GameName}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding Main.StatUnlockedSub}" Foreground="{StaticResource OvMuted}" FontSize="11" />
+                    <TextBlock Text="{Binding Main.ProgressShort}" Foreground="{StaticResource OvMuted}" FontSize="11" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
             </DockPanel>
-            <ProgressBar Height="4" Maximum="100" Margin="0,10,0,0" Value="{Binding Main.ProgressPercent, Mode=OneWay}"
-                         Foreground="{StaticResource OvAccent}" Background="{StaticResource OvPill}" BorderThickness="0" />
+            <Grid Height="4" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{Binding Main.SegUnlocked}" />
+                    <ColumnDefinition Width="{Binding Main.SegManual}" />
+                    <ColumnDefinition Width="{Binding Main.SegRest}" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.ColumnSpan="3" CornerRadius="2" Background="{StaticResource OvPill}" />
+                <Border Grid.ColumnSpan="2" CornerRadius="2" Background="{StaticResource OvManual}" />
+                <Border CornerRadius="2" Background="{StaticResource OvAccent}" />
+            </Grid>
 
             <Border Background="#3366C0F4" CornerRadius="6" Padding="10,6" Margin="0,10,0,0"
                     Visibility="{Binding HasToast, Converter={StaticResource BoolToVis}}">

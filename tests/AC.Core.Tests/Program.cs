@@ -232,10 +232,16 @@ static class Tests
     {
         var g = SampleGame();
         g.StateOf("ch1").SteamUnlocked = true;
-        var q = new AchievementQuery { HideDone = true, Sort = SortMode.Rarity };
+        g.StateOf("misc").ManualDone = true;
+        var q = new AchievementQuery { Status = StatusFilter.Open, Sort = SortMode.Rarity };
         var rows = q.Apply(g, Percentile.P50);
-        Assert.True(rows.All(r => r.ApiName != "ch1"));
+        Assert.True(rows.All(r => r.ApiName != "ch1" && r.ApiName != "misc"));
         Assert.Equal("grind", rows[0].ApiName);
+
+        q = new AchievementQuery { Status = StatusFilter.Done, Sort = SortMode.Name };
+        Assert.Equal("ch1,misc", string.Join(",", q.Apply(g, Percentile.P50).Select(r => r.ApiName).OrderBy(n => n)));
+        q = new AchievementQuery { Status = StatusFilter.NotCounted };
+        Assert.Equal("misc", q.Apply(g, Percentile.P50).Single().ApiName);
 
         q = new AchievementQuery { Search = "feather" };
         Assert.Equal(1, q.Apply(g, Percentile.P50).Count);
@@ -293,6 +299,19 @@ static class Tests
         Assert.Equal(90.0, g.Achievements[0].GlobalPercent);
         Assert.Equal("Глава 1!", g.Achievements[0].Name);
         Assert.Equal("Пройдите главу 1", g.Achievements[0].Description); // пустое из Web API не затирает известное
+    }
+
+    public static void Ru_Plural()
+    {
+        string P(int n) => Ru.Count(n, "достижение", "достижения", "достижений");
+        Assert.Equal("1 достижение", P(1));
+        Assert.Equal("2 достижения", P(2));
+        Assert.Equal("5 достижений", P(5));
+        Assert.Equal("11 достижений", P(11));
+        Assert.Equal("21 достижение", P(21));
+        Assert.Equal("32 достижения", P(32));
+        Assert.Equal("112 достижений", P(112));
+        Assert.Equal("0 достижений", P(0));
     }
 
     public static void BinaryKeyValue_SchemaParse()

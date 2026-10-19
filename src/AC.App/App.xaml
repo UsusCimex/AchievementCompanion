@@ -3,16 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:AC.App"
              ShutdownMode="OnMainWindowClose">
-    <!-- Тему ставит ThemeManager; цвета ниже берутся из темы через DynamicResource и меняются вместе с ней. -->
+    <!-- Тему и цвета редкости (Rarity*Brush) ставит ThemeManager; цвета ниже берутся из темы через DynamicResource и меняются вместе с ней. -->
     <Application.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
-        <local:InverseBoolConverter x:Key="Inverse" />
         <local:InverseBoolToVisibilityConverter x:Key="InverseVis" />
         <local:EmptyToCollapsedConverter x:Key="EmptyToCollapsed" />
+        <local:EnumEqualsConverter x:Key="EnumEquals" />
 
         <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
-        <!-- Карточка: подложка + тонкая рамка + скругление -->
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
@@ -21,7 +20,6 @@
             <Setter Property="Padding" Value="16" />
         </Style>
 
-        <!-- Плашка-метка (тип, секрет, защищено) -->
         <Style x:Key="Chip" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />

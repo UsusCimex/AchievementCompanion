@@ -12,9 +12,7 @@ using Microsoft.Win32;
 
 namespace AC.App;
 
-public sealed record PlanItemViewModel(string Name, string Description, string Estimate, string Percent, string Kind);
-
-public sealed record PlanGroupViewModel(string Label, string Longest, IReadOnlyList<PlanItemViewModel> Items);
+public sealed record PlanGroupViewModel(string Label, string Longest, IReadOnlyList<AchievementRowViewModel> Items);
 
 public sealed record PlanSectionViewModel(string Title, IReadOnlyList<PlanGroupViewModel> Groups);
 
@@ -30,12 +28,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private int _loadSeq;
     private int _busyCount;
     private string _completionFetchedText = "";
+    private readonly Dictionary<uint, GameSummary> _summaries;
+    /// <summary>Скрытые достижения, описание которых пользователь открыл ("appid/apiName"). Живёт до закрытия приложения.</summary>
+    private readonly HashSet<string> _revealed = new(StringComparer.Ordinal);
 
     public MainViewModel(GameService svc)
     {
         _svc = svc;
+        _summaries = new Dictionary<uint, GameSummary>(svc.Store.LoadSummaries());
         LibraryView = CollectionViewSource.GetDefaultView(Library);
-        LibraryView.Filter = o => o is OwnedGame g &&
+        LibraryView.Filter = o => o is LibraryItemViewModel g &&
             (string.IsNullOrWhiteSpace(_libraryFilter) || g.Name.Contains(_libraryFilter.Trim(), StringComparison.CurrentCultureIgnoreCase));
 
         _selectedSort = Options.Sorts[0];
@@ -66,7 +68,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _runningTimer.Tick += async (_, _) => await OnRunningTickAsync();
         _runningTimer.Start();
 
-        foreach (var g in svc.CachedLibrary()) Library.Add(g);
+        FillLibrary(svc.CachedLibrary());
     }
 
     public GameService Service => _svc;
@@ -75,7 +77,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ---------- библиотека ----------
 
-    public ObservableCollection<OwnedGame> Library { get; } = new();
+    public ObservableCollection<LibraryItemViewModel> Library { get; } = new();
     public ICollectionView LibraryView { get; }
 
     private string _libraryFilter = "";
@@ -85,8 +87,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         set { if (Set(ref _libraryFilter, value)) LibraryView.Refresh(); }
     }
 
-    private OwnedGame? _selectedLibraryGame;
-    public OwnedGame? SelectedLibraryGame
+    private LibraryItemViewModel? _selectedLibraryGame;
+    public LibraryItemViewModel? SelectedLibraryGame
     {
         get => _selectedLibraryGame;
         set
@@ -101,11 +103,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ---------- фильтры ----------
 
-    private bool _hideDone;
-    public bool HideDone { get => _hideDone; set { if (Set(ref _hideDone, value)) Recompute(rebuildRows: true); } }
+    private StatusFilter _status;
+    public StatusFilter Status { get => _status; set { if (Set(ref _status, value)) Recompute(rebuildRows: true); } }
 
-    private bool _onlyManual;
-    public bool OnlyManual { get => _onlyManual; set { if (Set(ref _onlyManual, value)) Recompute(rebuildRows: true); } }
+    private int _countAll;
+    public int CountAll { get => _countAll; private set => Set(ref _countAll, value); }
+    private int _countOpen;
+    public int CountOpen { get => _countOpen; private set => Set(ref _countOpen, value); }
+    private int _countDone;
+    public int CountDone { get => _countDone; private set => Set(ref _countDone, value); }
+    private int _countNotCounted;
+    public int CountNotCounted { get => _countNotCounted; private set => Set(ref _countNotCounted, value); }
 
     private bool _onlyHidden;
     public bool OnlyHidden { get => _onlyHidden; set { if (Set(ref _onlyHidden, value)) Recompute(rebuildRows: true); } }
@@ -136,6 +144,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public bool HideSpoilers => _svc.Settings.HideSpoilers;
+    public bool HasApiKey => _svc.HasApiKey;
 
     // ---------- данные текущей игры ----------
 
@@ -163,6 +172,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private double _progressWithManualPercent;
     public double ProgressWithManualPercent { get => _progressWithManualPercent; private set => Set(ref _progressWithManualPercent, value); }
+
+    // Полоска прогресса из трёх частей: открыто в Steam, сделано без засчёта, осталось (колонки Grid в звёздочках).
+    private GridLength _segUnlocked = new(0, GridUnitType.Star);
+    public GridLength SegUnlocked { get => _segUnlocked; private set => Set(ref _segUnlocked, value); }
+    private GridLength _segManual = new(0, GridUnitType.Star);
+    public GridLength SegManual { get => _segManual; private set => Set(ref _segManual, value); }
+    private GridLength _segRest = new(1, GridUnitType.Star);
+    public GridLength SegRest { get => _segRest; private set => Set(ref _segRest, value); }
+
+    private string _progressShort = "";
+    /// <summary>Коротко для оверлея: "24 из 32 (75%), +2 не засчитано".</summary>
+    public string ProgressShort { get => _progressShort; private set => Set(ref _progressShort, value); }
 
     private string _statUnlocked = "-";
     public string StatUnlocked { get => _statUnlocked; private set => Set(ref _statUnlocked, value); }
@@ -287,10 +308,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         await Busy("Загружаю библиотеку...", async () =>
         {
             var games = await _svc.RefreshLibraryAsync();
-            Library.Clear();
-            foreach (var g in games) Library.Add(g);
-            StatusMessage = $"Игр в библиотеке: {games.Count}";
+            FillLibrary(games);
+            StatusMessage = "В библиотеке " + Ru.Count(games.Count, "игра", "игры", "игр");
         });
+    }
+
+    private void FillLibrary(IEnumerable<OwnedGame> games)
+    {
+        Library.Clear();
+        foreach (var g in games) Library.Add(new LibraryItemViewModel(g, _summaries.GetValueOrDefault(g.AppId)));
     }
 
     private async Task LoadAppIdAsync()
@@ -313,7 +339,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             SetGame(report.Game);
             StatusMessage = report.Warnings.Count > 0
                 ? string.Join(" | ", report.Warnings)
-                : $"Загружено: {report.Game.Achievements.Count} достижений";
+                : "Загружено " + Ru.Count(report.Game.Achievements.Count, "достижение", "достижения", "достижений");
             AnnounceNew(report.NewlyUnlocked);
         });
         // При источнике "Steam-клиент" статус при загрузке не читался - читаем сейчас.
@@ -339,7 +365,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _svc.ApplySample(target, r);
             if (!ReferenceEquals(target, _game)) return;
             Recompute(rebuildRows: true);
-            StatusMessage = $"Статистика собрана: {r.Players} игроков с открытым профилем" +
+            StatusMessage = "Статистика собрана: " + Ru.Count(r.Players, "игрок", "игрока", "игроков") + " с открытым профилем" +
                             (r.CompletionMedianMinutes is { } c ? $", 100% у {r.Completers}, медиана {TimeEstimator.Format(c)}" : "");
         });
     }
@@ -393,7 +419,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (!ReferenceEquals(game, _game)) return;
             // Не пересобираем таблицу, пока пользователь что-то вводит в строке - иначе ввод пропадёт.
             bool editing = Keyboard.FocusedElement is FrameworkElement { DataContext: AchievementRowViewModel };
-            Recompute(rebuildRows: fresh.Count > 0 && HideDone && !editing);
+            Recompute(rebuildRows: fresh.Count > 0 && Status != StatusFilter.All && !editing);
             AnnounceNew(fresh);
             if (fresh.Count == 0) StatusMessage = "Статус обновлён " + DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture);
         }
@@ -423,7 +449,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private async Task FlushQueueAsync()
     {
         if (_game is null) return;
-        if (MessageBox.Show($"Записать в Steam {QueueCount} достижений из очереди?", "Achievement Companion",
+        if (MessageBox.Show($"Записать в Steam {Ru.Count(QueueCount, "достижение", "достижения", "достижений")} из очереди?", "Achievement Companion",
                 MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
         await Busy("Записываю в Steam...", async () =>
         {
@@ -468,7 +494,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _svc.SaveSettings();
         }
         else if (rows.Count > 1 &&
-                 MessageBox.Show($"Записать в Steam {rows.Count} достижений?", "Achievement Companion",
+                 MessageBox.Show($"Записать в Steam {Ru.Count(rows.Count, "достижение", "достижения", "достижений")}?", "Achievement Companion",
                      MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
         {
             return;
@@ -677,7 +703,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var n = _svc.ImportTags(_game, File.ReadAllText(dlg.FileName));
             Recompute(rebuildRows: true);
-            StatusMessage = $"Разметка применена к {n} достижениям";
+            StatusMessage = "Разметка применена к " + Ru.Count(n, "достижению", "достижениям", "достижениям");
         }
         catch (Exception e) when (e is FormatException or System.Text.Json.JsonException or IOException or UnauthorizedAccessException)
         {
@@ -710,8 +736,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(HideSpoilers));
         OnPropertyChanged(nameof(QueueVisible));
+        OnPropertyChanged(nameof(HasApiKey));
         RestartWatcher();
         Recompute(rebuildRows: true);
+        CommandManager.InvalidateRequerySuggested();
     }
 
     public void Recompute(bool rebuildRows)
@@ -725,8 +753,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var query = new AchievementQuery
             {
-                HideDone = HideDone,
-                OnlyManual = OnlyManual,
+                Status = Status,
                 OnlyHidden = OnlyHidden,
                 Search = Search,
                 Sort = _selectedSort.Value,
@@ -746,6 +773,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             foreach (var vm in Rows)
                 if (fresh.TryGetValue(vm.ApiName, out var r)) vm.Update(r);
         }
+        CountAll = all.Count;
+        CountDone = all.Count(r => r.IsDone);
+        CountOpen = CountAll - CountDone;
+        CountNotCounted = all.Count(r => r.Status == EffectiveStatus.ManualDone);
 
         var plan = Planner.Build(_game, p);
         PlanSections.Clear();
@@ -754,12 +785,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var groups = s.Groups.Select(g => new PlanGroupViewModel(
                 g.Label.Length > 0 ? g.Label : "Без группы",
                 g.LongestMinutes is null ? "" : "до " + TimeEstimator.Format(g.LongestMinutes),
-                g.Items.Select(i => new PlanItemViewModel(
-                    i.Def.Name,
-                    i.Def.Hidden && HideSpoilers ? "(скрытое)" : i.Def.Description,
-                    TimeEstimator.Format(i.EstimateMinutes),
-                    i.Def.Percent is { } pc ? pc.ToString("0.0", CultureInfo.CurrentCulture) + "%" : "-",
-                    Options.KindTitle(i.Kind))).ToList())).ToList();
+                g.Items.Select(i => new AchievementRowViewModel(this, i)).ToList())).ToList();
             PlanSections.Add(new PlanSectionViewModel($"{Options.StageTitle(s.Stage)} ({s.Count})", groups));
         }
 
@@ -768,21 +794,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         double withManual = total == 0 ? 0 : 100.0 * (u + m) / total;
         ProgressText = $"В Steam открыто {u} из {total} ({steamPct:0}%)" +
                        (m > 0 ? $", ещё {m} сделано, но не засчитано - вместе {withManual:0}%" : "");
+        ProgressShort = $"{u} из {total} ({steamPct:0}%)" + (m > 0 ? $", +{m} не засчитано" : "");
         ProgressPercent = steamPct;
         ProgressWithManualPercent = withManual;
+        SegUnlocked = new GridLength(u, GridUnitType.Star);
+        SegManual = new GridLength(m, GridUnitType.Star);
+        SegRest = new GridLength(total == 0 ? 1 : Math.Max(0, total - u - m), GridUnitType.Star);
         StatUnlocked = $"{u} / {total}";
-        StatUnlockedSub = m > 0 ? $"{steamPct:0}% в Steam, +{m} не засчитано" : $"{steamPct:0}% в Steam";
-        RemainingText = plan.RemainingMinutes is { } rem
-            ? $"До 100% примерно {TimeEstimator.Format(rem)}" + (plan.UnknownEstimateCount > 0 ? $" (без оценки: {plan.UnknownEstimateCount})" : "")
-            : _game.Achievements.All(a => a.Percent is null)
-                ? "До 100%: нет оценки - Steam не отдал глобальные проценты (нажми \"Обновить схему\")"
-                : "До 100%: нет оценки - задай время до 100% или получи пару достижений, тогда оценка появится сама";
+        StatUnlockedSub = m > 0 ? $"{steamPct:0}%, +{m} не засчитано" : $"{steamPct:0}% в Steam";
 
-        StatRemaining = plan.RemainingMinutes is { } rm ? "~" + TimeEstimator.Format(rm) : "нет оценки";
-        StatRemainingSub = plan.RemainingMinutes is null
-            ? "задай время до 100% во вкладке \"Время\""
-            : _game.CompletionMinutes is not null ? "по времени до 100% " + (_game.CompletionSource == "manual" ? "(вручную)" : "(" + _game.CompletionSource + ")")
-            : "оценка по твоему прогрессу";
+        RemainingText = plan.IsComplete ? "Все достижения получены"
+            : plan.Overtime
+                ? $"Наиграно больше, чем обычно уходит на 100% ({TimeEstimator.Format(_game.UsedCompletionMinutes)}), а открыто не всё - остаток не оценить. " +
+                  "Если часть времени не в счёт (AFK, часы до появления достижений), поправь это во вкладке \"Время\""
+            : plan.RemainingMinutes is { } rem
+                ? $"До 100% примерно {TimeEstimator.Format(rem)}" +
+                  (plan.Pace > 1.05 ? $" с учётом твоего темпа (в {plan.Pace:0.#} раза медленнее медианы)" : "") +
+                  (plan.UnknownEstimateCount > 0 ? "; без оценки " + Ru.Count(plan.UnknownEstimateCount, "достижение", "достижения", "достижений") : "")
+            : _game.Achievements.All(a => a.Percent is null)
+                ? "До 100%: нет оценки - Steam не отдал глобальные проценты. Обнови схему (меню \"Ещё\") или собери статистику во вкладке \"Время\""
+                : "До 100%: нет оценки - задай время до 100% во вкладке \"Время\" или получи пару достижений, тогда оценка появится сама";
+
+        StatRemaining = plan.IsComplete ? "100%" : plan.RemainingMinutes is { } rm ? "~" + TimeEstimator.Format(rm) : "нет оценки";
+        StatRemainingSub = plan.IsComplete ? "всё получено"
+            : plan.Overtime ? "наиграно больше обычного"
+            : plan.RemainingMinutes is null ? "задай во вкладке \"Время\""
+            : CompletionSourceTitle(_game);
         var played = TimeEstimator.Format(_game.EffectivePlaytimeMinutes);
         StatPlayed = played;
         StatPlayedSub = _game.PlaytimeOverrideMinutes is not null ? "задано вручную"
@@ -804,7 +841,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             : "Выборка не собиралась. Пригодится, если Steam не отдаёт проценты или нет данных о времени.";
         QueueCount = _game.PendingUnlocks.Count;
         UpdateOverlayLists(all);
+
+        var summary = GameSummary.Of(_game);
+        _summaries[_game.AppId] = summary;
+        if (Library.FirstOrDefault(i => i.AppId == _game.AppId) is { } item) item.Summary = summary;
     }
+
+    /// <summary>Откуда время до 100% - коротко, для шапки.</summary>
+    private static string CompletionSourceTitle(GameData g) =>
+        g.CompletionMinutes is > 0 ? (g.CompletionSource == "manual" ? "задано вручную" : "по " + g.CompletionSource)
+        : g.SampleCompletionMinutes is > 0 ? "по выборке игроков"
+        : g.DerivedCompletionMinutes is > 0 ? "по твоему прогрессу"
+        : "по оценкам достижений";
 
     private void UpdateOverlayLists(IReadOnlyList<AchievementRow> all)
     {
@@ -821,6 +869,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                              .Take(Math.Max(1, _svc.Settings.OverlayNearestCount)))
             OverlayNearest.Add(new AchievementRowViewModel(this, r));
     }
+
+    // ---------- спойлеры ----------
+
+    public bool IsRevealed(string apiName) => _game is not null && _revealed.Contains(RevealKey(_game.AppId, apiName));
+
+    /// <summary>Показать описание скрытого достижения - во всех местах, где оно сейчас на экране.</summary>
+    public void Reveal(string apiName)
+    {
+        if (_game is null || !_revealed.Add(RevealKey(_game.AppId, apiName))) return;
+        foreach (var vm in Rows.Concat(PlanSections.SelectMany(s => s.Groups).SelectMany(g => g.Items)))
+            if (vm.ApiName == apiName) vm.RefreshSpoiler();
+    }
+
+    private static string RevealKey(uint appId, string apiName) => appId.ToString(CultureInfo.InvariantCulture) + "/" + apiName;
 
     // ---------- слежение за игрой ----------
 

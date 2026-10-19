@@ -2,132 +2,287 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AC.App"
+        xmlns:core="clr-namespace:AC.Core;assembly=AC.Core"
         Title="Achievement Companion" Icon="Assets/app.ico"
         Width="1360" Height="880" MinWidth="1040" MinHeight="620"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
-        <!-- Карточка достижения в списке -->
+        <!-- Выделение карточки - акцентная рамка поверх, без заливки: заливка темы спорит с фоном карточки. -->
+        <Style x:Key="CardItem" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Grid>
+                            <Border x:Name="Bd" CornerRadius="8" BorderThickness="1"
+                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                                <ContentPresenter />
+                            </Border>
+                            <Border x:Name="Ring" CornerRadius="8" BorderThickness="2" IsHitTestVisible="False" Visibility="Collapsed"
+                                    BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CardBackgroundPointerOver}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Ring" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FilterChip" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorSecondaryBrush}" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Margin" Value="0,0,6,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" CornerRadius="14" BorderThickness="1" Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Описание секретного достижения размыто; кнопка поверх открывает его. -->
+        <Style x:Key="SpoilerText" TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSpoilerHidden}" Value="True">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <BlurEffect Radius="9" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="RevealButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ToolTip" Value="Секретное достижение: нажми, чтобы прочитать описание" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent">
+                            <Border x:Name="Pill" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="10" Padding="8,2" BorderThickness="1"
+                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource ControlStrokeColorSecondaryBrush}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE7B3;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBlock Text="Показать" FontSize="12" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Pill" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RarityPercent" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RarityLevel}" Value="4">
+                    <Setter Property="Foreground" Value="{DynamicResource RarityVeryRareBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding RarityLevel}" Value="3">
+                    <Setter Property="Foreground" Value="{DynamicResource RarityRareBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding RarityLevel}" Value="2">
+                    <Setter Property="Foreground" Value="{DynamicResource RarityUncommonBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="StatusStripe" TargetType="Border">
+            <Setter Property="Background" Value="Transparent" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsUnlocked}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsManualStatus}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="StatusPill" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsUnlocked}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SystemFillColorSuccessBackgroundBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsManualStatus}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Действия карточки видны при наведении и у выбранной; место под них занято всегда, чтобы список не прыгал. -->
+        <Style x:Key="CardActions" TargetType="StackPanel">
+            <Setter Property="Visibility" Value="Hidden" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="HeroTile" TargetType="Border">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Background" Value="#1FFFFFFF" />
+            <Setter Property="BorderBrush" Value="#26FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
         <DataTemplate x:Key="AchievementCard">
-            <Border Style="{StaticResource Card}" Padding="0" Margin="0,0,0,6">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="4" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <!-- Полоска статуса слева: зелёная - открыто, жёлтая - сделано, но не засчитано -->
-                    <Border CornerRadius="8,0,0,8">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="Transparent" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsUnlocked}" Value="True">
-                                        <Setter Property="Background" Value="#2EA043" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsManualStatus}" Value="True">
-                                        <Setter Property="Background" Value="#D29922" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                    </Border>
-                <Grid Grid.Column="1" Margin="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border CornerRadius="7,0,0,7" Style="{StaticResource StatusStripe}" />
+
+                <Grid Grid.Column="1" Margin="12,12,14,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="60" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                    <Border Width="48" Height="48" CornerRadius="6" VerticalAlignment="Top"
+                    <Border Grid.RowSpan="2" Width="48" Height="48" CornerRadius="6" VerticalAlignment="Top"
                             Background="{DynamicResource SubtleFillColorSecondaryBrush}">
                         <Border CornerRadius="6" local:RemoteImage.DecodeWidth="96" local:RemoteImage.Url="{Binding Icon}" />
                     </Border>
 
-                    <StackPanel Grid.Column="1" Margin="0,0,12,0" ToolTip="{Binding Tooltip}">
+                    <StackPanel Grid.Column="1" Margin="0,0,16,0">
                         <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,2,0,0" Style="{StaticResource Muted}" />
-                        <WrapPanel Margin="0,6,0,0">
-                            <Border Style="{StaticResource Chip}" Visibility="{Binding HasKind, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="{Binding KindTitle}" Style="{StaticResource ChipText}" />
-                            </Border>
-                            <Border Style="{StaticResource Chip}" Visibility="{Binding Group, Converter={StaticResource EmptyToCollapsed}}">
-                                <TextBlock Text="{Binding Group}" Style="{StaticResource ChipText}" />
-                            </Border>
-                            <Border Style="{StaticResource Chip}" Visibility="{Binding IsHidden, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="секрет" Style="{StaticResource ChipText}" />
-                            </Border>
-                            <Border Style="{StaticResource Chip}" Visibility="{Binding IsProtected, Converter={StaticResource BoolToVis}}"
-                                    ToolTip="Ставит только сервер игры, записать в Steam нельзя">
-                                <TextBlock Text="защищено" Style="{StaticResource ChipText}" />
-                            </Border>
-                            <Border Style="{StaticResource Chip}" Visibility="{Binding IsPendingWrite, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="в очереди в Steam" Style="{StaticResource ChipText}" />
-                            </Border>
-                        </WrapPanel>
+                        <Grid Margin="0,2,0,0" Visibility="{Binding Description, Converter={StaticResource EmptyToCollapsed}}">
+                            <TextBlock Text="{Binding Description}" Style="{StaticResource SpoilerText}" />
+                            <Button Style="{StaticResource RevealButton}" Command="{Binding RevealCommand}"
+                                    Visibility="{Binding IsSpoilerHidden, Converter={StaticResource BoolToVis}}" />
+                        </Grid>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2" MinWidth="170" HorizontalAlignment="Right">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding Percent}" FontSize="16" FontWeight="SemiBold">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding RarityLevel}" Value="4">
-                                                <Setter Property="Foreground" Value="#E0A100" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding RarityLevel}" Value="3">
-                                                <Setter Property="Foreground" Value="#A371F7" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding RarityLevel}" Value="2">
-                                                <Setter Property="Foreground" Value="#3B8EEA" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </StackPanel>
+                    <StackPanel Grid.Column="2" MinWidth="120">
+                        <TextBlock Text="{Binding Percent}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                   Style="{StaticResource RarityPercent}" />
                         <TextBlock Text="{Binding RarityText}" HorizontalAlignment="Right" Style="{StaticResource Caption}" />
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0" ToolTip="{Binding EstimateHint}">
                             <TextBlock Text="&#xE823;" Style="{StaticResource Glyph}" FontSize="12" Margin="0,0,4,0"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             <TextBlock Text="{Binding Estimate}" Style="{StaticResource Caption}" />
                         </StackPanel>
+                    </StackPanel>
 
-                        <Border CornerRadius="10" Padding="8,2" Margin="0,6,0,0" HorizontalAlignment="Right"
+                    <WrapPanel Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" VerticalAlignment="Center">
+                        <Border Style="{StaticResource StatusPill}" Margin="0,0,6,0" VerticalAlignment="Center"
                                 Visibility="{Binding StatusText, Converter={StaticResource EmptyToCollapsed}}">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsUnlocked}" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource SystemFillColorSuccessBackgroundBrush}" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding IsManualStatus}" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
                             <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         </Border>
+                        <Border Style="{StaticResource Chip}" Visibility="{Binding HasKind, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding KindTitle}" Style="{StaticResource ChipText}" />
+                        </Border>
+                        <Border Style="{StaticResource Chip}" Visibility="{Binding Group, Converter={StaticResource EmptyToCollapsed}}">
+                            <TextBlock Text="{Binding Group}" Style="{StaticResource ChipText}" />
+                        </Border>
+                        <Border Style="{StaticResource Chip}" Visibility="{Binding IsHidden, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="секрет" Style="{StaticResource ChipText}" />
+                        </Border>
+                        <Border Style="{StaticResource Chip}" Visibility="{Binding IsProtected, Converter={StaticResource BoolToVis}}"
+                                ToolTip="Ставит только сервер игры, записать в Steam нельзя">
+                            <TextBlock Text="защищено" Style="{StaticResource ChipText}" />
+                        </Border>
+                        <Border Style="{StaticResource Chip}" Visibility="{Binding IsPendingWrite, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="в очереди в Steam" Style="{StaticResource ChipText}" />
+                        </Border>
+                    </WrapPanel>
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                            <CheckBox Content="Сделал" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="0"
-                                      IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      IsEnabled="{Binding IsUnlocked, Converter={StaticResource Inverse}}"
-                                      ToolTip="Выполнено, но в Steam не засчиталось" />
-                            <Button Content="В Steam" Padding="10,3"
-                                    ToolTip="Записать достижение в Steam сейчас (как в SAM)"
-                                    Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
-                        </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="2" Style="{StaticResource CardActions}" Orientation="Horizontal"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
+                        <CheckBox Content="Сделал" MinWidth="0" VerticalAlignment="Center" Margin="0,0,8,0"
+                                  IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  Visibility="{Binding IsUnlocked, Converter={StaticResource InverseVis}}"
+                                  ToolTip="Выполнено, но в Steam не засчиталось" />
+                        <Button Content="В Steam" Padding="10,3"
+                                ToolTip="Записать достижение в Steam сейчас (как в SAM)"
+                                Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}"
+                                Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
                     </StackPanel>
                 </Grid>
-                </Grid>
-            </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="PlanItem">
+            <Grid Margin="0,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="72" />
+                    <ColumnDefinition Width="64" />
+                </Grid.ColumnDefinitions>
+                <CheckBox MinWidth="0" VerticalAlignment="Center" Margin="0,0,4,0"
+                          IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          ToolTip="Сделал (в Steam не засчиталось)" />
+                <Border Grid.Column="1" Width="32" Height="32" CornerRadius="4" VerticalAlignment="Center"
+                        Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                    <Border CornerRadius="4" local:RemoteImage.DecodeWidth="64" local:RemoteImage.Url="{Binding Icon}" />
+                </Border>
+                <StackPanel Grid.Column="2" Margin="8,0,12,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <Grid Visibility="{Binding Description, Converter={StaticResource EmptyToCollapsed}}">
+                        <TextBlock Text="{Binding Description}" FontSize="12" Style="{StaticResource SpoilerText}" />
+                        <Button Style="{StaticResource RevealButton}" Command="{Binding RevealCommand}"
+                                Visibility="{Binding IsSpoilerHidden, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                </StackPanel>
+                <TextBlock Grid.Column="3" Text="{Binding Estimate}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           ToolTip="{Binding EstimateHint}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                <TextBlock Grid.Column="4" Text="{Binding Percent}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Style="{StaticResource RarityPercent}" />
+            </Grid>
         </DataTemplate>
     </Window.Resources>
 
@@ -137,15 +292,20 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- ===== Боковая панель: библиотека ===== -->
         <Border Grid.Column="0" Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
             <DockPanel Margin="16">
                 <StackPanel DockPanel.Dock="Top">
                     <TextBlock Text="Achievement Companion" Style="{StaticResource Subtitle}" />
                     <TextBlock Text="Помощник для прохождения на 100%" Style="{StaticResource Caption}" Margin="0,2,0,14" />
-                    <TextBlock Text="Поиск по библиотеке" Style="{StaticResource Caption}" Margin="0,0,0,4" />
-                    <TextBox Text="{Binding LibraryFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+                    <Grid Margin="0,0,0,10">
+                        <TextBox x:Name="LibrarySearch" Padding="32,5,6,6" Text="{Binding LibraryFilter, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Text="&#xE721;" Style="{StaticResource Glyph}" Margin="11,0,0,0" HorizontalAlignment="Left" IsHitTestVisible="False"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock Text="Поиск по библиотеке" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   Visibility="{Binding Text, ElementName=LibrarySearch, Converter={StaticResource EmptyToCollapsed}, ConverterParameter=invert}" />
+                    </Grid>
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
@@ -186,10 +346,24 @@
                                 <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"
                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <TextBlock Style="{StaticResource Caption}" FontSize="11">
-                                        <Run Text="{Binding PlaytimeMinutes, Mode=OneWay}" />
-                                        <Run Text=" мин в игре" />
-                                    </TextBlock>
+                                    <DockPanel Margin="0,1,0,0">
+                                        <Border DockPanel.Dock="Right" CornerRadius="8" Padding="6,0" Margin="6,0,0,0"
+                                                Background="{DynamicResource SystemFillColorSuccessBackgroundBrush}"
+                                                Visibility="{Binding IsPerfect, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="100%" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                                        </Border>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressText}" Style="{StaticResource Caption}" FontSize="11" Margin="6,0,0,0"
+                                                   Visibility="{Binding ShowProgressText, Converter={StaticResource BoolToVis}}" />
+                                        <TextBlock Text="{Binding PlaytimeText}" Style="{StaticResource Caption}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                    <Grid Height="3" Margin="0,4,0,0" Visibility="{Binding ShowProgressText, Converter={StaticResource BoolToVis}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="{Binding DoneStars}" />
+                                            <ColumnDefinition Width="{Binding RestStars}" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.ColumnSpan="2" CornerRadius="1.5" Background="{DynamicResource ControlStrokeColorSecondaryBrush}" />
+                                        <Border CornerRadius="1.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                    </Grid>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -198,7 +372,6 @@
             </DockPanel>
         </Border>
 
-        <!-- ===== Основная часть ===== -->
         <Grid Grid.Column="1" Margin="24,20,24,12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -207,16 +380,22 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- Заглушка, пока игра не выбрана -->
             <StackPanel Grid.Row="0" Grid.RowSpan="3" VerticalAlignment="Center" HorizontalAlignment="Center"
                         Visibility="{Binding HasGame, Converter={StaticResource InverseVis}}">
                 <TextBlock Text="&#xE8F1;" Style="{StaticResource Glyph}" FontSize="48" HorizontalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                 <TextBlock Text="Выбери игру слева" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" Margin="0,12,0,4" />
                 <TextBlock Text="или запусти её в Steam - приложение переключится само" Style="{StaticResource Caption}" HorizontalAlignment="Center" />
+                <StackPanel Margin="0,16,0,0" HorizontalAlignment="Center"
+                            Visibility="{Binding HasApiKey, Converter={StaticResource InverseVis}}">
+                    <TextBlock Text="Чтобы загрузить библиотеку и статус из Steam, задай SteamID и Web API ключ" Style="{StaticResource Caption}"
+                               HorizontalAlignment="Center" />
+                    <Button Content="Открыть настройки" HorizontalAlignment="Center" Margin="0,8,0,0" Click="OnOpenSettings"
+                            Style="{DynamicResource AccentButtonStyle}" />
+                </StackPanel>
             </StackPanel>
 
-            <!-- Шапка игры: фон - широкая картинка из библиотеки Steam под тёмным градиентом -->
+            <!-- Шапка: широкая картинка игры под затемнением, чтобы белый текст читался на любом арте -->
             <Grid Grid.Row="0" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
                 <Border CornerRadius="10" Background="#141A23" />
                 <Border CornerRadius="10" local:RemoteImage.DecodeWidth="1600" local:RemoteImage.Url="{Binding HeroImageUrl}" />
@@ -241,27 +420,35 @@
 
                     <StackPanel Grid.Column="1" Margin="20,0,0,0">
                         <TextBlock Text="{Binding GameName}" FontSize="26" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" />
-                        <ProgressBar Height="6" Maximum="100" Margin="0,10,0,4" Value="{Binding ProgressPercent, Mode=OneWay}"
-                                     Foreground="#66C0F4" Background="#33FFFFFF" BorderThickness="0" />
+                        <!-- Прогресс из трёх частей: открыто в Steam, сделано без засчёта, осталось -->
+                        <Grid Height="6" Margin="0,10,0,4" ToolTip="{Binding ProgressText}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{Binding SegUnlocked}" />
+                                <ColumnDefinition Width="{Binding SegManual}" />
+                                <ColumnDefinition Width="{Binding SegRest}" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.ColumnSpan="3" CornerRadius="3" Background="#33FFFFFF" />
+                            <Border Grid.ColumnSpan="2" CornerRadius="3" Background="#D29922" />
+                            <Border CornerRadius="3" Background="#66C0F4" />
+                        </Grid>
                         <TextBlock Text="{Binding ProgressText}" FontSize="12" Foreground="#C7D0DA" TextWrapping="Wrap" />
 
                         <UniformGrid Columns="3" Margin="0,12,0,0">
-                            <Border CornerRadius="8" Padding="12,8" Margin="0,0,8,0" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1">
+                            <Border Style="{StaticResource HeroTile}" Margin="0,0,8,0">
                                 <StackPanel>
                                     <TextBlock Text="Открыто" FontSize="12" Foreground="#AEB8C4" />
                                     <TextBlock Text="{Binding StatUnlocked}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
                                     <TextBlock Text="{Binding StatUnlockedSub}" FontSize="12" Foreground="#AEB8C4" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Border>
-                            <Border CornerRadius="8" Padding="12,8" Margin="0,0,8,0" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
-                                    ToolTip="{Binding RemainingText}">
+                            <Border Style="{StaticResource HeroTile}" Margin="0,0,8,0" ToolTip="{Binding RemainingText}">
                                 <StackPanel>
                                     <TextBlock Text="До 100%" FontSize="12" Foreground="#AEB8C4" />
                                     <TextBlock Text="{Binding StatRemaining}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
                                     <TextBlock Text="{Binding StatRemainingSub}" FontSize="12" Foreground="#AEB8C4" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Border>
-                            <Border CornerRadius="8" Padding="12,8" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1">
+                            <Border Style="{StaticResource HeroTile}">
                                 <StackPanel>
                                     <TextBlock Text="Наиграно" FontSize="12" Foreground="#AEB8C4" />
                                     <TextBlock Text="{Binding StatPlayed}" FontSize="22" FontWeight="SemiBold" Foreground="White" />
@@ -273,27 +460,19 @@
                 </Grid>
             </Grid>
 
-            <!-- Действия -->
             <WrapPanel Grid.Row="1" Margin="0,12,0,4" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
-                <Button Margin="0,0,8,8" Padding="12,6" Command="{Binding RefreshStateCommand}"
+                <Button Margin="0,0,8,8" Padding="12,6" Command="{Binding RefreshStateCommand}" Style="{DynamicResource AccentButtonStyle}"
                         ToolTip="Статус из источника, выбранного в настройках (Web API или Steam-клиент)">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE72C;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
                         <TextBlock Text="Обновить статус" />
                     </StackPanel>
                 </Button>
-                <Button Margin="0,0,8,8" Padding="12,6" Command="{Binding ReloadCommand}"
-                        ToolTip="Перекачать список достижений и глобальные проценты">
+                <Button Margin="0,0,8,8" Padding="12,6" Click="OnToggleOverlay"
+                        ToolTip="Показать или скрыть оверлей (горячая клавиша в настройках)">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE895;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
-                        <TextBlock Text="Обновить схему" />
-                    </StackPanel>
-                </Button>
-                <Button Margin="0,0,8,8" Padding="12,6" Command="{Binding ReadViaBridgeCommand}"
-                        ToolTip="Прочитать статус через Steam-клиент: работает при скрытом профиле, на пару секунд покажет тебя в игре">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE896;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
-                        <TextBlock Text="Через Steam-клиент" />
+                        <TextBlock Text="&#xE7F4;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
+                        <TextBlock Text="Оверлей" />
                     </StackPanel>
                 </Button>
                 <Button Margin="0,0,8,8" Padding="12,6" Command="{Binding FlushQueueCommand}"
@@ -303,76 +482,116 @@
                         <TextBlock Text="{Binding QueueText}" />
                     </StackPanel>
                 </Button>
-                <Button Margin="0,0,8,8" Padding="12,6" Click="OnExportMenu">
+                <Button Margin="0,0,8,8" Padding="12,6" Click="OnDropDown">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE74E;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
-                        <TextBlock Text="Экспорт" />
+                        <TextBlock Text="Ещё" />
+                        <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10" Margin="8,1,0,0" />
                     </StackPanel>
                     <Button.ContextMenu>
                         <ContextMenu>
-                            <MenuItem Header="Не засчитанные - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="manual" />
-                            <MenuItem Header="Не засчитанные - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="manual" />
+                            <MenuItem Header="Обновить схему и проценты" Command="{Binding ReloadCommand}"
+                                      ToolTip="Перекачать список достижений и глобальные проценты">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE895;" Style="{StaticResource Glyph}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Прочитать статус через Steam-клиент" Command="{Binding ReadViaBridgeCommand}"
+                                      ToolTip="Работает при скрытом профиле; на пару секунд покажет тебя в игре">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE896;" Style="{StaticResource Glyph}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Все достижения - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="all" />
-                            <MenuItem Header="Все достижения - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="all" />
-                            <Separator />
-                            <MenuItem Header="Сохранить разметку (типы, группы, оценки)" Command="{Binding ExportTagsCommand}" />
-                            <MenuItem Header="Загрузить разметку..." Command="{Binding ImportTagsCommand}" />
+                            <MenuItem Header="Экспорт">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE74E;" Style="{StaticResource Glyph}" />
+                                </MenuItem.Icon>
+                                <MenuItem Header="Не засчитанные - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="manual" />
+                                <MenuItem Header="Не засчитанные - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="manual" />
+                                <Separator />
+                                <MenuItem Header="Все достижения - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="all" />
+                                <MenuItem Header="Все достижения - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="all" />
+                            </MenuItem>
+                            <MenuItem Header="Разметка (типы, группы, оценки)">
+                                <MenuItem Header="Сохранить в файл..." Command="{Binding ExportTagsCommand}" />
+                                <MenuItem Header="Загрузить из файла..." Command="{Binding ImportTagsCommand}" />
+                            </MenuItem>
                         </ContextMenu>
                     </Button.ContextMenu>
                 </Button>
-                <Button Margin="0,0,8,8" Padding="12,6" Click="OnToggleOverlay"
-                        ToolTip="Показать или скрыть оверлей (горячая клавиша в настройках)">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE7F4;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
-                        <TextBlock Text="Оверлей" />
-                    </StackPanel>
-                </Button>
             </WrapPanel>
 
-            <!-- Вкладки -->
             <TabControl Grid.Row="2" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
                 <TabItem Header="Достижения">
                     <DockPanel Margin="0,10,0,0">
-                        <!-- Фильтры -->
-                        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                            <StackPanel Margin="0,0,12,6">
-                                <TextBlock Text="Поиск" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                                <TextBox Width="200" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
-                            </StackPanel>
-                            <StackPanel Margin="0,0,12,6">
-                                <TextBlock Text="Тип" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                                <ComboBox Width="130" ItemsSource="{x:Static local:Options.KindFilters}" SelectedItem="{Binding KindFilter}" />
-                            </StackPanel>
-                            <StackPanel Margin="0,0,12,6">
-                                <TextBlock Text="Сортировка" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                                <ComboBox Width="170" ItemsSource="{x:Static local:Options.Sorts}" SelectedItem="{Binding SelectedSort}" />
-                            </StackPanel>
-                            <StackPanel Margin="0,0,12,6">
-                                <TextBlock Text="Оценка времени" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                                <ComboBox Width="140" ItemsSource="{x:Static local:Options.Percentiles}" SelectedItem="{Binding SelectedPercentile}" />
-                            </StackPanel>
-                            <StackPanel Margin="0,0,0,6" VerticalAlignment="Bottom">
-                                <WrapPanel>
-                                    <CheckBox Content="обратный порядок" IsChecked="{Binding Descending}" Margin="0,0,12,0" />
-                                    <CheckBox Content="скрыть открытые" IsChecked="{Binding HideDone}" Margin="0,0,12,0" />
-                                    <CheckBox Content="только не засчитанные" IsChecked="{Binding OnlyManual}" Margin="0,0,12,0" />
-                                    <CheckBox Content="только секретные" IsChecked="{Binding OnlyHidden}" />
-                                </WrapPanel>
-                            </StackPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4" LastChildFill="False">
+                            <Grid Width="280" Margin="0,0,12,8">
+                                <TextBox x:Name="SearchBox" Padding="32,5,6,6"
+                                         Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                <TextBlock Text="&#xE721;" Style="{StaticResource Glyph}" Margin="11,0,0,0" HorizontalAlignment="Left" IsHitTestVisible="False"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                <TextBlock Text="Название, описание, группа, заметка" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                           Visibility="{Binding Text, ElementName=SearchBox, Converter={StaticResource EmptyToCollapsed}, ConverterParameter=invert}" />
+                            </Grid>
+                            <ComboBox Width="140" Margin="0,0,8,8" ToolTip="Тип" ItemsSource="{x:Static local:Options.KindFilters}" SelectedItem="{Binding KindFilter}" />
+                            <ComboBox Width="190" Margin="0,0,4,8" ToolTip="Сортировка" ItemsSource="{x:Static local:Options.Sorts}" SelectedItem="{Binding SelectedSort}" />
+                            <ToggleButton Margin="0,0,8,8" Padding="9,7" IsChecked="{Binding Descending}" ToolTip="Обратный порядок">
+                                <TextBlock Text="&#xE8CB;" Style="{StaticResource Glyph}" />
+                            </ToggleButton>
+                            <ComboBox Width="160" Margin="0,0,0,8" ItemsSource="{x:Static local:Options.Percentiles}" SelectedItem="{Binding SelectedPercentile}"
+                                      ToolTip="По какой доле игроков оценивать время: медиана - типичный игрок, p75 и p90 - с запасом" />
+                        </DockPanel>
+
+                        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                            <RadioButton Style="{StaticResource FilterChip}"
+                                         IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.All}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Все" />
+                                    <TextBlock Text="{Binding CountAll}" Margin="6,0,0,0" Opacity="0.7" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource FilterChip}"
+                                         IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.Open}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Не получены" />
+                                    <TextBlock Text="{Binding CountOpen}" Margin="6,0,0,0" Opacity="0.7" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource FilterChip}"
+                                         IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.Done}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Получены" />
+                                    <TextBlock Text="{Binding CountDone}" Margin="6,0,0,0" Opacity="0.7" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource FilterChip}" ToolTip="Сделано, но в Steam не засчиталось"
+                                         IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.NotCounted}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Не засчитаны" />
+                                    <TextBlock Text="{Binding CountNotCounted}" Margin="6,0,0,0" Opacity="0.7" />
+                                </StackPanel>
+                            </RadioButton>
+                            <Border Width="1" Margin="6,4,12,12" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+                            <ToggleButton Style="{StaticResource FilterChip}" IsChecked="{Binding OnlyHidden}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE72E;" Style="{StaticResource Glyph}" FontSize="12" Margin="0,0,6,0" />
+                                    <TextBlock Text="Секретные" />
+                                </StackPanel>
+                            </ToggleButton>
                         </WrapPanel>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="12" />
                                 <ColumnDefinition Width="340" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Список -->
                             <ListBox x:Name="AchievementList" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
-                                     ItemTemplate="{StaticResource AchievementCard}" SelectionMode="Extended" HorizontalContentAlignment="Stretch"
-                                     Background="Transparent" BorderThickness="0"
+                                     ItemTemplate="{StaticResource AchievementCard}" ItemContainerStyle="{StaticResource CardItem}"
+                                     SelectionMode="Extended" HorizontalContentAlignment="Stretch"
+                                     Background="Transparent" BorderThickness="0" Padding="0"
                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                                      VirtualizingPanel.ScrollUnit="Pixel"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -389,7 +608,17 @@
                                 </ListBox.ContextMenu>
                             </ListBox>
 
-                            <!-- Подробности выбранного -->
+                            <TextBlock Text="Ничего не найдено - поменяй фильтры" Style="{StaticResource Caption}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,24,0,0">
+                                <TextBlock.Visibility>
+                                    <Binding Path="Items.Count" ElementName="AchievementList">
+                                        <Binding.Converter>
+                                            <local:ZeroToVisibleConverter />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </TextBlock.Visibility>
+                            </TextBlock>
+
                             <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Stretch">
                                 <Grid>
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
@@ -408,10 +637,11 @@
                                                 <Border CornerRadius="8" local:RemoteImage.DecodeWidth="128" local:RemoteImage.Url="{Binding Icon}" />
                                             </Border>
                                             <TextBlock Text="{Binding Name}" Style="{StaticResource Subtitle}" TextWrapping="Wrap" Margin="0,10,0,4" />
-                                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Style="{StaticResource Muted}" />
-                                            <ToggleButton Content="Показать описание" HorizontalAlignment="Left" Margin="0,8,0,0" Padding="10,3"
-                                                          IsChecked="{Binding Revealed}"
-                                                          Visibility="{Binding IsSpoilerHidden, Converter={StaticResource BoolToVis}}" />
+                                            <Grid Visibility="{Binding Description, Converter={StaticResource EmptyToCollapsed}}">
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource SpoilerText}" />
+                                                <Button Style="{StaticResource RevealButton}" Command="{Binding RevealCommand}"
+                                                        Visibility="{Binding IsSpoilerHidden, Converter={StaticResource BoolToVis}}" />
+                                            </Grid>
 
                                             <Grid Margin="0,14,0,0">
                                                 <Grid.ColumnDefinitions>
@@ -431,9 +661,11 @@
                                                 </TextBlock>
                                                 <TextBlock Grid.Row="1" Text="Оценка" Style="{StaticResource Caption}" Margin="0,0,0,6" />
                                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Estimate}" Margin="0,0,0,6" ToolTip="{Binding EstimateHint}" />
-                                                <TextBlock Grid.Row="2" Text="Статус" Style="{StaticResource Caption}" Margin="0,0,0,6" />
-                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding StatusText}" Margin="0,0,0,6" />
-                                                <TextBlock Grid.Row="3" Text="API-имя" Style="{StaticResource Caption}" />
+                                                <TextBlock Grid.Row="2" Text="Статус" Style="{StaticResource Caption}" Margin="0,0,0,6"
+                                                           Visibility="{Binding StatusText, Converter={StaticResource EmptyToCollapsed}}" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding StatusText}" Margin="0,0,0,6"
+                                                           Visibility="{Binding StatusText, Converter={StaticResource EmptyToCollapsed}}" />
+                                                <TextBlock Grid.Row="3" Text="API-имя" Style="{StaticResource Caption}" VerticalAlignment="Center" />
                                                 <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ApiName, Mode=OneWay}" IsReadOnly="True" />
                                             </Grid>
 
@@ -443,6 +675,8 @@
 
                                             <TextBlock Text="Группа &quot;за один заход&quot; (глава, локация, режим)" Style="{StaticResource Caption}" Margin="0,10,0,2" />
                                             <TextBox Text="{Binding Group, UpdateSourceTrigger=LostFocus}" />
+                                            <TextBlock Text="Определена по описанию автоматически" Style="{StaticResource Caption}" Margin="0,2,0,0"
+                                                       Visibility="{Binding GroupIsAuto, Converter={StaticResource BoolToVis}}" />
 
                                             <TextBlock Text="Своя оценка, часов от начала игры (пусто - авто)" Style="{StaticResource Caption}" Margin="0,10,0,2" />
                                             <TextBox Text="{Binding EstimateInput, UpdateSourceTrigger=LostFocus}" />
@@ -451,8 +685,6 @@
                                             <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
 
                                             <TextBlock Text="Как получить" Style="{StaticResource Header}" />
-                                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,6"
-                                                       Text="Откроет в браузере поиск по этому достижению." />
                                             <WrapPanel>
                                                 <Button Content="Гайды Steam" Margin="0,0,8,8" Padding="10,4"
                                                         Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="steam" />
@@ -464,11 +696,9 @@
                                                         Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="google" />
                                             </WrapPanel>
 
-                                            <WrapPanel Margin="0,16,0,0">
-                                                <CheckBox Content="Сделал, но не засчиталось" Margin="0,0,0,8"
-                                                          IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                          IsEnabled="{Binding IsUnlocked, Converter={StaticResource Inverse}}" />
-                                            </WrapPanel>
+                                            <CheckBox Content="Сделал, но не засчиталось" Margin="0,12,0,8"
+                                                      IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      Visibility="{Binding IsUnlocked, Converter={StaticResource InverseVis}}" />
                                             <WrapPanel>
                                                 <Button Content="Записать в Steam" Margin="0,0,8,8" Padding="12,5"
                                                         Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -489,46 +719,26 @@
 
                 <TabItem Header="План до 100%">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
-                        <StackPanel>
+                        <StackPanel MaxWidth="980" HorizontalAlignment="Left">
                             <TextBlock Text="{Binding RemainingText}" Style="{StaticResource Subtitle}" TextWrapping="Wrap" />
                             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
-                                       Text="Порядок: сначала миссибл, потом сюжет, прочее и гринд. Внутри этапа - по оценке времени от начала игры. Группы задаются в карточке достижения." />
-                            <ItemsControl ItemsSource="{Binding PlanSections}">
+                                       Text="Сначала миссибл, потом сюжет, прочее и гринд; внутри этапа - по оценке времени от начала игры. Группы задаются в карточке достижения, галочка - сделано, но не засчитано." />
+                            <ItemsControl ItemsSource="{Binding PlanSections}" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Margin="0,0,0,12">
                                             <TextBlock Text="{Binding Title}" Style="{StaticResource Header}" />
-                                            <ItemsControl ItemsSource="{Binding Groups}">
+                                            <ItemsControl ItemsSource="{Binding Groups}" Focusable="False">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
                                                         <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,8">
                                                             <StackPanel>
-                                                                <DockPanel Margin="0,0,0,6">
+                                                                <DockPanel Margin="0,0,0,4">
                                                                     <TextBlock DockPanel.Dock="Right" Text="{Binding Longest}" Style="{StaticResource Caption}" />
                                                                     <TextBlock Text="{Binding Label}" FontWeight="SemiBold"
                                                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                                                 </DockPanel>
-                                                                <ItemsControl ItemsSource="{Binding Items}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <Grid Margin="0,4">
-                                                                                <Grid.ColumnDefinitions>
-                                                                                    <ColumnDefinition Width="*" />
-                                                                                    <ColumnDefinition Width="80" />
-                                                                                    <ColumnDefinition Width="70" />
-                                                                                    <ColumnDefinition Width="90" />
-                                                                                </Grid.ColumnDefinitions>
-                                                                                <StackPanel>
-                                                                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                                                    <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
-                                                                                </StackPanel>
-                                                                                <TextBlock Grid.Column="1" Text="{Binding Estimate}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                                                <TextBlock Grid.Column="2" Text="{Binding Percent}" Style="{StaticResource Muted}" />
-                                                                                <TextBlock Grid.Column="3" Text="{Binding Kind}" Style="{StaticResource Caption}" />
-                                                                            </Grid>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
+                                                                <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource PlanItem}" Focusable="False" />
                                                             </StackPanel>
                                                         </Border>
                                                     </DataTemplate>
@@ -549,7 +759,12 @@
                                 <StackPanel>
                                     <TextBlock Text="Статистика по игрокам" Style="{StaticResource Subtitle}" />
                                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,10"
-                                               Text="Берём авторов обзоров игры в Steam и у кого открыт профиль - смотрим, что и когда они открыли. Получаем проценты и сколько было наиграно к каждому достижению. Помогает, когда Steam не отдаёт глобальные проценты (как у новых игр). Нужен API-ключ, занимает до минуты." />
+                                               Text="Берём авторов обзоров игры в Steam с открытым профилем и смотрим, что и когда они открыли: получаем проценты и сколько было наиграно к каждому достижению. Помогает, когда Steam не отдаёт глобальные проценты (как у новых игр). Занимает до минуты." />
+                                    <DockPanel Margin="0,0,0,10" Visibility="{Binding HasApiKey, Converter={StaticResource InverseVis}}">
+                                        <Button DockPanel.Dock="Right" Content="Настройки" Margin="8,0,0,0" Click="OnOpenSettings" />
+                                        <TextBlock Text="Нужен Steam Web API ключ - задай его в настройках" VerticalAlignment="Center" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                    </DockPanel>
                                     <WrapPanel>
                                         <Button Content="Собрать статистику" Margin="0,0,8,8" Padding="12,5" Command="{Binding CollectSampleCommand}" />
                                     </WrapPanel>
@@ -605,7 +820,6 @@
                 </TabItem>
             </TabControl>
 
-            <!-- Строка состояния -->
             <DockPanel Grid.Row="3" Margin="0,8,0,0">
                 <ProgressBar DockPanel.Dock="Right" Width="120" Height="4" IsIndeterminate="True" VerticalAlignment="Center"
                              Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />

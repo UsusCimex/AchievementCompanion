@@ -70,7 +70,8 @@ public partial class MainWindow : Window
         _vm.StatusMessage = "Настройки сохранены";
     }
 
-    private void OnExportMenu(object sender, RoutedEventArgs e)
+    /// <summary>Кнопка с выпадающим меню: меню - её ContextMenu, открываем по обычному клику.</summary>
+    private void OnDropDown(object sender, RoutedEventArgs e)
     {
         if (sender is Button { ContextMenu: { } menu } button)
         {
