@@ -55,6 +55,20 @@ public sealed class GameService
 
     public void SaveSettings() => _store.SaveSettings(Settings);
 
+    /// <summary>Steam language of achievement names and descriptions: the chosen one or the interface language.</summary>
+    public string ContentLanguage => Settings.Language.Length > 0 ? Settings.Language : Loc.SteamLanguage(Loc.Language);
+
+    /// <summary>The cached names and descriptions are in another language than the one now chosen.</summary>
+    public bool NeedsSchemaReload(GameData game) =>
+        !string.Equals(game.SchemaLanguage, ContentLanguage, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Re-derives automatic types and groups, so group names follow the interface language.</summary>
+    public void Relabel(GameData game)
+    {
+        GameLogic.AutoClassify(game);
+        _store.SaveGame(game);
+    }
+
     // ---------- библиотека ----------
 
     public List<OwnedGame> CachedLibrary() => _store.LoadLibrary() ?? new List<OwnedGame>();
@@ -88,7 +102,7 @@ public sealed class GameService
 
         bool stale = forceSchema || game.Achievements.Count == 0 || game.SchemaFetchedAt is null ||
                      DateTimeOffset.Now - game.SchemaFetchedAt > SchemaTtl ||
-                     !string.Equals(game.SchemaLanguage, Settings.Language, StringComparison.OrdinalIgnoreCase);
+                     NeedsSchemaReload(game);
 
         if (stale)
         {
@@ -96,11 +110,11 @@ public sealed class GameService
             {
                 try
                 {
-                    var (name, entries) = await _api.GetSchemaAsync(ApiKey, appId, Settings.Language, ct);
+                    var (name, entries) = await _api.GetSchemaAsync(ApiKey, appId, ContentLanguage, ct);
                     if (!string.IsNullOrEmpty(name)) game.Name = name;
                     MergeSchema(game, entries);
                     game.SchemaFetchedAt = DateTimeOffset.Now;
-                    game.SchemaLanguage = Settings.Language;
+                    game.SchemaLanguage = ContentLanguage;
                 }
                 catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
                 {
@@ -177,7 +191,7 @@ public sealed class GameService
     /// <summary>Статус и схема через помощник (работает при скрытом профиле, на секунду показывает "в игре").</summary>
     public async Task<(IReadOnlyList<string> Fresh, string? Error)> RefreshViaBridgeAsync(GameData game, CancellationToken ct = default)
     {
-        var r = await _bridge.ReadAsync(game.AppId, Settings.Language, ct);
+        var r = await _bridge.ReadAsync(game.AppId, ContentLanguage, ct);
         if (!r.Ok || r.Achievements is null) return (Array.Empty<string>(), r.Error ?? Loc.T("error.bridge"));
 
         var byName = game.Achievements.ToDictionary(a => a.ApiName, StringComparer.Ordinal);
@@ -506,8 +520,10 @@ public sealed class GameService
 
     private void MergeLocalSchema(GameData game)
     {
-        var local = SteamLocal.ReadSchema(game.AppId, Settings.Language);
+        var local = SteamLocal.ReadSchema(game.AppId, ContentLanguage);
         if (local is null || local.Count == 0) return;
+        // Without a key the local schema is the only source of texts, so it also decides their language.
+        bool textsFromLocal = !HasApiKey;
         var byName = game.Achievements.ToDictionary(a => a.ApiName, StringComparer.Ordinal);
         foreach (var l in local)
         {
@@ -525,8 +541,10 @@ public sealed class GameService
                 game.Achievements.Add(def);
                 byName[l.ApiName] = def;
             }
-            if (string.IsNullOrEmpty(def.Description)) def.Description = l.Description;
+            if (textsFromLocal && l.Name.Length > 0) def.Name = l.Name;
+            if ((textsFromLocal && l.Description.Length > 0) || string.IsNullOrEmpty(def.Description)) def.Description = l.Description;
             def.Protected = l.Protected;
         }
+        if (textsFromLocal) game.SchemaLanguage = ContentLanguage;
     }
 }

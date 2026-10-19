@@ -24,6 +24,8 @@ public sealed class LibraryItemViewModel : ObservableObject
         ? Loc.T("library.played", TimeEstimator.Format(Game.PlaytimeMinutes))
         : Loc.T("library.neverPlayed");
 
+    public void RefreshTexts() => OnPropertyChanged(nameof(PlaytimeText));
+
     public GameSummary? Summary
     {
         get => _summary;

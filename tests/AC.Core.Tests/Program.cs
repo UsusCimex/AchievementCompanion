@@ -5,6 +5,7 @@ using AC.Core.SteamFormats;
 
 // Мини-раннер: каждый public static void метод класса Tests - тест.
 int failed = 0, passed = 0;
+Loc.SetLanguage(Loc.Fallback);
 foreach (var m in typeof(Tests).GetMethods(BindingFlags.Public | BindingFlags.Static))
 {
     try
@@ -67,6 +68,7 @@ static class Tests
 
     public static void Classifier_RussianFormsAndPlaces()
     {
+        Loc.SetLanguage("ru");
         // Steam часто пишет инфинитивом: "Собрать", а не "Соберите"
         Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Ягодные места", "Собрать 80 ягод"));
         Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Охотник", "Убить 50 врагов"));
@@ -88,6 +90,7 @@ static class Tests
 
     public static void AutoGroup_RespectsManualAndLegacy()
     {
+        Loc.SetLanguage("ru");
         var g = SampleGame();
         Assert.Equal("Глава 5", g.Tags["ch5"].Group); // из "Complete chapter 5"
         Assert.True(!g.Tags["ch5"].GroupIsManual, "группа определена автоматически");
@@ -104,6 +107,14 @@ static class Tests
         // старый формат: группа есть, источника нет - значит, её ставил пользователь
         Assert.True(new AchievementTag { Group = "Старая группа" }.GroupIsManual);
         Assert.True(!new AchievementTag().GroupIsManual);
+    }
+
+    public static void Classifier_PlacesFollowLanguage()
+    {
+        Loc.SetLanguage("en");
+        Assert.Equal("Chapter 9", KindClassifier.Location("Farewell", "Complete Chapter 9"));
+        Assert.Equal("Act II", KindClassifier.Location("Hidden Path", "Find the hidden path in Act II"));
+        Assert.Equal("Episode 1", KindClassifier.Location("Сердце", "Пройти эпизод 1"));
     }
 
     public static void ManualKind_NotOverwrittenByAuto()
@@ -335,6 +346,63 @@ static class Tests
         Assert.Equal("other", Loc.Category("en", 21));
     }
 
+    public static void Loc_SwitchAndFallback()
+    {
+        Assert.Equal("en", Loc.Languages[0]);
+        Assert.True(Loc.Languages.Contains("ru"), "Russian is shipped");
+        int changed = 0;
+        void OnChanged() => changed++;
+        Loc.Changed += OnChanged;
+        try
+        {
+            Loc.SetLanguage("ru");
+            Assert.Equal("Время", Loc.T("tabs.time"));
+            Assert.Equal("Загружено 21 достижение", Loc.Plural("status.gameLoaded", 21));
+            Assert.Equal("russian", Loc.SteamLanguage(Loc.Language));
+            Loc.SetLanguage("en");
+            Assert.Equal("Time", Loc.T("tabs.time"));
+            Assert.Equal("Loaded 1 achievement", Loc.Plural("status.gameLoaded", 1));
+            Assert.Equal("Loaded 21 achievements", Loc.Plural("status.gameLoaded", 21));
+            Assert.Equal("no.such.key", Loc.T("no.such.key"));
+            Assert.Equal("ru", Loc.Resolve("ru"));
+            Assert.True(Loc.Languages.Contains(Loc.Resolve("xx")), "unknown language falls back to a shipped one");
+            Assert.Equal(2, changed);
+        }
+        finally
+        {
+            Loc.Changed -= OnChanged;
+            Loc.SetLanguage(Loc.Fallback);
+        }
+    }
+
+    /// <summary>Every translation has the English keys and placeholders, its language's plural forms and formats cleanly.</summary>
+    public static void Loc_TranslationsMatchFallback()
+    {
+        static string Base(string key) => key.Split('#')[0];
+        static HashSet<string> Holes(string s) =>
+            System.Text.RegularExpressions.Regex.Matches(s, @"\{(\d+)\}").Select(m => m.Groups[1].Value).ToHashSet();
+        var english = Loc.Strings(Loc.Fallback);
+        foreach (var lang in Loc.Languages)
+        {
+            var strings = Loc.Strings(lang);
+            Assert.True(english.Keys.Select(Base).ToHashSet().SetEquals(strings.Keys.Select(Base)), $"{lang}: keys differ from English");
+            var forms = lang == "ru" ? new[] { "few", "many", "one" } : new[] { "one", "other" };
+            foreach (var group in strings.GroupBy(kv => Base(kv.Key)))
+            {
+                var expected = english.Where(kv => Base(kv.Key) == group.Key).SelectMany(kv => Holes(kv.Value)).ToHashSet();
+                bool plural = group.First().Key.Contains('#');
+                if (plural)
+                    Assert.True(group.Select(kv => kv.Key.Split('#')[1]).Order().SequenceEqual(forms), $"{lang}: {group.Key} plural forms");
+                foreach (var (key, text) in group)
+                {
+                    var holes = Holes(text);
+                    Assert.True(plural ? holes.IsSubsetOf(expected) : holes.SetEquals(expected), $"{lang}: {key} placeholders differ from English");
+                    _ = string.Format(System.Globalization.CultureInfo.InvariantCulture, text, "a", "b", "c", "d");
+                }
+            }
+        }
+    }
+
     /// <summary>Ключи в коде есть в файлах перевода, а в файлах нет лишних.</summary>
     public static void Loc_KeysMatchCode()
     {
@@ -342,7 +410,7 @@ static class Tests
         while (root != null && !File.Exists(Path.Combine(root.FullName, "AchievementCompanion.sln"))) root = root.Parent;
         Assert.True(root != null, "не найден корень репозитория");
         var src = Path.Combine(root!.FullName, "src");
-        var sections = Loc.Keys(Loc.Fallback).Select(k => k.Split('.')[0]).ToHashSet();
+        var sections = Loc.Strings(Loc.Fallback).Keys.Select(k => k.Split('.')[0]).ToHashSet();
         var used = new HashSet<string>();
         foreach (var file in Directory.EnumerateFiles(src, "*.*", SearchOption.AllDirectories)
                      .Where(f => (f.EndsWith(".cs") || f.EndsWith(".xaml")) && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")))
@@ -357,7 +425,7 @@ static class Tests
         }
         foreach (var lang in Loc.Languages)
         {
-            var keys = Loc.Keys(lang).Select(k => k.Split('#')[0]).ToHashSet();
+            var keys = Loc.Strings(lang).Keys.Select(k => k.Split('#')[0]).ToHashSet();
             var missing = used.Where(k => !keys.Contains(k)).ToList();
             Assert.True(missing.Count == 0, $"{lang}: нет ключей {string.Join(", ", missing)}");
             var unused = keys.Where(k => !used.Contains(k)).ToList();

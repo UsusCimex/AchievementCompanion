@@ -3,8 +3,8 @@ using AC.Infrastructure;
 
 namespace AC.App;
 
-/// <summary>Пункт выпадающего списка: значение и подпись по ключу перевода.</summary>
-public sealed class Option<T>
+/// <summary>A drop-down item: a value and a caption by translation key; the caption follows the language.</summary>
+public sealed class Option<T> : ObservableObject
 {
     private readonly string? _key;
     private readonly string _title;
@@ -16,6 +16,8 @@ public sealed class Option<T>
         Value = value;
         _key = key;
         _title = title;
+        // Options live in static lists for the whole run, so the subscription never has to end.
+        if (key is not null) Loc.Changed += () => OnPropertyChanged(nameof(Title));
     }
 
     /// <summary>Подпись без перевода: названия языков пишутся на самих языках.</summary>
@@ -66,7 +68,7 @@ public static class Options
 
     public static IReadOnlyList<Option<AppTheme>> Themes { get; } = new[]
     {
-        new Option<AppTheme>(AppTheme.System, "theme.system"),
+        new Option<AppTheme>(AppTheme.System, "option.system"),
         new Option<AppTheme>(AppTheme.Light, "theme.light"),
         new Option<AppTheme>(AppTheme.Dark, "theme.dark"),
     };
@@ -84,14 +86,29 @@ public static class Options
         new Option<StatusSource>(StatusSource.SteamClient, "source.client"),
     };
 
-    public static IReadOnlyList<Option<string>> Languages { get; } = new[]
-    {
-        Option<string>.Fixed("russian", "Русский"),
+    /// <summary>Interface languages: as in Windows, then every translation under its own name.</summary>
+    public static IReadOnlyList<Option<string>> UiLanguages { get; } =
+        [new Option<string>("", "option.system"), .. Loc.Languages.Select(l => Option<string>.Fixed(l, Loc.NativeName(l)))];
+
+    /// <summary>Steam languages for achievement names and descriptions; empty means the interface language.</summary>
+    public static IReadOnlyList<Option<string>> ContentLanguages { get; } =
+    [
+        new Option<string>("", "settings.languageAuto"),
         Option<string>.Fixed("english", "English"),
+        Option<string>.Fixed("russian", "Русский"),
         Option<string>.Fixed("ukrainian", "Українська"),
         Option<string>.Fixed("german", "Deutsch"),
+        Option<string>.Fixed("french", "Français"),
+        Option<string>.Fixed("spanish", "Español"),
+        Option<string>.Fixed("brazilian", "Português (Brasil)"),
+        Option<string>.Fixed("italian", "Italiano"),
+        Option<string>.Fixed("polish", "Polski"),
+        Option<string>.Fixed("turkish", "Türkçe"),
+        Option<string>.Fixed("japanese", "日本語"),
+        Option<string>.Fixed("koreana", "한국어"),
         Option<string>.Fixed("schinese", "简体中文"),
-    };
+        Option<string>.Fixed("tchinese", "繁體中文"),
+    ];
 
     public static string KindTitle(AchievementKind k) => Kinds.FirstOrDefault(o => o.Value == k)?.Title ?? "-";
 

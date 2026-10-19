@@ -1,4 +1,7 @@
 {
+  "language.name": "Русский",
+  "language.steam": "russian",
+
   "library.tagline": "Помощник для прохождения на 100%",
   "library.search": "Поиск по библиотеке",
   "library.openByAppId": "Открыть по AppID",
@@ -180,6 +183,8 @@
   "overlay.interactDrag": "Режим кликов: можно перетаскивать. {0} - вернуть в игру",
   "overlay.keys": "{0} - скрыть, {1} - режим кликов",
 
+  "option.system": "Как в Windows",
+
   "settings.title": "Настройки",
   "settings.cancel": "Отмена",
   "settings.save": "Сохранить",
@@ -187,6 +192,7 @@
   "settings.getKey": "Получить ключ",
   "settings.detectId": "Взять из Steam",
   "settings.language": "Язык названий и описаний",
+  "settings.languageAuto": "Как в интерфейсе",
   "settings.steamHint": "Ключ хранится зашифрованным (Windows DPAPI) в папке данных. На странице ключа в поле домена можно вписать localhost. Чтобы статус шёл через Web API, в настройках приватности Steam должна быть открыта информация об играх.",
   "settings.statusTitle": "Автообновление статуса",
   "settings.statusHint": "Статус обновляется сам: когда Steam сохраняет статистику игры и по таймеру, пока игра запущена. Без ключа Web API статус читается через клиент Steam.",
@@ -197,6 +203,7 @@
   "settings.writeMode": "Что делать с галочкой \"Сделал\"",
   "settings.writeHint": "Кнопка \"В Steam\" записывает достижение сразу при любом режиме; временем получения станет время записи. Защищённые достижения (их ставит только сервер игры) записать нельзя. Каждая запись попадает в журнал unlock_log.jsonl.",
   "settings.viewTitle": "Отображение",
+  "settings.uiLanguage": "Язык интерфейса",
   "settings.theme": "Тема",
   "settings.hideSpoilers": "Прятать описания скрытых достижений, пока они не получены",
   "settings.spoilersHint": "Спрятанное описание размыто - нажми на него, чтобы прочитать. В оверлее описания скрытых видны всегда.",
@@ -233,7 +240,6 @@
   "percentile.p75": "С запасом",
   "percentile.p90": "С большим запасом",
 
-  "theme.system": "Как в Windows",
   "theme.light": "Светлая",
   "theme.dark": "Тёмная",
 

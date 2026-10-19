@@ -3,13 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AC.App"
         Title="{local:Tr settings.title}" Icon="Assets/app.ico" Width="640" Height="760" MinHeight="480" ResizeMode="CanResize"
-        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" AutomationProperties.AutomationId="Settings">
     <DockPanel>
         <Border DockPanel.Dock="Bottom" Padding="20,12" BorderThickness="0,1,0,0"
                 BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="{local:Tr settings.cancel}" IsCancel="True" Margin="0,0,8,0" Padding="16,5" />
-                <Button Content="{local:Tr settings.save}" IsDefault="True" Click="OnSave" Padding="16,5" />
+                <Button Content="{local:Tr settings.cancel}" IsCancel="True" AutomationProperties.AutomationId="CancelButton" Margin="0,0,8,0" Padding="16,5" />
+                <Button Content="{local:Tr settings.save}" IsDefault="True" AutomationProperties.AutomationId="SaveButton" Click="OnSave" Padding="16,5" />
             </StackPanel>
         </Border>
 
@@ -35,7 +35,7 @@
                         </DockPanel>
 
                         <TextBlock Text="{local:Tr settings.language}" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                        <ComboBox x:Name="LanguageBox" ItemsSource="{x:Static local:Options.Languages}" HorizontalAlignment="Stretch" />
+                        <ComboBox x:Name="LanguageBox" ItemsSource="{x:Static local:Options.ContentLanguages}" DisplayMemberPath="Title" HorizontalAlignment="Stretch" />
 
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,0"
                                    Text="{local:Tr settings.steamHint}" />
@@ -46,7 +46,7 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="{local:Tr settings.statusTitle}" Style="{StaticResource Subtitle}" Margin="0,0,0,10" />
-                        <ComboBox x:Name="StatusSourceBox" ItemsSource="{x:Static local:Options.StatusSources}" HorizontalAlignment="Stretch" />
+                        <ComboBox x:Name="StatusSourceBox" ItemsSource="{x:Static local:Options.StatusSources}" DisplayMemberPath="Title" HorizontalAlignment="Stretch" />
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,10"
                                    Text="{local:Tr settings.statusHint}" />
                         <TextBlock Text="{local:Tr settings.poll}" Style="{StaticResource Caption}" Margin="0,0,0,2" />
@@ -64,7 +64,7 @@
                                    Text="{local:Tr settings.manualHint}" />
                         <StackPanel Margin="0,12,0,0" Visibility="{Binding IsChecked, ElementName=ManualUnlocksBox, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="{local:Tr settings.writeMode}" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                            <ComboBox x:Name="WriteModeBox" ItemsSource="{x:Static local:Options.WriteModes}" HorizontalAlignment="Stretch" />
+                            <ComboBox x:Name="WriteModeBox" ItemsSource="{x:Static local:Options.WriteModes}" DisplayMemberPath="Title" HorizontalAlignment="Stretch" />
                             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
                                        Text="{local:Tr settings.writeHint}" />
                         </StackPanel>
@@ -75,8 +75,12 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="{local:Tr settings.viewTitle}" Style="{StaticResource Subtitle}" Margin="0,0,0,10" />
+                        <TextBlock Text="{local:Tr settings.uiLanguage}" Style="{StaticResource Caption}" Margin="0,0,0,2" />
+                        <ComboBox x:Name="UiLanguageBox" ItemsSource="{x:Static local:Options.UiLanguages}" DisplayMemberPath="Title"
+                                  Width="220" HorizontalAlignment="Left" Margin="0,0,0,12" />
                         <TextBlock Text="{local:Tr settings.theme}" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                        <ComboBox x:Name="ThemeBox" ItemsSource="{x:Static local:Options.Themes}" Width="220" HorizontalAlignment="Left" Margin="0,0,0,12" />
+                        <ComboBox x:Name="ThemeBox" ItemsSource="{x:Static local:Options.Themes}" DisplayMemberPath="Title"
+                                  Width="220" HorizontalAlignment="Left" Margin="0,0,0,12" />
                         <CheckBox x:Name="HideSpoilersBox" Content="{local:Tr settings.hideSpoilers}" />
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
                                    Text="{local:Tr settings.spoilersHint}" />

@@ -5,29 +5,39 @@ using System.Text.Json;
 namespace AC.Core;
 
 /// <summary>
-/// Тексты интерфейса: Lang/&lt;язык&gt;.json, вшитые в сборку. Ключа нет в текущем языке - берётся из основного,
-/// нет и там - показывается сам ключ. Фраза с числом - объект с формами по правилам языка (one, few, many, other).
-/// Язык меняется на лету: привязки к индексатору и подписчики Changed обновляются сами.
+/// Interface texts from Lang/&lt;language&gt;.json embedded in the assembly. A key missing in the current language
+/// falls back to English, then to the key itself. A phrase with a number is an object with plural forms
+/// (one, few, many, other). The language switches at runtime: indexer bindings and Changed subscribers update.
 /// </summary>
 public sealed class Loc : INotifyPropertyChanged
 {
-    public const string Fallback = "ru";
-    public static IReadOnlyList<string> Languages { get; } = ["ru"];
-    public static Loc Instance { get; } = new();
+    public const string Fallback = "en";
+    private const string Prefix = "AC.Core.Lang.";
 
+    private static readonly Dictionary<string, Dictionary<string, string>> Cache = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, string> _fallback = Load(Fallback);
     private static Dictionary<string, string> _strings = _fallback;
 
+    /// <summary>Every language with a file in Lang/, English first.</summary>
+    public static IReadOnlyList<string> Languages { get; } =
+    [
+        .. typeof(Loc).Assembly.GetManifestResourceNames()
+            .Where(n => n.StartsWith(Prefix, StringComparison.Ordinal) && n.EndsWith(".json", StringComparison.Ordinal))
+            .Select(n => n[Prefix.Length..^".json".Length])
+            .OrderBy(l => l != Fallback).ThenBy(l => l, StringComparer.Ordinal),
+    ];
+
+    public static Loc Instance { get; } = new();
     public static string Language { get; private set; } = Fallback;
     public static event Action? Changed;
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private Loc() { }
 
-    /// <summary>Для привязок WPF: {Binding [ключ], Source={x:Static core:Loc.Instance}}.</summary>
+    /// <summary>For WPF bindings: {Binding [key], Source={x:Static core:Loc.Instance}}.</summary>
     public string this[string key] => T(key);
 
-    /// <summary>Пусто или неизвестный язык - язык Windows, если на него есть перевод, иначе основной.</summary>
+    /// <summary>A supported language as is; empty or unknown means the Windows language if translated, else English.</summary>
     public static string Resolve(string? code)
     {
         if (!string.IsNullOrEmpty(code) && Languages.Contains(code)) return code;
@@ -39,7 +49,7 @@ public sealed class Loc : INotifyPropertyChanged
     {
         var lang = Resolve(code);
         if (lang == Language) return;
-        _strings = lang == Fallback ? _fallback : Load(lang);
+        _strings = Load(lang);
         Language = lang;
         Instance.PropertyChanged?.Invoke(Instance, new PropertyChangedEventArgs("Item[]"));
         Changed?.Invoke();
@@ -50,14 +60,14 @@ public sealed class Loc : INotifyPropertyChanged
 
     public static string T(string key, params object?[] args) => string.Format(CultureInfo.CurrentCulture, T(key), args);
 
-    /// <summary>Фраза с числом: форма по правилам языка, {0} - само число, дальше - остальные аргументы.</summary>
+    /// <summary>A phrase with a number: the form follows the language's rules, {0} is the number, then the other arguments.</summary>
     public static string Plural(string key, long n, params object?[] args)
     {
         var form = Form(_strings, key, Category(Language, n)) ?? Form(_fallback, key, Category(Fallback, n)) ?? key;
         return string.Format(CultureInfo.CurrentCulture, form, [n, .. args]);
     }
 
-    /// <summary>Форма числа по правилам CLDR для целых: в русском one, few, many, в остальных one и other.</summary>
+    /// <summary>CLDR plural category for integers: Russian has one, few and many; the others here have one and other.</summary>
     public static string Category(string lang, long n)
     {
         n = Math.Abs(n);
@@ -70,25 +80,35 @@ public sealed class Loc : INotifyPropertyChanged
         };
     }
 
-    /// <summary>Все ключи языка; у фраз с числом - по ключу на форму: "ключ#форма".</summary>
-    public static IReadOnlyCollection<string> Keys(string lang) => [.. Load(lang).Keys];
+    /// <summary>The language's name in itself, for the language picker.</summary>
+    public static string NativeName(string lang) => Load(lang).GetValueOrDefault("language.name", lang);
+
+    /// <summary>Steam's name for the language (english, russian...), used for achievement names and descriptions.</summary>
+    public static string SteamLanguage(string lang) => Load(lang).GetValueOrDefault("language.steam", "english");
+
+    /// <summary>All texts of a language; a phrase with a number has a key per form: "key#form".</summary>
+    internal static IReadOnlyDictionary<string, string> Strings(string lang) => Load(lang);
 
     private static string? Form(Dictionary<string, string> strings, string key, string category) =>
         strings.TryGetValue(key + "#" + category, out var s) || strings.TryGetValue(key + "#other", out s) ? s : null;
 
     private static Dictionary<string, string> Load(string lang)
     {
-        using var stream = typeof(Loc).Assembly.GetManifestResourceStream($"AC.Core.Lang.{lang}.json")
-                           ?? throw new InvalidOperationException($"Нет файла перевода {lang}");
-        using var doc = JsonDocument.Parse(stream);
-        var strings = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var p in doc.RootElement.EnumerateObject())
+        lock (Cache)
         {
-            if (p.Value.ValueKind == JsonValueKind.Object)
-                foreach (var form in p.Value.EnumerateObject()) strings[p.Name + "#" + form.Name] = form.Value.GetString() ?? "";
-            else
-                strings[p.Name] = p.Value.GetString() ?? "";
+            if (Cache.TryGetValue(lang, out var cached)) return cached;
+            using var stream = typeof(Loc).Assembly.GetManifestResourceStream(Prefix + lang + ".json")
+                               ?? throw new InvalidOperationException($"No translation file for {lang}");
+            using var doc = JsonDocument.Parse(stream);
+            var strings = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var p in doc.RootElement.EnumerateObject())
+            {
+                if (p.Value.ValueKind == JsonValueKind.Object)
+                    foreach (var form in p.Value.EnumerateObject()) strings[p.Name + "#" + form.Name] = form.Value.GetString() ?? "";
+                else
+                    strings[p.Name] = p.Value.GetString() ?? "";
+            }
+            return Cache[lang] = strings;
         }
-        return strings;
     }
 }

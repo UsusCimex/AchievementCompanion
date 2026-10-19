@@ -38,8 +38,10 @@ public sealed class AppSettings
     /// <summary>API-ключ, зашифрованный DPAPI (base64). Открытым текстом не хранится.</summary>
     public string ApiKeyProtected { get; set; } = "";
     public ulong SteamId64 { get; set; }
-    /// <summary>Язык схемы в терминах Steam: russian, english...</summary>
-    public string Language { get; set; } = "russian";
+    /// <summary>Interface language code (en, ru...); empty means the Windows language.</summary>
+    public string UiLanguage { get; set; } = Loc.Fallback;
+    /// <summary>Steam language of achievement names and descriptions (english, russian...); empty means the interface language.</summary>
+    public string Language { get; set; } = "";
     public Percentile Percentile { get; set; } = Percentile.P50;
     /// <summary>
     /// Ручные отметки "сделал, но не засчиталось" и запись в Steam.

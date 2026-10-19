@@ -42,7 +42,12 @@ public partial class App : Application
         AppLog.Info($"Запуск {typeof(App).Assembly.GetName().Version?.ToString(3)}, данные: {AppPaths.DataRoot}");
 
         // Тема (встроенная Fluent): ставим до создания окон, чтобы её словарь был в ресурсах приложения.
-        ThemeManager.Apply(new JsonStore().LoadSettings().Theme);
+        // Hardware rendering stops while the display is off; scripted screenshots switch to software rendering.
+        if (Environment.GetEnvironmentVariable("AC_SOFTWARE_RENDERING") == "1")
+            System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
+        var settings = new JsonStore().LoadSettings();
+        Loc.SetLanguage(settings.UiLanguage);
+        ThemeManager.Apply(settings.Theme);
         ImageCache.TrimInBackground();
         base.OnStartup(e);
         new MainWindow().Show();

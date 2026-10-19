@@ -323,7 +323,7 @@
                             <TextBlock Text="{local:Tr library.refresh}" />
                         </StackPanel>
                     </Button>
-                    <Button HorizontalAlignment="Stretch" Margin="0,0,0,8" Click="OnOpenSettings">
+                    <Button HorizontalAlignment="Stretch" Margin="0,0,0,8" Click="OnOpenSettings" AutomationProperties.AutomationId="SettingsButton">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
                             <TextBlock Text="{local:Tr settings.title}" />
@@ -471,7 +471,7 @@
                         <TextBlock Text="{local:Tr toolbar.refresh}" />
                     </StackPanel>
                 </Button>
-                <Button Margin="0,0,8,8" Padding="12,6" Click="OnToggleOverlay"
+                <Button Margin="0,0,8,8" Padding="12,6" Click="OnToggleOverlay" AutomationProperties.AutomationId="OverlayButton"
                         ToolTip="{local:Tr toolbar.overlayTip}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE7F4;" Style="{StaticResource Glyph}" Margin="0,0,8,0" />
@@ -485,7 +485,7 @@
                         <TextBlock Text="{Binding QueueText}" />
                     </StackPanel>
                 </Button>
-                <Button Margin="0,0,8,8" Padding="12,6" Click="OnDropDown">
+                <Button Margin="0,0,8,8" Padding="12,6" Click="OnDropDown" AutomationProperties.AutomationId="MoreButton">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{local:Tr toolbar.more}" />
                         <TextBlock Text="&#xE70D;" Style="{StaticResource Glyph}" FontSize="10" Margin="8,1,0,0" />
@@ -527,7 +527,7 @@
             </WrapPanel>
 
             <TabControl Grid.Row="2" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
-                <TabItem Header="{local:Tr tabs.achievements}">
+                <TabItem Header="{local:Tr tabs.achievements}" AutomationProperties.AutomationId="AchievementsTab">
                     <DockPanel Margin="0,10,0,0">
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4" LastChildFill="False">
                             <Grid Width="280" Margin="0,0,12,8">
@@ -539,12 +539,14 @@
                                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                            Visibility="{Binding Text, ElementName=SearchBox, Converter={StaticResource EmptyToCollapsed}, ConverterParameter=invert}" />
                             </Grid>
-                            <ComboBox Width="140" Margin="0,0,8,8" ToolTip="{local:Tr list.kindTip}" ItemsSource="{x:Static local:Options.KindFilters}" SelectedItem="{Binding KindFilter}" />
-                            <ComboBox Width="190" Margin="0,0,4,8" ToolTip="{local:Tr list.sortTip}" ItemsSource="{x:Static local:Options.Sorts}" SelectedItem="{Binding SelectedSort}" />
+                            <ComboBox Width="140" Margin="0,0,8,8" ToolTip="{local:Tr list.kindTip}" ItemsSource="{x:Static local:Options.KindFilters}" DisplayMemberPath="Title"
+                                      SelectedItem="{Binding KindFilter}" />
+                            <ComboBox Width="190" Margin="0,0,4,8" ToolTip="{local:Tr list.sortTip}" ItemsSource="{x:Static local:Options.Sorts}" DisplayMemberPath="Title"
+                                      SelectedItem="{Binding SelectedSort}" />
                             <ToggleButton Margin="0,0,8,8" Padding="9,7" IsChecked="{Binding Descending}" ToolTip="{local:Tr list.reverseTip}">
                                 <TextBlock Text="&#xE8CB;" Style="{StaticResource Glyph}" />
                             </ToggleButton>
-                            <ComboBox Width="160" Margin="0,0,0,8" ItemsSource="{x:Static local:Options.Percentiles}" SelectedItem="{Binding SelectedPercentile}"
+                            <ComboBox Width="160" Margin="0,0,0,8" ItemsSource="{x:Static local:Options.Percentiles}" DisplayMemberPath="Title" SelectedItem="{Binding SelectedPercentile}"
                                       ToolTip="{local:Tr list.percentileTip}" />
                         </DockPanel>
 
@@ -726,7 +728,7 @@
                     </DockPanel>
                 </TabItem>
 
-                <TabItem Header="{local:Tr tabs.plan}">
+                <TabItem Header="{local:Tr tabs.plan}" AutomationProperties.AutomationId="PlanTab">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                         <StackPanel MaxWidth="980" HorizontalAlignment="Left">
                             <TextBlock Text="{Binding RemainingText}" Style="{StaticResource Subtitle}" TextWrapping="Wrap" />
@@ -760,7 +762,7 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="{local:Tr tabs.time}">
+                <TabItem Header="{local:Tr tabs.time}" AutomationProperties.AutomationId="TimeTab">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                         <StackPanel MaxWidth="760" HorizontalAlignment="Left">
                             <Border Style="{StaticResource Card}" Margin="0,0,0,12">

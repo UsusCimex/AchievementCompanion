@@ -1,14 +1,15 @@
 ﻿<#
 .SYNOPSIS
-    Снимки окон приложения для проверки интерфейса и README.
+    Screenshots of the app windows for UI checks and the README.
 .DESCRIPTION
-    Работает на копиях: сборка копируется без папки bridge (помощник не запустится и не покажет тебя в игре),
-    папка данных - во временную (оригинал не меняется). Нужна папка данных с settings.json и games\<appid>.json;
-    открывается игра из LastAppId. Снимает главное окно, вкладку плана и оверлей.
-    -Set подменяет настройки в копии: "Ключ=значение;Ключ=значение", значение - JSON или строка.
+    Works on copies: the build is copied without the bridge folder (the helper cannot start and show you in-game),
+    the data folder goes to a temp folder (the original is untouched). The data folder needs settings.json and
+    games\<appid>.json; the game from LastAppId opens. Takes the main window, the plan tab, the overlay over the
+    main window and the overlay alone on a transparent background.
+    -Set overrides settings in the copy: "Key=value;Key=value", the value is JSON or a string.
 .EXAMPLE
     dotnet build -c Release
-    .\tools\screenshots.ps1 -DataDir D:\ac-demo -OutDir docs\images -Theme Dark -Set "ManualUnlocks=true"
+    .\tools\screenshots.ps1 -DataDir D:\ac-demo -OutDir docs\images -Theme Dark -Set "UiLanguage=en;ManualUnlocks=true"
 #>
 param(
     [Parameter(Mandatory)] [string] $DataDir,
@@ -19,13 +20,13 @@ param(
     [int] $SelectIndex = 1
 )
 $ErrorActionPreference = "Stop"
-# Не в param: там Windows PowerShell 5.1 при запуске через -File оставляет $PSScriptRoot пустым.
+# Not in param(): Windows PowerShell 5.1 leaves $PSScriptRoot empty there when run with -File.
 if (-not $Build) { $Build = Join-Path $PSScriptRoot "..\src\AC.App\bin\Release\net10.0-windows" }
 
 $running = (Get-ItemProperty "HKCU:\Software\Valve\Steam" -Name RunningAppID -ErrorAction SilentlyContinue).RunningAppID
-if ($running -and $running -ne 0) { throw "Запущена игра (AppID $running): окна поверх неё не открываю" }
+if ($running -and $running -ne 0) { throw "A game is running (AppID $running): not opening windows over it" }
 
-Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing, System.Windows.Forms
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
 using System;
 using System.Drawing;
@@ -42,10 +43,10 @@ public static class Shot {
     public static RECT Bounds(IntPtr h) { RECT v; DwmGetWindowAttribute(h, 9, out v, Marshal.SizeOf(typeof(RECT))); return v; }
     public static void TopMost(IntPtr h) { SetWindowPos(h, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); }
     public static void Move(IntPtr h, int x, int y) { SetWindowPos(h, new IntPtr(-1), x, y, 0, 0, 0x0001 | 0x0010); }
-    // С экрана, а не PrintWindow: тот не видит картинки, догруженные после первой отрисовки.
-    // CAPTUREBLT - чтобы попал оверлей (layered-окно).
-    public static void Grab(IntPtr h, string path) {
-        var v = Bounds(h);
+    public static void Grab(IntPtr h, string path) { GrabRect(Bounds(h), path); }
+    // From the screen, not PrintWindow: that one misses images loaded after the first paint.
+    // CAPTUREBLT so the overlay (a layered window) gets in.
+    public static void GrabRect(RECT v, string path) {
         using (var bmp = new Bitmap(v.R - v.L, v.B - v.T, PixelFormat.Format32bppArgb)) {
             using (var g = Graphics.FromImage(bmp)) {
                 IntPtr dst = g.GetHdc(); IntPtr src = GetDC(IntPtr.Zero);
@@ -55,6 +56,22 @@ public static class Shot {
             bmp.Save(path, ImageFormat.Png);
         }
     }
+    // The same window shot over black and over white gives its own colors and transparency.
+    public static void Matte(string onBlack, string onWhite, string path) {
+        using (var b = new Bitmap(onBlack))
+        using (var w = new Bitmap(onWhite))
+        using (var o = new Bitmap(b.Width, b.Height, PixelFormat.Format32bppArgb)) {
+            for (int y = 0; y < b.Height; y++)
+                for (int x = 0; x < b.Width; x++) {
+                    Color cb = b.GetPixel(x, y), cw = w.GetPixel(x, y);
+                    int a = 255 - Clamp((cw.R - cb.R + cw.G - cb.G + cw.B - cb.B) / 3);
+                    o.SetPixel(x, y, a == 0 ? Color.Transparent
+                        : Color.FromArgb(a, Clamp(cb.R * 255 / a), Clamp(cb.G * 255 / a), Clamp(cb.B * 255 / a)));
+                }
+            o.Save(path, ImageFormat.Png);
+        }
+    }
+    static int Clamp(int v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
 }
 "@
 [void][Shot]::SetThreadDpiAwarenessContext([IntPtr](-4))
@@ -66,26 +83,22 @@ function Both($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b
 function WaitFor([scriptblock] $check, [int] $seconds, [string] $what) {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while ($sw.Elapsed.TotalSeconds -lt $seconds) { $r = & $check; if ($r) { return $r }; Start-Sleep -Milliseconds 300 }
-    throw "Не дождался: $what"
+    throw "Timed out waiting for $what"
 }
-function Named($root, $type, $name) { $root.FindFirst($TS::Descendants, (Both (Cond $AE::ControlTypeProperty $type) (Cond $AE::NameProperty $name))) }
-function ButtonWithText($root, $text) {
-    $node = Named $root $CT::Text $text
-    while ($node -and $node.Current.ControlType -ne $CT::Button) { $node = [System.Windows.Automation.TreeWalker]::RawViewWalker.GetParent($node) }
-    $node
-}
+function ById($root, $id) { $root.FindFirst($TS::Descendants, (Cond $AE::AutomationIdProperty $id)) }
+function SelectTab($root, $id) { (ById $root $id).GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("ac-shots-" + [Guid]::NewGuid().ToString("N"))
 $app = Join-Path $tmp "app"
 $data = Join-Path $tmp "data"
-# Полный путь: Bitmap.Save считает относительный путь от папки процесса, а не от текущей папки PowerShell.
+# A full path: Bitmap.Save resolves a relative path against the process folder, not PowerShell's current one.
 $OutDir = (New-Item -ItemType Directory -Force $OutDir).FullName
 Copy-Item (Resolve-Path $Build) $app -Recurse
 Remove-Item (Join-Path $app "bridge") -Recurse -Force -ErrorAction SilentlyContinue
-# Сборка без AC_DATA_DIR открыла бы настоящую папку данных пользователя.
+# A build without AC_DATA_DIR would open the user's real data folder.
 $latin = [Text.Encoding]::GetEncoding(28591)
 $infra = $latin.GetString([IO.File]::ReadAllBytes((Join-Path $app "AC.Infrastructure.dll")))
-if (-not $infra.Contains($latin.GetString([Text.Encoding]::Unicode.GetBytes("AC_DATA_DIR")))) { throw "Сборка не поддерживает AC_DATA_DIR - не запускаю" }
+if (-not $infra.Contains($latin.GetString([Text.Encoding]::Unicode.GetBytes("AC_DATA_DIR")))) { throw "The build does not support AC_DATA_DIR - not starting it" }
 Copy-Item (Resolve-Path $DataDir) $data -Recurse
 $settingsPath = Join-Path $data "settings.json"
 $settings = Get-Content $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -100,34 +113,55 @@ foreach ($pair in ($Set -split ";" | Where-Object { $_ })) {
 $psi = New-Object Diagnostics.ProcessStartInfo (Join-Path $app "AchievementCompanion.exe")
 $psi.UseShellExecute = $false
 $psi.EnvironmentVariables["AC_DATA_DIR"] = $data
+# Hardware rendering stops while the display is off, software rendering does not.
+$psi.EnvironmentVariables["AC_SOFTWARE_RENDERING"] = "1"
 $p = [Diagnostics.Process]::Start($psi)
 $suffix = $Theme.ToLowerInvariant()
 try {
-    $hwnd = WaitFor { $p.Refresh(); if ($p.MainWindowHandle -ne 0) { $p.MainWindowHandle } } 30 "главное окно"
+    $hwnd = WaitFor { $p.Refresh(); if ($p.MainWindowHandle -ne 0) { $p.MainWindowHandle } } 30 "the main window"
     [Shot]::TopMost($hwnd)
     $win = $AE::FromHandle($hwnd)
-    $list = WaitFor { $win.FindFirst($TS::Descendants, (Cond $AE::AutomationIdProperty "AchievementList")) } 30 "список"
-    $items = WaitFor { $i = $list.FindAll($TS::Children, (Cond $AE::ControlTypeProperty $CT::ListItem)); if ($i.Count -gt $SelectIndex) { , $i } } 60 "достижения"
+    $list = WaitFor { ById $win "AchievementList" } 30 "the list"
+    $items = WaitFor { $i = $list.FindAll($TS::Children, (Cond $AE::ControlTypeProperty $CT::ListItem)); if ($i.Count -gt $SelectIndex) { , $i } } 60 "achievements"
     $items[$SelectIndex].GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Seconds 4
-    # Другие окна поверх могли подняться, пока ждали (окно на экране снимается как есть).
+    # Other windows may have come up while waiting (the window is shot as it is on screen).
     [Shot]::TopMost($hwnd); Start-Sleep -Milliseconds 300
     [Shot]::Grab($hwnd, (Join-Path $OutDir "main-$suffix.png"))
 
-    (Named $win $CT::TabItem "План до 100%").GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    SelectTab $win "PlanTab"
     Start-Sleep -Seconds 3
     [Shot]::TopMost($hwnd); Start-Sleep -Milliseconds 300
     [Shot]::Grab($hwnd, (Join-Path $OutDir "plan-$suffix.png"))
 
-    (Named $win $CT::TabItem "Достижения").GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
-    (ButtonWithText $win "Оверлей").GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    $overlay = WaitFor { $AE::RootElement.FindFirst($TS::Children, (Both (Cond $AE::ProcessIdProperty $p.Id) (Cond $AE::NameProperty "Achievement Companion - оверлей"))) } 15 "оверлей"
+    SelectTab $win "AchievementsTab"
+    (ById $win "OverlayButton").GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $overlay = WaitFor { $AE::RootElement.FindFirst($TS::Children, (Both (Cond $AE::ProcessIdProperty $p.Id) (Cond $AE::AutomationIdProperty "Overlay"))) } 15 "the overlay"
+    $ovh = [IntPtr]$overlay.Current.NativeWindowHandle
     $b = [Shot]::Bounds($hwnd)
-    # Оверлей кладём поверх главного окна, чтобы в кадр не попало чужое.
-    [Shot]::Move([IntPtr]$overlay.Current.NativeWindowHandle, $b.L + 330, $b.T + 330)
+    # The overlay goes over the main window so nothing else gets into the shot.
+    [Shot]::Move($ovh, $b.L + 330, $b.T + 330)
     Start-Sleep -Seconds 3
     [Shot]::Grab($hwnd, (Join-Path $OutDir "overlay-$suffix.png"))
-    "Готово: $OutDir"
+
+    $ob = [Shot]::Bounds($ovh)
+    $backdrop = New-Object System.Windows.Forms.Form
+    $backdrop.FormBorderStyle = "None"; $backdrop.ShowInTaskbar = $false; $backdrop.StartPosition = "Manual"; $backdrop.AutoScaleMode = "None"
+    $backdrop.TopMost = $true
+    $backdrop.Bounds = New-Object System.Drawing.Rectangle(($ob.L - 20), ($ob.T - 20), ($ob.R - $ob.L + 40), ($ob.B - $ob.T + 40))
+    $shots = @{}
+    foreach ($color in "Black", "White") {
+        $backdrop.BackColor = [System.Drawing.Color]::$color
+        if (-not $backdrop.Visible) { $backdrop.Show() }
+        $backdrop.Refresh(); [System.Windows.Forms.Application]::DoEvents()
+        [Shot]::TopMost($ovh)
+        Start-Sleep -Milliseconds 600
+        $shots[$color] = Join-Path $tmp "overlay-$color.png"
+        [Shot]::GrabRect($ob, $shots[$color])
+    }
+    $backdrop.Close()
+    [Shot]::Matte($shots["Black"], $shots["White"], (Join-Path $OutDir "overlay-alone-$suffix.png"))
+    "Done: $OutDir"
 }
 finally {
     if (-not $p.HasExited) { [void]$p.CloseMainWindow(); if (-not $p.WaitForExit(8000)) { $p.Kill() } }

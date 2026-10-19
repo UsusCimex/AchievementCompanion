@@ -17,7 +17,8 @@ public partial class SettingsWindow : Window
         var s = svc.Settings;
         ApiKeyBox.Password = svc.ApiKey;
         SteamIdBox.Text = s.SteamId64 == 0 ? "" : s.SteamId64.ToString(CultureInfo.InvariantCulture);
-        LanguageBox.SelectedItem = Options.Languages.FirstOrDefault(l => l.Value == s.Language) ?? Options.Languages[0];
+        LanguageBox.SelectedItem = Options.ContentLanguages.FirstOrDefault(l => l.Value == s.Language) ?? Options.ContentLanguages[0];
+        UiLanguageBox.SelectedItem = Options.UiLanguages.FirstOrDefault(l => l.Value == s.UiLanguage) ?? Options.UiLanguages[0];
         ManualUnlocksBox.IsChecked = s.ManualUnlocks;
         WriteModeBox.SelectedItem = Options.WriteModes.FirstOrDefault(m => m.Value == s.WriteMode) ?? Options.WriteModes[0];
         StatusSourceBox.SelectedItem = Options.StatusSources.FirstOrDefault(m => m.Value == s.StatusSource) ?? Options.StatusSources[0];
@@ -80,7 +81,8 @@ public partial class SettingsWindow : Window
 
         _svc.ApiKey = ApiKeyBox.Password;
         s.SteamId64 = steamId;
-        s.Language = (LanguageBox.SelectedItem as Option<string>)?.Value ?? "russian";
+        s.Language = (LanguageBox.SelectedItem as Option<string>)?.Value ?? "";
+        s.UiLanguage = (UiLanguageBox.SelectedItem as Option<string>)?.Value ?? Loc.Fallback;
         s.ManualUnlocks = ManualUnlocksBox.IsChecked == true;
         s.WriteMode = (WriteModeBox.SelectedItem as Option<WriteMode>)?.Value ?? WriteMode.MarkOnly;
         s.StatusSource = (StatusSourceBox.SelectedItem as Option<StatusSource>)?.Value ?? StatusSource.WebApi;

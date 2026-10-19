@@ -416,7 +416,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             bool editing = Keyboard.FocusedElement is FrameworkElement { DataContext: AchievementRowViewModel };
             Recompute(rebuildRows: fresh.Count > 0 && Status != StatusFilter.All && !editing);
             AnnounceNew(fresh);
-            if (fresh.Count == 0) StatusMessage = Loc.T("status.refreshed", DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture));
+            if (fresh.Count == 0) StatusMessage = Loc.T("status.refreshed", DateTime.Now.ToString("T", CultureInfo.CurrentCulture));
         }
         finally
         {
@@ -704,7 +704,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void SettingsChanged()
     {
-        if (_game != null) _game.CountManualMarks = ManualUnlocks;
+        if (_game != null)
+        {
+            _game.CountManualMarks = ManualUnlocks;
+            _svc.Relabel(_game);
+        }
         if (!ManualUnlocks && _status == StatusFilter.NotCounted)
         {
             _status = StatusFilter.All;
@@ -715,9 +719,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(PlanHint));
         OnPropertyChanged(nameof(QueueVisible));
         OnPropertyChanged(nameof(HasApiKey));
+        OnPropertyChanged(nameof(QueueText));
+        foreach (var item in Library) item.RefreshTexts();
         RestartWatcher();
         Recompute(rebuildRows: true);
         CommandManager.InvalidateRequerySuggested();
+        if (_game != null && _svc.NeedsSchemaReload(_game)) _ = SafeAsync(() => ReloadAsync(force: false));
     }
 
     public void Recompute(bool rebuildRows)
@@ -812,7 +819,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _game.SampleCompletionMinutes is { } sc
                     ? Loc.T("time.sampleCompleters", _game.SampleCompleters, TimeEstimator.Format(sc))
                     : Loc.T("time.sampleNoCompleters"),
-                sf.ToLocalTime().ToString("dd.MM.yyyy", CultureInfo.CurrentCulture))
+                sf.ToLocalTime().ToString("d", CultureInfo.CurrentCulture))
             : Loc.T("time.sampleNone");
         QueueCount = _game.PendingUnlocks.Count;
         UpdateOverlayLists(all);

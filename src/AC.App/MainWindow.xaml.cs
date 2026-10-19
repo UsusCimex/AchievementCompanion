@@ -64,6 +64,7 @@ public partial class MainWindow : Window
     {
         var dlg = new SettingsWindow(_vm.Service) { Owner = this };
         if (dlg.ShowDialog() != true) return;
+        Loc.SetLanguage(_vm.Service.Settings.UiLanguage);
         ThemeManager.Apply(_vm.Service.Settings.Theme);
         _vm.SettingsChanged();
         RegisterHotkeys();
