@@ -62,13 +62,12 @@ public partial class MainWindow : Window
     private void OnOpenSettings(object sender, RoutedEventArgs e)
     {
         var dlg = new SettingsWindow(_vm.Service) { Owner = this };
-        if (dlg.ShowDialog() == true)
-        {
-            _vm.SettingsChanged();
-            RegisterHotkeys();
-            _overlay?.ApplySettings();
-            _vm.StatusMessage = "Настройки сохранены";
-        }
+        if (dlg.ShowDialog() != true) return;
+        ThemeManager.Apply(_vm.Service.Settings.Theme);
+        _vm.SettingsChanged();
+        RegisterHotkeys();
+        _overlay?.ApplySettings();
+        _vm.StatusMessage = "Настройки сохранены";
     }
 
     private void OnExportMenu(object sender, RoutedEventArgs e)

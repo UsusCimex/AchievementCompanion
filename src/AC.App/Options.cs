@@ -47,6 +47,13 @@ public static class Options
         new Option<Percentile>(Percentile.P90, "p90"),
     };
 
+    public static IReadOnlyList<Option<AppTheme>> Themes { get; } = new[]
+    {
+        new Option<AppTheme>(AppTheme.System, "Как в Windows"),
+        new Option<AppTheme>(AppTheme.Light, "Светлая"),
+        new Option<AppTheme>(AppTheme.Dark, "Тёмная"),
+    };
+
     public static IReadOnlyList<Option<WriteMode>> WriteModes { get; } = new[]
     {
         new Option<WriteMode>(WriteMode.MarkOnly, "Только отмечать (Steam не трогать)"),

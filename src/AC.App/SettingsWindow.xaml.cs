@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
         LanguageBox.SelectedItem = Options.Languages.FirstOrDefault(l => l.Value == s.Language) ?? Options.Languages[0];
         WriteModeBox.SelectedItem = Options.WriteModes.FirstOrDefault(m => m.Value == s.WriteMode) ?? Options.WriteModes[0];
         StatusSourceBox.SelectedItem = Options.StatusSources.FirstOrDefault(m => m.Value == s.StatusSource) ?? Options.StatusSources[0];
+        ThemeBox.SelectedItem = Options.Themes.FirstOrDefault(t => t.Value == s.Theme) ?? Options.Themes[0];
         HideSpoilersBox.IsChecked = s.HideSpoilers;
         ToggleHotkeyBox.Text = s.OverlayToggleHotkey;
         InteractHotkeyBox.Text = s.OverlayInteractHotkey;
@@ -88,6 +89,7 @@ public partial class SettingsWindow : Window
         s.Language = (LanguageBox.SelectedItem as Option<string>)?.Value ?? "russian";
         s.WriteMode = mode;
         s.StatusSource = (StatusSourceBox.SelectedItem as Option<StatusSource>)?.Value ?? StatusSource.WebApi;
+        s.Theme = (ThemeBox.SelectedItem as Option<AppTheme>)?.Value ?? AppTheme.System;
         s.HideSpoilers = HideSpoilersBox.IsChecked == true;
         s.OverlayToggleHotkey = ToggleHotkeyBox.Text.Trim();
         s.OverlayInteractHotkey = InteractHotkeyBox.Text.Trim();

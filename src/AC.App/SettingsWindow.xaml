@@ -69,9 +69,11 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="Отображение" Style="{StaticResource Subtitle}" Margin="0,0,0,10" />
+                        <TextBlock Text="Тема" Style="{StaticResource Caption}" Margin="0,0,0,2" />
+                        <ComboBox x:Name="ThemeBox" ItemsSource="{x:Static local:Options.Themes}" Width="220" HorizontalAlignment="Left" Margin="0,0,0,12" />
                         <CheckBox x:Name="HideSpoilersBox" Content="Прятать описания скрытых достижений, пока они не получены" />
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
-                                   Text="В оверлее описания скрытых видны всегда. Тема (светлая или тёмная) берётся из настроек Windows." />
+                                   Text="В оверлее описания скрытых видны всегда." />
                     </StackPanel>
                 </Border>
 

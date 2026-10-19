@@ -22,8 +22,19 @@ public enum StatusSource
     SteamClient = 1,
 }
 
+/// <summary>Тема оформления.</summary>
+public enum AppTheme
+{
+    /// <summary>Как в Windows (меняется вместе с системой).</summary>
+    System = 0,
+    Light = 1,
+    Dark = 2,
+}
+
 public sealed class AppSettings
 {
+    public AppTheme Theme { get; set; } = AppTheme.System;
+
     /// <summary>API-ключ, зашифрованный DPAPI (base64). Открытым текстом не хранится.</summary>
     public string ApiKeyProtected { get; set; } = "";
     public ulong SteamId64 { get; set; }

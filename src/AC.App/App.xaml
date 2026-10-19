@@ -4,11 +4,7 @@
              xmlns:local="clr-namespace:AC.App"
              ShutdownMode="OnMainWindowClose"
              StartupUri="MainWindow.xaml">
-    <!--
-        Тема Fluent включается в App.xaml.cs (ThemeMode = System) - встроенная тема Fluent (.NET 9+): светлая или тёмная по настройкам Windows,
-        акцентный цвет системы. Цвета ниже берутся из темы через DynamicResource, поэтому
-        переключаются вместе с ней. Если ключа в теме нет, свойство просто остаётся по умолчанию.
-    -->
+    <!-- Тему ставит ThemeManager; цвета ниже берутся из темы через DynamicResource и меняются вместе с ней. -->
     <Application.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:InverseBoolConverter x:Key="Inverse" />

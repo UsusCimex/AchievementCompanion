@@ -8,12 +8,6 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
-        // Встроенная тема Fluent: светлая/тёмная по настройкам Windows, системный акцентный цвет.
-        // Ставим в коде, а не в App.xaml, чтобы словарь темы добавился к уже загруженным ресурсам приложения
-        // и был доступен окнам как StaticResource.
-#pragma warning disable WPF0001
-        ThemeMode = ThemeMode.System;
-#pragma warning restore WPF0001
         DispatcherUnhandledException += OnUnhandled;
         AppDomain.CurrentDomain.UnhandledException += (_, a) =>
             AppLog.Error("Необработанная ошибка", a.ExceptionObject as Exception ?? new Exception(a.ExceptionObject?.ToString()));
@@ -23,6 +17,9 @@ public partial class App : Application
             a.SetObserved();
         };
         AppLog.Info($"Запуск {typeof(App).Assembly.GetName().Version?.ToString(3)}, данные: {AppPaths.DataRoot}");
+
+        // Тема (встроенная Fluent): ставим до создания окон, чтобы её словарь был в ресурсах приложения.
+        ThemeManager.Apply(new JsonStore().LoadSettings().Theme);
         ImageCache.TrimInBackground();
         base.OnStartup(e);
     }
