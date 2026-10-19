@@ -335,7 +335,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         await Busy(auto ? "Steam не отдал проценты - собираю статистику по игрокам..." : "Собираю статистику по игрокам...", async () =>
         {
             var r = await _svc.CollectSampleAsync(game, progress);
-            if (!ReferenceEquals(game, _game)) return;
+            var target = _game?.AppId == game.AppId ? _game! : game;
+            _svc.ApplySample(target, r);
+            if (!ReferenceEquals(target, _game)) return;
             Recompute(rebuildRows: true);
             StatusMessage = $"Статистика собрана: {r.Players} игроков с открытым профилем" +
                             (r.CompletionMedianMinutes is { } c ? $", 100% у {r.Completers}, медиана {TimeEstimator.Format(c)}" : "");

@@ -238,11 +238,13 @@ public sealed class GameService
                 var sample = new PlayerSample { SteamId = a.SteamId, Unlocks = unlocks };
                 if (a.ReviewedAt is { } rv && a.PlaytimeAtReview > 0) sample.Anchors.Add((rv, a.PlaytimeAtReview));
                 if (a.LastPlayed is { } lp && a.PlaytimeForever > 0) sample.Anchors.Add((lp, a.PlaytimeForever));
+                bool enough;
                 lock (samples)
                 {
                     samples.Add(sample);
-                    if (samples.Count >= targetPlayers) stop.Cancel();
+                    enough = samples.Count >= targetPlayers;
                 }
+                if (enough) stop.Cancel();
             }
             catch (Exception e) when (e is SteamApiException or HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
             {
@@ -261,11 +263,15 @@ public sealed class GameService
         if (samples.Count == 0)
             throw new SteamApiException($"Проверено {authors.Count} авторов обзоров - у всех скрыты сведения об играх");
 
-        var result = SampleStats.Compute(samples, game.Achievements.Select(a => a.ApiName).ToList());
-        SampleStats.Apply(game, result, DateTimeOffset.Now);
+        // Только считаем: применяет вызывающий к актуальному объекту игры (пока шёл сбор, её могли перезагрузить).
+        return SampleStats.Compute(samples, game.Achievements.Select(a => a.ApiName).ToList());
+    }
+
+    public void ApplySample(GameData game, SampleResult r)
+    {
+        SampleStats.Apply(game, r, DateTimeOffset.Now);
         TimeEstimator.EstimateFromGlobalPercent(game);
         _store.SaveGame(game);
-        return result;
     }
 
     /// <summary>Глобальные проценты (ключ не нужен). Возвращает текст ошибки или null.</summary>
