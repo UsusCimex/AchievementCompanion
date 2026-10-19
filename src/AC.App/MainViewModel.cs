@@ -63,7 +63,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         UnlockInSteamCommand = new AsyncCommand(p => UnlockInSteamAsync(p, fromOverlay: false), OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
         OverlayUnlockCommand = new AsyncCommand(p => UnlockInSteamAsync(p, fromOverlay: true), OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
         OverlayMarkCommand = new RelayCommand(p => { if (p is AchievementRowViewModel r) MarkDoneFromOverlay(r); }, _ => ManualUnlocks);
-        InstallUpdateCommand = new AsyncCommand(InstallUpdateAsync, OnError, () => _update != null && !IsBusy);
+        DownloadUpdateCommand = new RelayCommand(() => OpenUrl(_update?.DownloadUrl), () => _update != null);
         UpdateNotesCommand = new RelayCommand(() => OpenUrl(_update?.PageUrl), () => _update != null);
 
         _runningTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -283,7 +283,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Same from the overlay: no dialogs, they may hide behind the game.</summary>
     public AsyncCommand OverlayUnlockCommand { get; }
     public RelayCommand OverlayMarkCommand { get; }
-    public AsyncCommand InstallUpdateCommand { get; }
+    public RelayCommand DownloadUpdateCommand { get; }
     public RelayCommand UpdateNotesCommand { get; }
 
     // ---------- updates ----------
@@ -307,20 +307,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasUpdate));
         OnPropertyChanged(nameof(UpdateText));
         CommandManager.InvalidateRequerySuggested();
-    }
-
-    /// <summary>A build from source cannot replace itself: then the release page opens instead.</summary>
-    private async Task InstallUpdateAsync()
-    {
-        if (_update is not { } update) return;
-        if (!UpdateService.CanInstall)
-        {
-            OpenUrl(update.PageUrl);
-            return;
-        }
-        await Busy(Loc.T("update.downloading", update.Version.ToString(3)), () => _svc.Updates.InstallAsync(update));
-        UpdateService.Restart();
-        Application.Current.Shutdown();
     }
 
     public async Task StartAsync()
@@ -968,7 +954,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         await Task.Delay(TimeSpan.FromMinutes(2));
         if (_game != game || IsBusy || SteamLocal.RunningAppId() == game.AppId) return;
-        await _svc.RefreshPlaytimeAsync(game);
+        try
+        {
+            await _svc.RefreshPlaytimeAsync(game);
+        }
+        catch (Exception e) when (e is SteamApiException or System.Net.Http.HttpRequestException or TaskCanceledException)
+        {
+            AppLog.Info($"{game.AppId}: playtime after the session: {e.Message}");
+            return;
+        }
         Recompute(rebuildRows: false);
     }
 

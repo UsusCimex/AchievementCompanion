@@ -29,7 +29,7 @@ public sealed class GameService
     public GameService(JsonStore store, SteamWebApi api, BridgeClient bridge, CompletionTimeSource completion, UpdateService? updates = null)
     {
         _store = store;
-        Updates = updates ?? new UpdateService(new HttpClient { Timeout = TimeSpan.FromMinutes(5) });
+        Updates = updates ?? new UpdateService(new HttpClient { Timeout = TimeSpan.FromSeconds(20) });
         _api = api;
         _bridge = bridge;
         _completion = completion;

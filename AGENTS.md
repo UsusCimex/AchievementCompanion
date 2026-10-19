@@ -76,7 +76,7 @@ The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (p
 | Library | `GetOwnedGames` (key); fresh playtime of one game - the same call with `appids_filter` |
 | Own sample | authors of `store.steampowered.com/appreviews/<appid>` and their `GetPlayerAchievements` |
 | Running game and new unlocks | registry `RunningAppID`, watching `appcache/stats/UserGameStats_<accountid>_<appid>.bin` and polling on a timer |
-| Updates | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: the `*-win-x64.zip` asset, checked against its SHA-256 `digest`; the running exe is renamed to `*.old` and removed on the next start |
+| Updates | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: the `*-win-x64.zip` asset, downloaded by the browser |
 
 ### Time
 
@@ -112,3 +112,4 @@ Every finished change is released. Versions follow [SemVer](https://semver.org/)
 - completionist.me is behind a Cloudflare check and answers the app with 403: time to 100% is manual or from the sample. Even without the check, parsing depends on the site's markup.
 - Windows only (WPF).
 - Updates are seen only from a public repository: for a private one GitHub answers 404 and the check stays silent.
+- No in-place update: an unsigned exe that downloads and swaps in its replacement is taken for a dropper by behavior-based antivirus (Kaspersky: PDM:Trojan.Win32.Generic). That needs code signing first.

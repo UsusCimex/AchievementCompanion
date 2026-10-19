@@ -517,64 +517,11 @@ static class Tests
             """;
         var update = AC.Infrastructure.UpdateService.Parse(json, new Version(0, 3, 0))!;
         Assert.Equal(new Version(0, 3, 1), update.Version);
-        Assert.Equal("https://e/a.zip", update.AssetUrl);
-        Assert.Equal(42L, update.Size);
-        Assert.Equal("abcdef", update.Sha256);
+        Assert.Equal("https://e/a.zip", update.DownloadUrl);
+        Assert.Equal("https://github.com/o/r/releases/tag/v0.3.1", update.PageUrl);
         Assert.True(AC.Infrastructure.UpdateService.Parse(json, new Version(0, 3, 1)) is null, "same version");
         Assert.True(AC.Infrastructure.UpdateService.Parse(json.Replace("\"prerelease\": false", "\"prerelease\": true"), new Version(0, 1, 0)) is null, "prerelease");
         Assert.True(AC.Infrastructure.UpdateService.Parse(json.Replace("win-x64.zip", "linux.zip"), new Version(0, 1, 0)) is null, "no Windows zip");
-    }
-
-    public static void Update_ApplyAndRollBack()
-    {
-        var root = Path.Combine(Path.GetTempPath(), "ac-update-test-" + Guid.NewGuid().ToString("N"));
-        var app = Path.Combine(root, "app");
-        Directory.CreateDirectory(app);
-        var exe = Path.Combine(app, "AchievementCompanion.exe");
-        try
-        {
-            File.WriteAllText(exe, "old");
-            string Zip(string name, params (string File, string Text)[] files)
-            {
-                var dir = Path.Combine(root, name);
-                Directory.CreateDirectory(dir);
-                var zip = Path.Combine(dir, "update.zip");
-                using var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create);
-                foreach (var (file, text) in files)
-                {
-                    using var w = new StreamWriter(archive.CreateEntry(file).Open());
-                    w.Write(text);
-                }
-                return zip;
-            }
-            AC.Infrastructure.UpdateInfo Info(string zip, string? sha = null) =>
-                new(new Version(9, 0, 0), "", "", new FileInfo(zip).Length,
-                    sha ?? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(zip))));
-
-            var good = Zip("good", ("AchievementCompanion.exe", "new"), ("readme.txt", "hi"));
-            var bad = Zip("bad", ("AchievementCompanion.exe", "evil"));
-            bool threw = false;
-            try { AC.Infrastructure.UpdateService.Apply(bad, Info(bad, sha: "00"), app, "AchievementCompanion.exe"); }
-            catch (InvalidDataException) { threw = true; }
-            Assert.True(threw && File.ReadAllText(exe) == "old", "a damaged download changes nothing");
-
-            var noExe = Zip("noexe", ("readme.txt", "hi"));
-            threw = false;
-            try { AC.Infrastructure.UpdateService.Apply(noExe, Info(noExe), app, "AchievementCompanion.exe"); }
-            catch (InvalidDataException) { threw = true; }
-            Assert.True(threw && !File.Exists(Path.Combine(app, "readme.txt")), "an update without the exe is refused");
-
-            AC.Infrastructure.UpdateService.Apply(good, Info(good), app, "AchievementCompanion.exe");
-            Assert.Equal("new", File.ReadAllText(exe));
-            Assert.Equal("old", File.ReadAllText(exe + ".old"));
-            Assert.Equal("hi", File.ReadAllText(Path.Combine(app, "readme.txt")));
-            AC.Infrastructure.UpdateService.CleanUp(app);
-            Assert.True(!File.Exists(exe + ".old"), "the old exe is removed on the next start");
-        }
-        finally
-        {
-            try { Directory.Delete(root, true); } catch { }
-        }
     }
 
     public static void Vdf_LoginUsers()

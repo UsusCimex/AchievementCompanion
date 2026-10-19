@@ -40,7 +40,6 @@ public partial class App : Application
             a.SetObserved();
         };
         AppLog.Info($"Starting {typeof(App).Assembly.GetName().Version?.ToString(3)}, data: {AppPaths.DataRoot}");
-        if (UpdateService.CanInstall && System.IO.Path.GetDirectoryName(Environment.ProcessPath) is { } exeDir) UpdateService.CleanUp(exeDir);
 
         // Hardware rendering stops while the display is off; scripted screenshots switch to software rendering.
         if (Environment.GetEnvironmentVariable("AC_SOFTWARE_RENDERING") == "1")
