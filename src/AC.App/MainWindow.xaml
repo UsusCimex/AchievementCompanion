@@ -202,6 +202,8 @@
                             <Button Style="{StaticResource RevealButton}" Command="{Binding RevealCommand}"
                                     Visibility="{Binding IsSpoilerHidden, Converter={StaticResource BoolToVis}}" />
                         </Grid>
+                        <TextBlock Text="{Binding Note}" Style="{StaticResource Caption}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Visibility="{Binding Note, Converter={StaticResource EmptyToCollapsed}}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" MinWidth="120">

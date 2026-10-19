@@ -311,11 +311,16 @@ static class Tests
         GameLogic.SetGroup(g, "ch5", "Глава 5");
         GameLogic.SetGroup(g, "ch1", ""); // a manual empty group is not exported
         g.ManualEstimates["grind"] = 120;
+        g.StateOf("miss").Note = "  Talk to the guard twice  ";
         var json = TagPack.From(g).ToJson();
 
         var g2 = SampleGame();
+        g2.StateOf("miss").Note = "My own note";
         var applied = TagPack.FromJson(json).ApplyTo(g2);
-        Assert.Equal(3, applied);
+        Assert.Equal(4, applied);
+        Assert.Equal("My own note\n\nTalk to the guard twice", g2.States["miss"].Note);
+        TagPack.FromJson(json).ApplyTo(g2);
+        Assert.Equal("My own note\n\nTalk to the guard twice", g2.States["miss"].Note); // not added twice
         Assert.Equal(AchievementKind.Missable, g2.Tags["misc"].Kind);
         Assert.Equal(KindSource.Manual, g2.Tags["misc"].Source);
         Assert.Equal("Глава 5", g2.Tags["ch5"].Group);

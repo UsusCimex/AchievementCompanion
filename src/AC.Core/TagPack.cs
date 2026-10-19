@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace AC.Core;
 
 /// <summary>
-/// A game's tags file: kinds, groups, manual estimates. It can be put together from a guide,
-/// saved and moved to another computer or shared with a friend.
+/// A game's tags file: kinds (missable lists among them), groups, manual estimates and notes (a short guide per
+/// achievement). It can be put together from a guide, saved and moved to another computer or shared with a friend.
 /// </summary>
 public sealed class TagPack
 {
@@ -24,13 +24,15 @@ public sealed class TagPack
             // automatic groups ("in chapter 3") are detected again on the receiving side
             bool hasGroup = t is { GroupIsManual: true } && !string.IsNullOrWhiteSpace(t.Group);
             bool hasEst = game.ManualEstimates.TryGetValue(def.ApiName, out var est);
-            if (!manualKind && !hasGroup && !hasEst) continue;
+            var note = game.States.GetValueOrDefault(def.ApiName)?.Note.Trim() ?? "";
+            if (!manualKind && !hasGroup && !hasEst && note.Length == 0) continue;
             pack.Items.Add(new TagPackItem
             {
                 ApiName = def.ApiName,
                 Kind = manualKind ? t!.Kind : null,
                 Group = hasGroup ? t!.Group : null,
                 EstimateMinutes = hasEst ? est : null,
+                Note = note.Length > 0 ? note : null,
             });
         }
         return pack;
@@ -56,6 +58,14 @@ public sealed class TagPack
                 tag.GroupSource = KindSource.Manual;
             }
             if (item.EstimateMinutes.HasValue) game.ManualEstimates[item.ApiName] = item.EstimateMinutes.Value;
+            if (item.Note?.Trim() is { Length: > 0 } note)
+            {
+                // An own note stays: the imported one goes after it.
+                var state = game.StateOf(item.ApiName);
+                var own = state.Note.Trim();
+                if (own.Length == 0) state.Note = note;
+                else if (!own.Contains(note, StringComparison.Ordinal)) state.Note = own + "\n\n" + note;
+            }
             applied++;
         }
         if (CompletionMinutes is > 0 && game.CompletionMinutes is null) game.CompletionMinutes = CompletionMinutes;
@@ -74,4 +84,5 @@ public sealed class TagPackItem
     public AchievementKind? Kind { get; set; }
     public string? Group { get; set; }
     public double? EstimateMinutes { get; set; }
+    public string? Note { get; set; }
 }

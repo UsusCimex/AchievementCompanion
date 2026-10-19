@@ -60,6 +60,8 @@
                 <StackPanel Grid.Column="1" Margin="0,0,8,0">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding OverlayDescription}" Foreground="{StaticResource OvMuted}" FontSize="11" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Note}" Foreground="{StaticResource OvMuted}" FontSize="11" FontStyle="Italic" TextWrapping="Wrap"
+                               Margin="0,2,0,0" Visibility="{Binding Note, Converter={StaticResource EmptyToCollapsed}}" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" VerticalAlignment="Top">
                     <Border Background="{StaticResource OvPill}" CornerRadius="8" Padding="7,1" HorizontalAlignment="Right">
