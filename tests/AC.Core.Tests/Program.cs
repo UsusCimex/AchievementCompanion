@@ -373,6 +373,23 @@ static class Tests
         Assert.Equal(45.0, AC.Infrastructure.CompletionTimeSource.ParseMedian("<b>Completion Playtime Median</b> <i>45m</i>"));
     }
 
+    public static void Library_SkipsComputedUrls()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new AC.Infrastructure.JsonStore(dir);
+            store.SaveLibrary(new List<AC.Infrastructure.OwnedGame> { new() { AppId = 480, Name = "Spacewar", IconHash = "abc" } });
+            var json = File.ReadAllText(Path.Combine(dir, "library.json"));
+            Assert.True(!json.Contains("HeaderUrl") && !json.Contains("IconUrl"), "адреса картинок вычисляются, в файл не пишутся");
+            Assert.Equal("abc", store.LoadLibrary()!.Single().IconHash);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
     public static void JsonStore_RoundTripAndLog()
     {
         var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));

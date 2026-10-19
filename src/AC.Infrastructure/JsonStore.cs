@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AC.Core;
 
 namespace AC.Infrastructure;
@@ -168,8 +169,10 @@ public sealed class OwnedGame
     public DateTimeOffset? LastPlayed { get; set; }
 
     /// <summary>Шапка игры из магазина Steam (460x215).</summary>
+    [JsonIgnore]
     public string HeaderUrl => SteamImages.Header(AppId);
 
+    [JsonIgnore]
     public string? IconUrl => string.IsNullOrEmpty(IconHash) ? null :
         $"https://media.steampowered.com/steamcommunity/public/images/apps/{AppId}/{IconHash}.jpg";
 }
