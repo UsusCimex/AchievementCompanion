@@ -31,6 +31,15 @@ internal static class Native
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    [DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(int dwProcessId);
+
+    /// <summary>
+    /// Разрешает любому процессу вывести своё окно на передний план. Вызывает вторая копия приложения
+    /// (её запустил пользователь, поэтому ей можно), чтобы первая смогла показать окно поверх остальных.
+    /// </summary>
+    public static void AllowAnyForeground() => AllowSetForegroundWindow(-1);
+
     public static void SetExStyle(IntPtr hwnd, int add, int remove)
     {
         long style = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
