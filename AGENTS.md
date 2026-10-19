@@ -33,7 +33,7 @@ The script works on copies of the build and of the data folder, so the real fold
 
 | Project | Contents |
 | --- | --- |
-| `src/AC.Core` | models and all logic, tested without Steam: statuses (`GameLogic`), kind and chapter from the text (`KindClassifier`), time estimates (`TimeEstimator`, `SampleStats`, `Progress`), plan (`Planner`), filters (`AchievementQuery`), export, tags file (`TagPack`), Steam file formats (`SteamFormats/`), texts (`Loc`, `Lang/`) |
+| `src/AC.Core` | models and all logic, tested without Steam: statuses and probably missed missables (`GameLogic`), kind and chapter from the text (`KindClassifier`), time estimates (`TimeEstimator`, `SampleStats`, `Progress`), plan (`Planner`), filters (`AchievementQuery`), export, tags file (`TagPack`), Steam file formats (`SteamFormats/`), texts (`Loc`, `Lang/`) |
 | `src/AC.Infrastructure` | I/O: use cases (`GameService`), Steam Web API, registry and Steam files (`SteamLocal`), Steam client (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), storage (`JsonStore`), data folder (`AppPaths`), error log (`AppLog`), DPAPI, completionist.me, updates (`UpdateService`) |
 | `src/AC.App` | WPF UI on the built-in Fluent theme: windows, view models, cached image loading (`RemoteImage`), theme (`ThemeManager`), hotkeys (`Native`) |
 | `tests/AC.Core.Tests` | tests of the logic and storage |
@@ -85,7 +85,7 @@ The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (p
 - Stretch (`Progress`): on the "minutes from the start" scale every achievement owns the way from the previous one to it. Stretches of unlocked ones are the progress made, of locked ones what is left, in any order of unlocks.
 - Time left (`Planner`): the stretches of locked achievements times the pace; own estimates get the P75 and P90 margins too.
 - Pace: Steam minutes between playtime snapshots (`PlaytimeHistory`: when a game loads outside a session, after a session, and two weeks back from Steam) divided by the progress made between them, as a progress-weighted median. Stretches without progress (AFK, a game left open) do not count. From 1 to 3: faster than the median gives no speed-up.
-- Sample (`SampleStats`): up to 300 review authors until 80 public profiles; between "moment - minutes played" points play is taken as even.
+- Sample (`SampleStats`): up to 300 review authors until 80 public profiles, collected again in the background when over a week old; between "moment - minutes played" points play is taken as even.
 
 ## Rules
 
