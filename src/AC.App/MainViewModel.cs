@@ -899,7 +899,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         catch (Exception e) { OnError(e); }
     }
 
-    private void OnError(Exception e) => StatusMessage = "Ошибка: " + e.Message;
+    private void OnError(Exception e)
+    {
+        AppLog.Error("Команда", e);
+        StatusMessage = "Ошибка: " + e.Message;
+    }
 
     private static string Sanitize(string s)
     {

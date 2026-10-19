@@ -138,6 +138,7 @@ public sealed class GameService
         _store.SaveGame(game);
         Settings.LastAppId = appId;
         SaveSettings();
+        foreach (var w in warnings) AppLog.Info($"{appId}: {w}");
         return new LoadReport(game, fresh, warnings);
     }
 
