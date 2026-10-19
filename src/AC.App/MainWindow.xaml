@@ -137,11 +137,15 @@
                     <TabItem Header="Достижения">
                         <DataGrid x:Name="AchievementsGrid" ItemsSource="{Binding Rows}" AutoGenerateColumns="False" CanUserAddRows="False"
                                   CanUserDeleteRows="False" CanUserSortColumns="False" HeadersVisibility="Column"
-                                  SelectionMode="Single" SelectionUnit="FullRow" GridLinesVisibility="Horizontal"
+                                  SelectionMode="Extended" SelectionUnit="FullRow" GridLinesVisibility="Horizontal"
                                   HorizontalGridLinesBrush="#DDD" EnableRowVirtualization="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling">
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
+                                    <MenuItem Header="Записать выбранные в Steam (как в SAM)"
+                                              Command="{Binding UnlockInSteamCommand}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <Separator />
                                     <MenuItem Header="Снять это достижение в Steam"
                                               Command="{Binding RevertCommand}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
@@ -206,6 +210,18 @@
                                                       IsEnabled="{Binding IsUnlocked, Converter={StaticResource Inverse}}"
                                                       HorizontalAlignment="Center" Margin="0"
                                                       ToolTip="Выполнено, но в Steam не засчиталось" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Steam" IsReadOnly="True" Width="72">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="В Steam" Margin="0" Padding="6,1" VerticalAlignment="Center"
+                                                    ToolTip="Записать достижение в Steam сейчас (как в SAM)"
+                                                    Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}"
+                                                    Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>

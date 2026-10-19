@@ -4,7 +4,7 @@
         Title="Achievement Companion - оверлей"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
-        SizeToContent="WidthAndHeight" MaxWidth="420" Foreground="White">
+        SizeToContent="WidthAndHeight" MaxWidth="480" Foreground="White">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="White" />
@@ -17,20 +17,26 @@
 
         <DataTemplate x:Key="OverlayItem">
             <DockPanel Margin="0,2">
+                <Button DockPanel.Dock="Right" Content="В Steam" VerticalAlignment="Center"
+                        ToolTip="Записать в Steam сейчас (как в SAM)"
+                        Command="{Binding DataContext.Main.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}"
+                        Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
                 <Button DockPanel.Dock="Right" Content="Сделал" VerticalAlignment="Center"
+                        ToolTip="Отметить: выполнено, но не засчиталось"
                         Command="{Binding DataContext.Main.OverlayMarkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         CommandParameter="{Binding}"
                         Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
                 <TextBlock DockPanel.Dock="Right" Text="{Binding Estimate}" Foreground="#BBB" Margin="8,0,0,0" VerticalAlignment="Center" />
                 <StackPanel>
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding Description}" Foreground="#CCC" FontSize="11" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding OverlayDescription}" Foreground="#CCC" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
             </DockPanel>
         </DataTemplate>
     </Window.Resources>
 
-    <Border x:Name="OverlayPanel" CornerRadius="6" Padding="12,10" Width="380" MouseLeftButtonDown="OnPanelMouseDown">
+    <Border x:Name="OverlayPanel" CornerRadius="6" Padding="12,10" Width="440" MouseLeftButtonDown="OnPanelMouseDown">
         <StackPanel>
             <TextBlock Text="{Binding Main.GameTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
             <TextBlock Text="{Binding Main.ProgressText}" Foreground="#CCC" FontSize="11" TextWrapping="Wrap" />

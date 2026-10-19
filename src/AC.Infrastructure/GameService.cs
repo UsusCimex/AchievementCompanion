@@ -107,21 +107,18 @@ public sealed class GameService
                 }
             }
             else warnings.Add("Нет API-ключа: схема только из локального кеша Steam");
-
-            try
-            {
-                var pct = await _api.GetGlobalPercentagesAsync(appId, ct);
-                foreach (var a in game.Achievements)
-                    a.GlobalPercent = pct.TryGetValue(a.ApiName, out var v) ? v : a.GlobalPercent;
-            }
-            catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
-            {
-                warnings.Add("Глобальные %: " + e.Message);
-            }
         }
 
         // Локальная схема даёт описания скрытых и флаг "защищено"; дешёвая, читаем всегда.
         MergeLocalSchema(game);
+
+        // Проценты - после того, как список достижений собран из всех источников
+        // (раньше без ключа они запрашивались до локальной схемы и терялись).
+        if (stale || game.Achievements.Any(a => a.GlobalPercent is null))
+        {
+            var err = await FetchPercentagesAsync(game, ct);
+            if (err != null) warnings.Add("Глобальные %: " + err);
+        }
 
         IReadOnlyList<string> fresh = Array.Empty<string>();
         if (Settings.StatusSource == StatusSource.WebApi && HasApiKey && Settings.SteamId64 != 0)
@@ -202,10 +199,57 @@ public sealed class GameService
             r.Achievements.Select(a => (a.ApiName, a.Achieved, a.UnlockTime > 0 ? DateTimeOffset.FromUnixTimeSeconds(a.UnlockTime) : (DateTimeOffset?)null)),
             DateTimeOffset.Now);
         game.PendingUnlocks.RemoveAll(n => game.StateOf(n).SteamUnlocked);
+        if (game.Achievements.Any(a => a.GlobalPercent is null)) await FetchPercentagesAsync(game, ct);
         GameLogic.AutoClassify(game);
         TimeEstimator.EstimateFromGlobalPercent(game);
         _store.SaveGame(game);
         return (fresh, null);
+    }
+
+    /// <summary>Глобальные проценты (ключ не нужен). Возвращает текст ошибки или null.</summary>
+    private async Task<string?> FetchPercentagesAsync(GameData game, CancellationToken ct)
+    {
+        if (game.Achievements.Count == 0) return null;
+        try
+        {
+            var pct = await _api.GetGlobalPercentagesAsync(game.AppId, ct);
+            if (pct.Count == 0) return "Steam не отдал проценты для этой игры";
+            foreach (var a in game.Achievements)
+                if (pct.TryGetValue(a.ApiName, out var v)) a.GlobalPercent = v;
+            return null;
+        }
+        catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
+        {
+            return e.Message;
+        }
+    }
+
+    /// <summary>
+    /// Записать в Steam прямо сейчас, как в SAM: независимо от режима в настройках.
+    /// Заодно ставит ручную отметку "сделал". Защищённые и уже открытые пропускаются.
+    /// </summary>
+    public async Task<MarkReport> UnlockInSteamAsync(GameData game, IReadOnlyList<string> apiNames, CancellationToken ct = default)
+    {
+        var byName = game.Achievements.ToDictionary(a => a.ApiName, StringComparer.Ordinal);
+        var skipped = new List<string>();
+        var toWrite = new List<string>();
+        foreach (var n in apiNames.Distinct(StringComparer.Ordinal))
+        {
+            if (game.StateOf(n).SteamUnlocked) continue;
+            if (byName.TryGetValue(n, out var d) && d.Protected) { skipped.Add(d.Name.Length > 0 ? d.Name : n); continue; }
+            var s = game.StateOf(n);
+            if (!s.ManualDone) { s.ManualDone = true; s.ManualAt = DateTimeOffset.Now; }
+            toWrite.Add(n);
+        }
+        _store.SaveGame(game);
+        if (toWrite.Count == 0)
+            return new MarkReport(false, skipped.Count > 0 ? "защищено (ставит только сервер игры): " + string.Join(", ", skipped) : "нечего записывать: всё уже открыто");
+
+        var r = await WriteToSteamAsync(game, toWrite, unlock: true, ct);
+        _store.SaveGame(game);
+        if (skipped.Count > 0)
+            r = r with { Error = (r.Error is null ? "" : r.Error + "; ") + "пропущены защищённые: " + string.Join(", ", skipped) };
+        return r;
     }
 
     // ---------- отметки ----------

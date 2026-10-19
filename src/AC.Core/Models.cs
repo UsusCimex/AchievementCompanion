@@ -125,6 +125,17 @@ public sealed class GameData
     /// <summary>Откуда взято время до 100%: "manual", "completionist.me" и т.п.</summary>
     public string CompletionSource { get; set; } = "";
 
+    /// <summary>
+    /// Время до 100%, выведенное из своего прогресса, когда CompletionMinutes не задан.
+    /// Считается заново при каждой оценке, не сохраняется.
+    /// </summary>
+    [JsonIgnore]
+    public double? DerivedCompletionMinutes { get; set; }
+
+    /// <summary>Время до 100%, которым реально пользуются оценки: заданное или выведенное.</summary>
+    [JsonIgnore]
+    public double? UsedCompletionMinutes => CompletionMinutes is > 0 ? CompletionMinutes : DerivedCompletionMinutes;
+
     public AchievementState StateOf(string apiName)
     {
         if (!States.TryGetValue(apiName, out var s))

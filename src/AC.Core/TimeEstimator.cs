@@ -22,8 +22,7 @@ public static class TimeEstimator
         foreach (var key in game.Estimates.Where(kv => kv.Value.Source == SourceName).Select(kv => kv.Key).ToList())
             game.Estimates.Remove(key);
 
-        var total = game.CompletionMinutes;
-        if (total is null || total <= 0) return;
+        game.DerivedCompletionMinutes = null;
 
         var withPct = game.Achievements
             .Where(a => a.GlobalPercent is > 0)
@@ -33,6 +32,14 @@ public static class TimeEstimator
         double max = withPct.Max(a => a.GlobalPercent!.Value);
         double min = withPct.Min(a => a.GlobalPercent!.Value);
         double span = Math.Log(max / min);
+
+        var total = game.CompletionMinutes is > 0 ? game.CompletionMinutes : null;
+        if (total is null)
+        {
+            game.DerivedCompletionMinutes = DeriveCompletion(game, withPct, max, span);
+            total = game.DerivedCompletionMinutes;
+        }
+        if (total is null || total <= 0) return;
 
         foreach (var a in withPct)
         {
@@ -47,6 +54,27 @@ public static class TimeEstimator
                 SampleSize = 0,
             };
         }
+    }
+
+    /// <summary>
+    /// Время до 100% по своему прогрессу (когда сайты молчат, например игра новая).
+    /// По той же шкале: если самое "позднее" из полученных достижений стоит на доле s шкалы,
+    /// а наиграно P, то до 100% примерно P / s. Нужно наиграть хотя бы 30 минут
+    /// и получить что-то не из самого начала (s от 0.15), иначе экстраполяция бессмысленна.
+    /// </summary>
+    public static double? DeriveCompletion(GameData game, IReadOnlyList<AchievementDef> withPct, double max, double span)
+    {
+        var played = game.EffectivePlaytimeMinutes;
+        if (played < 30 || span <= 1e-9) return null;
+        double sMax = 0;
+        foreach (var a in withPct)
+        {
+            var st = game.States.GetValueOrDefault(a.ApiName);
+            if (st is null || !(st.SteamUnlocked || st.ManualDone)) continue;
+            sMax = Math.Max(sMax, Math.Log(max / a.GlobalPercent!.Value) / span);
+        }
+        if (sMax < 0.15) return null;
+        return Math.Round(played / sMax, 0);
     }
 
     public static string Format(double? minutes)

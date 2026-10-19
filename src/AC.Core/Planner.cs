@@ -59,7 +59,7 @@ public static class Planner
         }
 
         double? remaining = Remaining(sections, game.EffectivePlaytimeMinutes, out int unknown);
-        double? cap = game.CompletionMinutes is > 0 ? Math.Max(0, game.CompletionMinutes.Value - game.EffectivePlaytimeMinutes) : null;
+        double? cap = game.UsedCompletionMinutes is > 0 ? Math.Max(0, game.UsedCompletionMinutes.Value - game.EffectivePlaytimeMinutes) : null;
         if (remaining.HasValue && cap.HasValue) remaining = Math.Min(remaining.Value, cap.Value);
         return new Plan(sections, remaining, cap, unknown);
     }

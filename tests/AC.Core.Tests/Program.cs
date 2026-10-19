@@ -350,4 +350,24 @@ static class Tests
         g.PlaytimeOverrideMinutes = null;
         Assert.Equal(0.0, g.EffectivePlaytimeMinutes);
     }
+
+    public static void Estimator_DerivedFromOwnProgress()
+    {
+        var g = SampleGame();
+        g.CompletionMinutes = null;
+        g.PlaytimeMinutes = 300;
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.Equal(0, g.Estimates.Count); // ничего не получено - не из чего выводить
+
+        g.StateOf("ch5").SteamUnlocked = true; // 30% - примерно середина шкалы
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.True(g.DerivedCompletionMinutes is > 300, $"выведено {g.DerivedCompletionMinutes}");
+        Assert.True(g.Estimates.Count == 5, "оценки появились");
+        Assert.Equal(g.DerivedCompletionMinutes, g.UsedCompletionMinutes);
+
+        g.CompletionMinutes = 1000; // заданное важнее выведенного
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.Equal((double?)null, g.DerivedCompletionMinutes);
+        Assert.Equal(1000.0, g.Estimates["grind"].P50!.Value);
+    }
 }

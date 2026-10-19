@@ -56,6 +56,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ExportTagsCommand = new RelayCommand(ExportTags, () => _game != null);
         ImportTagsCommand = new RelayCommand(ImportTags, () => _game != null);
         RevertCommand = new AsyncCommand(p => RevertAsync(p as AchievementRowViewModel), OnError, p => p is AchievementRowViewModel { IsUnlocked: true });
+        UnlockInSteamCommand = new AsyncCommand(UnlockInSteamAsync, OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
         OverlayMarkCommand = new RelayCommand(p => { if (p is AchievementRowViewModel r) MarkDoneFromOverlay(r); });
 
         _runningTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -208,6 +209,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ExportTagsCommand { get; }
     public RelayCommand ImportTagsCommand { get; }
     public AsyncCommand RevertCommand { get; }
+    /// <summary>Записать в Steam сразу, как в SAM. Параметр - строка или список выбранных строк.</summary>
+    public AsyncCommand UnlockInSteamCommand { get; }
     public RelayCommand OverlayMarkCommand { get; }
 
     public async Task StartAsync()
@@ -329,6 +332,54 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var r = await _svc.FlushQueueAsync(_game);
             Recompute(rebuildRows: true);
             StatusMessage = r.Error is null ? "Очередь отправлена в Steam" : "Не всё записалось: " + r.Error;
+        });
+    }
+
+    private static IEnumerable<AchievementRowViewModel> RowsFrom(object? p) => p switch
+    {
+        AchievementRowViewModel r => new[] { r },
+        System.Collections.IEnumerable list => list.OfType<AchievementRowViewModel>(),
+        _ => Array.Empty<AchievementRowViewModel>(),
+    };
+
+    private async Task UnlockInSteamAsync(object? p)
+    {
+        if (_game is null) return;
+        var rows = RowsFrom(p).Where(r => r.CanWriteToSteam).ToList();
+        if (rows.Count == 0) return;
+
+        if (!_svc.Settings.WriteModeConfirmed)
+        {
+            var answer = MessageBox.Show(
+                "Достижение будет записано в твой Steam-аккаунт через Steam-клиент, как в SAM.\n\n" +
+                "- Время открытия в Steam будет текущим.\n" +
+                "- Valve официально такое не поддерживает; сайты-рейтинги могут пометить профиль, если много достижений откроется в одну секунду.\n" +
+                "- Снять обратно: правый клик по строке, \"Снять это достижение в Steam\".\n\nПродолжить?",
+                "Achievement Companion", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (answer != MessageBoxResult.Yes) return;
+            _svc.Settings.WriteModeConfirmed = true;
+            _svc.SaveSettings();
+        }
+        else if (rows.Count > 1 &&
+                 MessageBox.Show($"Записать в Steam {rows.Count} достижений?", "Achievement Companion",
+                     MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        var game = _game;
+        await Busy("Записываю в Steam...", async () =>
+        {
+            var r = await _svc.UnlockInSteamAsync(game, rows.Select(x => x.ApiName).ToList());
+            if (!ReferenceEquals(game, _game)) return;
+            Recompute(rebuildRows: false);
+            var names = string.Join(", ", rows.Select(x => x.Name));
+            if (r.SteamWritten)
+            {
+                StatusMessage = "Записано в Steam: " + names + (r.Error is null ? "" : " | " + r.Error);
+                Toast?.Invoke("В Steam: " + names);
+            }
+            else StatusMessage = "Не записано: " + (r.Error ?? "неизвестная ошибка");
         });
     }
 
@@ -555,6 +606,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (_game is null) return;
         var p = _selectedPercentile.Value;
+        // Выведенное из своего прогресса время до 100% меняется с каждым открытием - пересчитываем.
+        TimeEstimator.EstimateFromGlobalPercent(_game);
 
         if (rebuildRows)
         {
@@ -603,7 +656,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                        (m > 0 ? $", ещё {m} сделано, но не засчитано - вместе {withManual:0}%" : "");
         RemainingText = plan.RemainingMinutes is { } rem
             ? $"До 100% примерно {TimeEstimator.Format(rem)}" + (plan.UnknownEstimateCount > 0 ? $" (без оценки: {plan.UnknownEstimateCount})" : "")
-            : "До 100%: нет оценки - задай время прохождения на 100%";
+            : _game.Achievements.All(a => a.GlobalPercent is null)
+                ? "До 100%: нет оценки - Steam не отдал глобальные проценты (нажми \"Обновить схему\")"
+                : "До 100%: нет оценки - задай время до 100% или получи пару достижений, тогда оценка появится сама";
 
         var played = TimeEstimator.Format(_game.EffectivePlaytimeMinutes);
         var playedNote = _game.PlaytimeOverrideMinutes is not null ? " (задано вручную)"
@@ -611,7 +666,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             : "";
         CompletionText = (_game.CompletionMinutes is { } cm
             ? $"Время до 100% по игре: {TimeEstimator.Format(cm)} ({(_game.CompletionSource == "manual" ? "вручную" : _game.CompletionSource)}), "
-            : "") + $"наиграно {played}{playedNote}";
+            : _game.DerivedCompletionMinutes is { } dm
+                ? $"Время до 100%: примерно {TimeEstimator.Format(dm)} (оценка по твоему прогрессу), "
+                : "") + $"наиграно {played}{playedNote}";
 
         QueueCount = _game.PendingUnlocks.Count;
         UpdateOverlayLists(all);

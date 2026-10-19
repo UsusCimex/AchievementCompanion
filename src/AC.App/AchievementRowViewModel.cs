@@ -45,6 +45,14 @@ public sealed class AchievementRowViewModel : ObservableObject
 
     public string Tooltip => _row.Def.Description.Length > 0 ? _row.Def.Description : _row.ApiName;
 
+    /// <summary>Для оверлея: описание всегда видно, скрытые помечены.</summary>
+    public string OverlayDescription =>
+        (_row.Def.Hidden ? "[секрет] " : "") +
+        (_row.Def.Description.Length > 0 ? _row.Def.Description : _row.Def.Hidden ? "описание Steam не отдал" : "");
+
+    /// <summary>Можно записать в Steam: ещё не открыто и не защищено.</summary>
+    public bool CanWriteToSteam => !IsUnlocked && !IsProtected;
+
     public string? Icon
     {
         get
@@ -148,7 +156,8 @@ public sealed class AchievementRowViewModel : ObservableObject
     {
         nameof(Def), nameof(Status), nameof(IsDone), nameof(IsUnlocked), nameof(IsProtected), nameof(Name),
         nameof(Description), nameof(Tooltip), nameof(Icon), nameof(Percent), nameof(PercentValue),
-        nameof(Estimate), nameof(Badges), nameof(StatusText), nameof(ManualDone),
+        nameof(Estimate), nameof(Badges), nameof(StatusText), nameof(ManualDone), nameof(OverlayDescription),
+        nameof(CanWriteToSteam),
     };
 
     /// <summary>Подменяет данные строки после пересчёта, не пересоздавая объект (чтобы не терять фокус).</summary>
