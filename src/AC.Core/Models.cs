@@ -68,6 +68,15 @@ public sealed class AchievementTag
     public KindSource Source { get; set; }
     /// <summary>Метка группы: глава, локация, режим. Пусто - без группы.</summary>
     public string Group { get; set; } = "";
+    /// <summary>
+    /// Откуда группа: Auto - из описания ("в главе 3"), Manual - задал пользователь.
+    /// null - не записано (старый формат файла, где группы ставились только вручную).
+    /// </summary>
+    public KindSource? GroupSource { get; set; }
+
+    /// <summary>Группа задана пользователем (в старых файлах - любая непустая).</summary>
+    [JsonIgnore]
+    public bool GroupIsManual => (GroupSource ?? (Group.Length > 0 ? KindSource.Manual : KindSource.Auto)) == KindSource.Manual;
 }
 
 /// <summary>Оценка времени "от начала игры" в минутах.</summary>
@@ -186,7 +195,8 @@ public sealed record AchievementRow(
     double? EstimateMinutes,
     bool EstimateIsManual,
     string Note,
-    DateTimeOffset? UnlockTime)
+    DateTimeOffset? UnlockTime,
+    bool GroupIsAuto = false)
 {
     public string ApiName => Def.ApiName;
     public bool IsDone => Status != EffectiveStatus.Locked;

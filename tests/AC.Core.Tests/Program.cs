@@ -65,6 +65,47 @@ static class Tests
         Assert.Equal(AchievementKind.Unknown, KindClassifier.Classify("", ""));
     }
 
+    public static void Classifier_RussianFormsAndPlaces()
+    {
+        // Steam часто пишет инфинитивом: "Собрать", а не "Соберите"
+        Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Ягодные места", "Собрать 80 ягод"));
+        Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Охотник", "Убить 50 врагов"));
+        Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Следопыт", "Найти все секреты"));
+        // упоминание главы - это место, а не сюжет
+        Assert.Equal(AchievementKind.Other, KindClassifier.Classify("Сердце", "Получить Хрустальное сердце в главе 1"));
+        Assert.Equal("Глава 1", KindClassifier.Location("Сердце", "Получить Хрустальное сердце в главе 1"));
+        Assert.Equal(AchievementKind.Story, KindClassifier.Classify("Сторона Б", "Завершить «Сторону Б» главы 2"));
+        Assert.Equal("Глава 2", KindClassifier.Location("Сторона Б", "Завершить «Сторону Б» главы 2"));
+        // номер главы - не счётчик гринда
+        Assert.Equal(AchievementKind.Other, KindClassifier.Classify("Тайник", "Получить ключ в главе 10"));
+        Assert.Equal("Глава 10", KindClassifier.Location("Тайник", "Получить ключ в главе 10"));
+        Assert.Equal(AchievementKind.Story, KindClassifier.Classify("Farewell", "Complete Chapter 9"));
+        Assert.Equal("Глава 9", KindClassifier.Location("Farewell", "Complete Chapter 9"));
+        Assert.Equal("Акт II", KindClassifier.Location("Hidden Path", "Find the hidden path in Act II"));
+        Assert.Equal((string?)null, KindClassifier.Location("Активист", "Активируйте 3 рычага"));
+        Assert.Equal((string?)null, KindClassifier.Location("Photographer", "Take a photo"));
+    }
+
+    public static void AutoGroup_RespectsManualAndLegacy()
+    {
+        var g = SampleGame();
+        Assert.Equal("Глава 5", g.Tags["ch5"].Group); // из "Complete chapter 5"
+        Assert.True(!g.Tags["ch5"].GroupIsManual, "группа определена автоматически");
+        Assert.True(GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "ch5").GroupIsAuto, "строка знает, что группа авто");
+
+        GameLogic.SetGroup(g, "ch5", ""); // пользователь убрал группу - автоопределение её не вернёт
+        GameLogic.AutoClassify(g);
+        Assert.Equal("", g.Tags["ch5"].Group);
+
+        GameLogic.SetGroup(g, "misc", "Фоторежим");
+        GameLogic.AutoClassify(g);
+        Assert.Equal("Фоторежим", g.Tags["misc"].Group);
+
+        // старый формат: группа есть, источника нет - значит, её ставил пользователь
+        Assert.True(new AchievementTag { Group = "Старая группа" }.GroupIsManual);
+        Assert.True(!new AchievementTag().GroupIsManual);
+    }
+
     public static void ManualKind_NotOverwrittenByAuto()
     {
         var g = SampleGame();
@@ -222,7 +263,8 @@ static class Tests
     {
         var g = SampleGame();
         GameLogic.SetKind(g, "misc", AchievementKind.Missable);
-        g.TagOf("ch5").Group = "Глава 5";
+        GameLogic.SetGroup(g, "ch5", "Глава 5");
+        GameLogic.SetGroup(g, "ch1", ""); // ручная пустая группа не экспортируется
         g.ManualEstimates["grind"] = 120;
         var json = TagPack.From(g).ToJson();
 
@@ -232,6 +274,7 @@ static class Tests
         Assert.Equal(AchievementKind.Missable, g2.Tags["misc"].Kind);
         Assert.Equal(KindSource.Manual, g2.Tags["misc"].Source);
         Assert.Equal("Глава 5", g2.Tags["ch5"].Group);
+        Assert.True(g2.Tags["ch5"].GroupIsManual, "группа из файла разметки - ручная");
         Assert.Equal(120.0, g2.ManualEstimates["grind"]);
     }
 
@@ -341,6 +384,7 @@ static class Tests
             g.StateOf("misc").Note = "заметка";
             g.PendingUnlocks.Add("misc");
             GameLogic.SetKind(g, "ch1", AchievementKind.Grind);
+            g.Tags["grind"] = new AchievementTag { Kind = AchievementKind.Grind, Group = "Старая группа" }; // старый формат, без GroupSource
             store.SaveGame(g);
 
             var back = store.LoadGame(1)!;
@@ -350,6 +394,8 @@ static class Tests
             Assert.Equal(AchievementKind.Grind, back.Tags["ch1"].Kind);
             Assert.Equal(KindSource.Manual, back.Tags["ch1"].Source);
             Assert.Equal("misc", back.PendingUnlocks.Single());
+            Assert.Equal(KindSource.Auto, back.Tags["ch5"].GroupSource!.Value);
+            Assert.True(back.Tags["grind"].GroupSource is null && back.Tags["grind"].GroupIsManual, "старый файл: группа ручная");
 
             var s = store.LoadSettings();
             s.SteamId64 = 76561198000000002UL;

@@ -21,7 +21,8 @@ public sealed class TagPack
         {
             game.Tags.TryGetValue(def.ApiName, out var t);
             bool manualKind = t?.Source == KindSource.Manual;
-            bool hasGroup = !string.IsNullOrWhiteSpace(t?.Group);
+            // автоматические группы ("в главе 3") у получателя определятся сами
+            bool hasGroup = t is { GroupIsManual: true } && !string.IsNullOrWhiteSpace(t.Group);
             bool hasEst = game.ManualEstimates.TryGetValue(def.ApiName, out var est);
             if (!manualKind && !hasGroup && !hasEst) continue;
             pack.Items.Add(new TagPackItem
@@ -49,7 +50,11 @@ public sealed class TagPack
                 tag.Kind = item.Kind.Value;
                 tag.Source = KindSource.Manual;
             }
-            if (item.Group is not null) tag.Group = item.Group;
+            if (item.Group is not null)
+            {
+                tag.Group = item.Group;
+                tag.GroupSource = KindSource.Manual;
+            }
             if (item.EstimateMinutes.HasValue) game.ManualEstimates[item.ApiName] = item.EstimateMinutes.Value;
             applied++;
         }

@@ -372,7 +372,7 @@ public sealed class GameService
 
     public void SetGroup(GameData game, string apiName, string group)
     {
-        game.TagOf(apiName).Group = group.Trim();
+        GameLogic.SetGroup(game, apiName, group);
         _store.SaveGame(game);
     }
 

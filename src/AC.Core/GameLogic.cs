@@ -60,7 +60,8 @@ public static class GameLogic
                 est,
                 manual,
                 s?.Note ?? "",
-                s?.SteamUnlocked == true ? s.SteamUnlockTime : s?.ManualAt));
+                s?.SteamUnlocked == true ? s.SteamUnlockTime : s?.ManualAt,
+                t is { Group.Length: > 0, GroupIsManual: false }));
         }
         return rows;
     }
@@ -80,15 +81,24 @@ public static class GameLogic
         return (u, m, game.Achievements.Count);
     }
 
-    /// <summary>Ставит автоматический тип всем, у кого нет ручной разметки.</summary>
+    /// <summary>
+    /// Ставит автоматический тип и группу ("в главе 3" - группа "Глава 3") всем, у кого они не заданы вручную.
+    /// </summary>
     public static void AutoClassify(GameData game)
     {
         foreach (var def in game.Achievements)
         {
             var tag = game.TagOf(def.ApiName);
-            if (tag.Source == KindSource.Manual) continue;
-            tag.Kind = KindClassifier.Classify(def.Name, def.Description);
-            tag.Source = KindSource.Auto;
+            if (tag.Source != KindSource.Manual)
+            {
+                tag.Kind = KindClassifier.Classify(def.Name, def.Description);
+                tag.Source = KindSource.Auto;
+            }
+            if (!tag.GroupIsManual)
+            {
+                tag.Group = KindClassifier.Location(def.Name, def.Description) ?? "";
+                tag.GroupSource = KindSource.Auto;
+            }
         }
     }
 
@@ -97,5 +107,13 @@ public static class GameLogic
         var tag = game.TagOf(apiName);
         tag.Kind = kind;
         tag.Source = KindSource.Manual;
+    }
+
+    /// <summary>Группа от пользователя. Пустая тоже ручная: автоопределение её больше не заполнит.</summary>
+    public static void SetGroup(GameData game, string apiName, string group)
+    {
+        var tag = game.TagOf(apiName);
+        tag.Group = group.Trim();
+        tag.GroupSource = KindSource.Manual;
     }
 }
