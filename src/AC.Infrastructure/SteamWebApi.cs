@@ -28,22 +28,32 @@ public sealed class SteamWebApi(HttpClient http)
     {
         using var doc = await GetJsonAsync(
             $"{Base}/IPlayerService/GetOwnedGames/v1/?key={Esc(key)}&steamid={steamId}&include_appinfo=1&include_played_free_games=1&format=json", ct);
-        var list = new List<OwnedGame>();
         if (!doc.RootElement.TryGetProperty("response", out var resp) || !resp.TryGetProperty("games", out var games))
             throw new SteamApiException(Loc.T("error.noLibrary"));
-        foreach (var g in games.EnumerateArray())
+        return games.EnumerateArray().Select(OwnedGameOf).ToList();
+    }
+
+    /// <summary>One game's fresh playtime (the library is cached); null - the game is not in the account.</summary>
+    public async Task<OwnedGame?> GetOwnedGameAsync(string key, ulong steamId, uint appId, CancellationToken ct = default)
+    {
+        using var doc = await GetJsonAsync(
+            $"{Base}/IPlayerService/GetOwnedGames/v1/?key={Esc(key)}&steamid={steamId}&include_played_free_games=1&appids_filter%5B0%5D={appId}&format=json", ct);
+        if (!doc.RootElement.TryGetProperty("response", out var resp) || !resp.TryGetProperty("games", out var games)) return null;
+        return games.EnumerateArray().Select(OwnedGameOf).FirstOrDefault(g => g.AppId == appId);
+    }
+
+    private static OwnedGame OwnedGameOf(JsonElement g)
+    {
+        long last = g.TryGetProperty("rtime_last_played", out var lp) ? lp.GetInt64() : 0;
+        return new OwnedGame
         {
-            long last = g.TryGetProperty("rtime_last_played", out var lp) ? lp.GetInt64() : 0;
-            list.Add(new OwnedGame
-            {
-                AppId = g.GetProperty("appid").GetUInt32(),
-                Name = Str(g, "name"),
-                PlaytimeMinutes = g.TryGetProperty("playtime_forever", out var pt) ? pt.GetInt32() : 0,
-                IconHash = Str(g, "img_icon_url"),
-                LastPlayed = last > 0 ? DateTimeOffset.FromUnixTimeSeconds(last) : null,
-            });
-        }
-        return list;
+            AppId = g.GetProperty("appid").GetUInt32(),
+            Name = Str(g, "name"),
+            PlaytimeMinutes = g.TryGetProperty("playtime_forever", out var pt) ? pt.GetInt32() : 0,
+            Playtime2WeeksMinutes = g.TryGetProperty("playtime_2weeks", out var p2) ? p2.GetInt32() : 0,
+            IconHash = Str(g, "img_icon_url"),
+            LastPlayed = last > 0 ? DateTimeOffset.FromUnixTimeSeconds(last) : null,
+        };
     }
 
     public async Task<(string GameName, List<SchemaEntry> Achievements)> GetSchemaAsync(

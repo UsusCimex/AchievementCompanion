@@ -63,33 +63,17 @@ public static class TimeEstimator
     }
 
     /// <summary>
-    /// Time to 100% from the player's own progress (when sites have nothing, e.g. a new game).
-    /// Same scale: if the "latest" earned achievement sits at fraction s of the scale
-    /// and P is played, then 100% takes about P / s. Requires at least 30 minutes played
-    /// and something past the very start (s from 0.15), otherwise extrapolation is meaningless.
+    /// Time to 100% from the player's own progress (when sites have nothing, e.g. a new game): own minutes per
+    /// the whole rarity scale (<see cref="Progress.MinutesPerUnit"/>, idle stretches left out). Requires at least
+    /// 30 minutes played and progress past the very start (0.15 of the scale), otherwise extrapolation is meaningless.
     /// </summary>
     public static double? DeriveCompletion(GameData game, IReadOnlyList<AchievementDef> withPct, double max, double span)
     {
-        var played = game.EffectivePlaytimeMinutes;
-        if (played < 30 || span <= 1e-9) return null;
-        double sMax = 0;
-        foreach (var a in withPct)
-        {
-            if (GameLogic.StatusOf(game.States.GetValueOrDefault(a.ApiName), game.CountManualMarks) == EffectiveStatus.Locked) continue;
-            sMax = Math.Max(sMax, Math.Log(max / a.Percent!.Value) / span);
-        }
-        if (sMax < 0.15) return null;
-        return Math.Round(played / sMax, 0);
-    }
-
-    /// <summary>Time to 100% from own progress (see DeriveCompletion), or null if it is too early to tell.</summary>
-    public static double? PersonalCompletion(GameData game)
-    {
-        var withPct = game.Achievements.Where(a => a.Percent is > 0).ToList();
-        if (withPct.Count == 0) return null;
-        double max = withPct.Max(a => a.Percent!.Value);
-        double min = withPct.Min(a => a.Percent!.Value);
-        return DeriveCompletion(game, withPct, max, Math.Log(max / min));
+        if (game.EffectivePlaytimeMinutes < 30 || span <= 1e-9) return null;
+        var share = withPct.ToDictionary(a => a.ApiName, a => Math.Log(max / a.Percent!.Value) / span);
+        var minutes = Progress.MinutesPerUnit(game, name => share.TryGetValue(name, out var v) ? v : null,
+            DateTimeOffset.Now, minProgress: 0.15);
+        return minutes is { } m ? Math.Round(m, 0) : null;
     }
 
     public static string Format(double? minutes)

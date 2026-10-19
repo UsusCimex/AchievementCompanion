@@ -17,14 +17,11 @@ public sealed record PlanSection(PlanStage Stage, IReadOnlyList<PlanGroup> Group
 }
 
 /// <param name="Pace">How many times slower than the median the player is (1 - not slower, or unknown).</param>
-/// <param name="Overtime">Played longer than 100% usually takes, yet not all unlocked: the rest cannot be estimated.</param>
 public sealed record Plan(
     IReadOnlyList<PlanSection> Sections,
     double? RemainingMinutes,
-    double? CompletionCapMinutes,
     int UnknownEstimateCount,
-    double Pace = 1,
-    bool Overtime = false)
+    double Pace = 1)
 {
     /// <summary>Flat playthrough order.</summary>
     public IEnumerable<AchievementRow> Ordered => Sections.SelectMany(s => s.Groups).SelectMany(g => g.Items);
@@ -46,9 +43,10 @@ public static class Planner
     /// </summary>
     public const double MaxPace = 3;
 
-    public static Plan Build(GameData game, Percentile p)
+    public static Plan Build(GameData game, Percentile p, DateTimeOffset? now = null)
     {
-        var open = GameLogic.BuildRows(game, p).Where(r => !r.IsDone).ToList();
+        var rows = GameLogic.BuildRows(game, p);
+        var open = rows.Where(r => !r.IsDone).ToList();
 
         var sections = new List<PlanSection>();
         foreach (var stage in new[] { PlanStage.Missable, PlanStage.Story, PlanStage.Other, PlanStage.Grind })
@@ -71,26 +69,23 @@ public static class Planner
             sections.Add(new PlanSection(stage, groups));
         }
 
-        double played = game.EffectivePlaytimeMinutes;
-        double? total = game.UsedCompletionMinutes is > 0 ? game.UsedCompletionMinutes : null;
-        double pace = PaceOf(game, total);
-        int unknown = sections.SelectMany(s => s.Groups).SelectMany(g => g.Items).Count(r => r.EstimateMinutes is null);
-        bool overtime = sections.Count > 0 && total is { } t && played >= t * pace;
-        double? cap = total is { } t2 ? Math.Max(0, t2 * pace - played) : null;
-        double? remaining = overtime ? null : Remaining(sections, played, pace);
-        if (remaining.HasValue && cap.HasValue) remaining = Math.Min(remaining.Value, cap.Value);
-        return new Plan(sections, remaining, cap, unknown, pace, overtime);
+        double pace = PaceOf(game, now ?? DateTimeOffset.Now);
+        int unknown = open.Count(r => r.EstimateMinutes is null);
+        return new Plan(sections, Remaining(rows, pace), unknown, pace);
     }
 
     /// <summary>
-    /// How many times slower than the median the player is, by own progress (TimeEstimator.PersonalCompletion).
-    /// Faster than the median gives no speed-up (a margin does not hurt), slower is capped at MaxPace.
+    /// How many times slower than the median the player is, measured on the median estimates by own unlocks
+    /// (<see cref="Progress.MinutesPerUnit"/>), so idle playtime does not count. Needs progress worth a tenth of
+    /// the game or half an hour. Faster than the median gives no speed-up (a margin does not hurt),
+    /// slower is capped at MaxPace.
     /// </summary>
-    public static double PaceOf(GameData game, double? total)
+    public static double PaceOf(GameData game, DateTimeOffset now)
     {
-        if (total is not > 0) return 1;
-        var own = TimeEstimator.PersonalCompletion(game);
-        return own is { } o && o > total.Value ? Math.Min(o / total.Value, MaxPace) : 1;
+        var typical = game.Estimates.Values.Select(e => e.P50 ?? 0).DefaultIfEmpty().Max();
+        var own = Progress.MinutesPerUnit(game, name => game.Estimates.GetValueOrDefault(name)?.P50, now,
+            minProgress: Math.Max(30, typical / 10));
+        return own is { } o ? Math.Clamp(o, 1, MaxPace) : 1;
     }
 
     public static PlanStage StageOf(AchievementKind kind) => kind switch
@@ -102,41 +97,28 @@ public static class Planner
     };
 
     /// <summary>
-    /// Remaining = (latest of the locked story and missable ones - already played)
-    /// + sum over the "other" and "grind" groups (the longest item per group).
-    /// Estimates here are "time from the start of the game", so story ones overlap rather than add up.
-    /// Computed on the median scale: playtime and manual estimates are divided by pace, the result multiplied back.
+    /// Estimates count from the start of the game, so what is left is the way from the player's position
+    /// (<see cref="Progress.Position"/>) to the latest locked achievement, with everything before it unlocked along
+    /// the way, plus the ones left behind: each costs the stretch from the previous achievement to it.
+    /// Computed on the median scale (own estimates are divided by pace), then multiplied by pace.
+    /// null - no locked achievement has an estimate.
     /// </summary>
-    private static double? Remaining(IReadOnlyList<PlanSection> sections, double playedMinutes, double pace)
+    private static double? Remaining(IReadOnlyList<AchievementRow> rows, double pace)
     {
-        bool any = false;
-        double mainPath = 0;
-        double extra = 0;
+        var timeline = rows
+            .Where(r => r.EstimateMinutes.HasValue)
+            .Select(r => (At: r.EstimateIsManual ? r.EstimateMinutes!.Value / pace : r.EstimateMinutes!.Value, Done: r.IsDone))
+            .OrderBy(x => x.At)
+            .ToList();
+        if (timeline.All(x => x.Done)) return null;
 
-        foreach (var s in sections)
-        {
-            foreach (var g in s.Groups)
-            {
-                double? longest = null;
-                foreach (var r in g.Items)
-                {
-                    if (r.EstimateMinutes is not { } m) continue;
-                    var onScale = r.EstimateIsManual ? m / pace : m;
-                    longest = Math.Max(longest ?? 0, onScale);
-                }
-                if (longest is null) continue;
-                any = true;
-                if (s.Stage is PlanStage.Missable or PlanStage.Story)
-                    mainPath = Math.Max(mainPath, longest.Value);
-                else
-                    extra += longest.Value;
-            }
-        }
-
-        if (!any) return null;
-        // "Other" and "grind" are also estimated from the start of the game; if the player has played
-        // longer than the story path, playtime is subtracted from the story part only.
-        return (Math.Max(0, mainPath - playedMinutes / pace) + extra) * pace;
+        double position = Progress.Position(timeline);
+        double ahead = Math.Max(0, timeline.Where(x => !x.Done).Max(x => x.At) - position);
+        double behind = 0;
+        for (int i = 0; i < timeline.Count; i++)
+            if (!timeline[i].Done && timeline[i].At <= position)
+                behind += timeline[i].At - (i > 0 ? timeline[i - 1].At : 0);
+        return (ahead + behind) * pace;
     }
 
     private sealed class RowOrder : IComparer<AchievementRow>

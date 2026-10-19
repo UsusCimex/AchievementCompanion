@@ -147,6 +147,18 @@ public sealed class GameService
             }
         }
 
+        if (HasApiKey && Settings.SteamId64 != 0)
+        {
+            try
+            {
+                await RefreshPlaytimeAsync(game, ct);
+            }
+            catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
+            {
+                AppLog.Info($"{appId}: playtime: {e.Message}");
+            }
+        }
+
         GameLogic.AutoClassify(game);
         TimeEstimator.EstimateFromGlobalPercent(game);
         _store.SaveGame(game);
@@ -178,6 +190,26 @@ public sealed class GameService
         var (fresh, error) = await RefreshViaBridgeAsync(game, ct);
         if (error != null) throw new SteamApiException(Loc.T("error.client", error));
         return fresh;
+    }
+
+    /// <summary>
+    /// Fresh Steam playtime of the game. Between sessions it also goes to the playtime history, together with the
+    /// playtime two weeks back (from Steam's "last two weeks"): the pace then skips stretches without progress.
+    /// </summary>
+    public async Task RefreshPlaytimeAsync(GameData game, CancellationToken ct = default)
+    {
+        RequireKey();
+        var own = await _api.GetOwnedGameAsync(ApiKey, Settings.SteamId64, game.AppId, ct);
+        if (own is null) return;
+        game.PlaytimeMinutes = own.PlaytimeMinutes;
+        // Mid-session Steam has not counted the current session yet.
+        if (SteamLocal.RunningAppId() != game.AppId)
+        {
+            var now = DateTimeOffset.Now;
+            Progress.AddPlaytime(game, now.AddDays(-14), own.PlaytimeMinutes - own.Playtime2WeeksMinutes);
+            Progress.AddPlaytime(game, now, own.PlaytimeMinutes);
+        }
+        _store.SaveGame(game);
     }
 
     /// <summary>Own "actually played" time (null - from Steam) and Steam hours to ignore.</summary>

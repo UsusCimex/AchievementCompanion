@@ -176,14 +176,16 @@ static class Tests
         g.PlaytimeMinutes = 300;
         g.StateOf("ch1").SteamUnlocked = true;
         g.StateOf("grind").ManualDone = true;
-        Assert.Equal(300.0, TimeEstimator.PersonalCompletion(g)); // the rarest is marked: the whole scale is covered
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.Equal(300.0, g.DerivedCompletionMinutes); // the rarest is marked: the whole scale is covered
 
         g.CountManualMarks = false;
         Assert.Equal(EffectiveStatus.Locked, GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "grind").Status);
         Assert.Equal((1, 0, 5), GameLogic.Progress(g));
         Assert.True(Planner.Build(g, Percentile.P50).Ordered.Any(r => r.ApiName == "grind"), "without marks grind stays in the plan");
         Assert.Equal(0, new AchievementQuery { Status = StatusFilter.NotCounted }.Apply(g, Percentile.P50).Count);
-        Assert.Equal((double?)null, TimeEstimator.PersonalCompletion(g));
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.Equal((double?)null, g.DerivedCompletionMinutes);
         Assert.True(g.States["grind"].ManualDone, "the mark is kept, just not counted");
     }
 
@@ -203,18 +205,27 @@ static class Tests
         g.StateOf("grind").ManualDone = true;
         var plan = Planner.Build(g, Percentile.P50);
         Assert.True(plan.Ordered.All(r => r.ApiName != "grind"), "done ones are not in the plan");
-        // story path = max(miss, ch5, ch1), plus misc separately
-        var miss = g.Estimates["miss"].P50!.Value;
-        var misc = g.Estimates["misc"].P50!.Value;
-        Assert.Equal(Math.Round(miss + misc, 1), Math.Round(plan.RemainingMinutes!.Value, 1));
+        // The rarest one is done (luck or a mark), the rest is behind it and costs its stretches: up to miss.
+        Assert.Equal(Math.Round(g.Estimates["miss"].P50!.Value, 1), Math.Round(plan.RemainingMinutes!.Value, 1));
+
+        // Past ch5: what is left is the way to miss, plus misc left behind (the stretch from ch1 to it).
+        g.StateOf("ch5").SteamUnlocked = true;
+        plan = Planner.Build(g, Percentile.P50);
+        double expected = g.Estimates["miss"].P50!.Value - g.Estimates["ch5"].P50!.Value + g.Estimates["misc"].P50!.Value;
+        Assert.Equal(Math.Round(expected, 1), Math.Round(plan.RemainingMinutes!.Value, 1));
     }
 
-    public static void Planner_RemainingCappedByCompletion()
+    public static void Planner_IdlePlaytimeChangesNothing()
     {
+        // Hours without a single unlock (AFK, a game left open) neither shorten nor stretch the estimate.
         var g = SampleGame();
-        g.PlaytimeMinutes = 590;
-        var plan = Planner.Build(g, Percentile.P50);
-        Assert.True(plan.RemainingMinutes <= 10.0001, $"remaining {plan.RemainingMinutes} is at most 10");
+        foreach (var minutes in new[] { 0, 590, 59000 })
+        {
+            g.PlaytimeMinutes = minutes;
+            var plan = Planner.Build(g, Percentile.P50);
+            Assert.Equal(1.0, plan.Pace);
+            Assert.Equal(600.0, Math.Round(plan.RemainingMinutes!.Value, 1));
+        }
     }
 
     public static void Planner_PaceFromOwnProgress()
@@ -225,7 +236,6 @@ static class Tests
         g.StateOf("ch5").SteamUnlocked = true;
         var plan = Planner.Build(g, Percentile.P50);
         Assert.True(plan.Pace > 2.5 && plan.Pace <= Planner.MaxPace, $"pace {plan.Pace}");
-        Assert.True(!plan.Overtime, "not overtime yet");
         Assert.True(plan.RemainingMinutes > 600, $"remaining {plan.RemainingMinutes} with pace");
 
         // Fast player: the median is not sped up.
@@ -241,7 +251,7 @@ static class Tests
         foreach (var a in g.Achievements) g.StateOf(a.ApiName).SteamUnlocked = true;
         var plan = Planner.Build(g, Percentile.P50);
         Assert.True(plan.IsComplete, "all unlocked");
-        Assert.True(!plan.Overtime, "a completed game has no overtime");
+        Assert.Equal((double?)null, plan.RemainingMinutes);
     }
 
     public static void Planner_Groups()
@@ -608,22 +618,44 @@ static class Tests
     {
         var g = SampleGame();
         g.PlaytimeMinutes = 6000; // 100 h in Steam, but achievements were added later
-        var over = Planner.Build(g, Percentile.P50);
-        Assert.True(over.Overtime, "played longer than 100% takes");
-        Assert.Equal((double?)null, over.RemainingMinutes);
+        g.StateOf("ch5").SteamUnlocked = true;
+        var slow = Planner.Build(g, Percentile.P50);
+        Assert.Equal(Planner.MaxPace, slow.Pace);
 
         g.PlaytimeOffsetMinutes = 5900; // 98 h 20 min were before achievements
         Assert.Equal(100.0, g.EffectivePlaytimeMinutes);
-        var withOffset = Planner.Build(g, Percentile.P50).RemainingMinutes!.Value;
-        Assert.True(withOffset > 0, "with the offset there is a remainder");
+        var withOffset = Planner.Build(g, Percentile.P50);
+        Assert.Equal(1.0, withOffset.Pace);
+        Assert.True(withOffset.RemainingMinutes < slow.RemainingMinutes, "the offset removes the slow pace");
 
-        g.PlaytimeOverrideMinutes = 0; // the override beats the offset
-        Assert.Equal(0.0, g.EffectivePlaytimeMinutes);
-        Assert.True(Planner.Build(g, Percentile.P50).RemainingMinutes >= withOffset);
+        g.PlaytimeOverrideMinutes = 400; // the override beats the offset
+        Assert.Equal(400.0, g.EffectivePlaytimeMinutes);
+        Assert.True(Planner.Build(g, Percentile.P50).Pace > 2, "400 minutes to ch5 is slow");
 
         g.PlaytimeOffsetMinutes = 99999;
         g.PlaytimeOverrideMinutes = null;
         Assert.Equal(0.0, g.EffectivePlaytimeMinutes);
+    }
+
+    public static void Progress_IdleStretchesDoNotSlowDown()
+    {
+        var now = DateTimeOffset.Now;
+        var g = SampleGame();
+        g.StateOf("ch5").SteamUnlocked = true;
+        g.StateOf("ch5").SteamUnlockTime = now.AddDays(-10);
+        g.PlaytimeMinutes = 3000;
+        // Without history all 3000 minutes went into reaching ch5: the slowest pace.
+        Assert.Equal(Planner.MaxPace, Planner.Build(g, Percentile.P50, now).Pace);
+
+        // Steam showed 200 minutes the day after ch5; the next 2800 brought nothing: idle, not slow.
+        g.PlaytimeHistory.Add(new PlaytimePoint { At = now.AddDays(-9), Minutes = 200 });
+        var plan = Planner.Build(g, Percentile.P50, now);
+        Assert.True(plan.Pace is > 1.1 and < 1.2, $"pace {plan.Pace}");
+
+        // The time to 100% derived from own progress skips the idle hours too.
+        g.CompletionMinutes = null;
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.True(g.DerivedCompletionMinutes is > 650 and < 750, $"derived {g.DerivedCompletionMinutes}");
     }
 
     public static void Estimator_DerivedFromOwnProgress()

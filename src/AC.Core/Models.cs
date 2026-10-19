@@ -79,6 +79,13 @@ public sealed class AchievementTag
     public bool GroupIsManual => (GroupSource ?? (Group.Length > 0 ? KindSource.Manual : KindSource.Auto)) == KindSource.Manual;
 }
 
+/// <summary>Steam playtime of a game at a moment.</summary>
+public sealed class PlaytimePoint
+{
+    public DateTimeOffset At { get; set; }
+    public double Minutes { get; set; }
+}
+
 /// <summary>Time estimate "from the start of the game" in minutes.</summary>
 public sealed class TimeEstimate
 {
@@ -125,6 +132,9 @@ public sealed class GameData
     [JsonIgnore]
     public double EffectivePlaytimeMinutes =>
         PlaytimeOverrideMinutes ?? Math.Max(0, PlaytimeMinutes - PlaytimeOffsetMinutes);
+
+    /// <summary>Steam playtime seen between sessions, oldest first: tells how much was played between unlocks.</summary>
+    public List<PlaytimePoint> PlaytimeHistory { get; set; } = new();
     /// <summary>Time to 100% for the game in minutes (median from an external site, or manual).</summary>
     public double? CompletionMinutes { get; set; }
     public DateTimeOffset? SchemaFetchedAt { get; set; }

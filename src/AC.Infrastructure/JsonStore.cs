@@ -165,6 +165,8 @@ public sealed class OwnedGame
     public uint AppId { get; set; }
     public string Name { get; set; } = "";
     public int PlaytimeMinutes { get; set; }
+    /// <summary>Played in the last two weeks.</summary>
+    public int Playtime2WeeksMinutes { get; set; }
     public string IconHash { get; set; } = "";
     public DateTimeOffset? LastPlayed { get; set; }
 

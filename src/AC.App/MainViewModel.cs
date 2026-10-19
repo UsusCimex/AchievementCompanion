@@ -786,7 +786,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         StatUnlockedSub = m > 0 ? Loc.T("game.unlockedSubManual", steamPct, m) : Loc.T("game.unlockedSub", steamPct);
 
         RemainingText = plan.IsComplete ? Loc.T("plan.complete")
-            : plan.Overtime ? Loc.T("plan.overtime", TimeEstimator.Format(_game.UsedCompletionMinutes))
             : plan.RemainingMinutes is { } rem
                 ? Loc.T("plan.remaining", TimeEstimator.Format(rem)) +
                   (plan.Pace > 1.05 ? Loc.T("plan.pace", Number(plan.Pace, "0.#")) : "") +
@@ -795,7 +794,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         StatRemaining = plan.IsComplete ? "100%" : plan.RemainingMinutes is { } rm ? "~" + TimeEstimator.Format(rm) : Loc.T("game.noEstimate");
         StatRemainingSub = plan.IsComplete ? Loc.T("game.allDone")
-            : plan.Overtime ? Loc.T("game.overtime")
             : plan.RemainingMinutes is null ? Loc.T("game.setInTime")
             : CompletionSourceTitle(_game);
         var played = TimeEstimator.Format(_game.EffectivePlaytimeMinutes);
@@ -896,6 +894,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             // While something loads, do not remember it; retry on the next tick.
             if (IsBusy) return;
+            if (_lastRunningAppId != 0 && _game is { } played && played.AppId == _lastRunningAppId && _svc.HasApiKey)
+                _ = SafeAsync(() => AfterSessionAsync(played));
             _lastRunningAppId = running;
             if (running != 0 && AutoFollow && running != _game?.AppId)
             {
@@ -912,6 +912,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _lastPoll = DateTime.Now;
             await SafeAsync(RefreshStateAsync);
         }
+    }
+
+    /// <summary>Steam counts a session's playtime a little after it ends; the new point goes to the playtime history.</summary>
+    private async Task AfterSessionAsync(GameData game)
+    {
+        await Task.Delay(TimeSpan.FromMinutes(2));
+        if (_game != game || IsBusy || SteamLocal.RunningAppId() == game.AppId) return;
+        await _svc.RefreshPlaytimeAsync(game);
+        Recompute(rebuildRows: false);
     }
 
     private void AnnounceNew(IReadOnlyList<string> apiNames)
