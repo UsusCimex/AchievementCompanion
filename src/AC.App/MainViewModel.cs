@@ -432,7 +432,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var (fresh, error) = await _svc.RefreshViaBridgeAsync(_game);
             if (error != null)
             {
-                StatusMessage = Loc.T("status.bridgeError", error);
+                StatusMessage = Loc.T("error.client", error);
                 return;
             }
             Recompute(rebuildRows: true);
@@ -808,7 +808,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 : Loc.T("time.summaryPlayed", played, playedNote);
 
         SampleText = _game.SampleFetchedAt is { } sf
-            ? Loc.T("time.sample", _game.SamplePlayers,
+            ? Loc.Plural("time.sample", _game.SamplePlayers,
                 _game.SampleCompletionMinutes is { } sc
                     ? Loc.T("time.sampleCompleters", _game.SampleCompleters, TimeEstimator.Format(sc))
                     : Loc.T("time.sampleNoCompleters"),

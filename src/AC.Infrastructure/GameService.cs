@@ -262,7 +262,7 @@ public sealed class GameService
         ct.ThrowIfCancellationRequested();
 
         if (samples.Count == 0)
-            throw new SteamApiException(Loc.T("sample.allPrivate", authors.Count));
+            throw new SteamApiException(Loc.Plural("sample.allPrivate", authors.Count));
 
         // Только считаем: применяет вызывающий к актуальному объекту игры (пока шёл сбор, её могли перезагрузить).
         return SampleStats.Compute(samples, game.Achievements.Select(a => a.ApiName).ToList());

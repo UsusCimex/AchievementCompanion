@@ -89,7 +89,7 @@ public sealed class AchievementRowViewModel : ObservableObject
             var est = _owner.Game?.Estimates.GetValueOrDefault(ApiName);
             return est?.Source switch
             {
-                AC.Core.SampleStats.SourceName => Loc.T("estimate.sample", est.SampleSize),
+                AC.Core.SampleStats.SourceName => Loc.Plural("estimate.sample", est.SampleSize),
                 AC.Core.TimeEstimator.SourceName => Loc.T("estimate.model"),
                 _ => Loc.T("estimate.none"),
             };
