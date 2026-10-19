@@ -3,11 +3,11 @@ namespace AC.Core;
 /// <summary>Сведение статусов и сборка строк для списка.</summary>
 public static class GameLogic
 {
-    public static EffectiveStatus StatusOf(AchievementState? s)
+    public static EffectiveStatus StatusOf(AchievementState? s, bool manualMarks = true)
     {
         if (s is null) return EffectiveStatus.Locked;
         if (s.SteamUnlocked) return EffectiveStatus.Unlocked;
-        if (s.ManualDone) return EffectiveStatus.ManualDone;
+        if (manualMarks && s.ManualDone) return EffectiveStatus.ManualDone;
         return EffectiveStatus.Locked;
     }
 
@@ -52,15 +52,21 @@ public static class GameLogic
             game.States.TryGetValue(def.ApiName, out var s);
             game.Tags.TryGetValue(def.ApiName, out var t);
             var est = EstimateOf(game, def.ApiName, p, out var manual);
+            var status = StatusOf(s, game.CountManualMarks);
             rows.Add(new AchievementRow(
                 def,
-                StatusOf(s),
+                status,
                 t?.Kind ?? AchievementKind.Unknown,
                 t?.Group ?? "",
                 est,
                 manual,
                 s?.Note ?? "",
-                s?.SteamUnlocked == true ? s.SteamUnlockTime : s?.ManualAt,
+                status switch
+                {
+                    EffectiveStatus.Unlocked => s!.SteamUnlockTime,
+                    EffectiveStatus.ManualDone => s!.ManualAt,
+                    _ => null,
+                },
                 t is { Group.Length: > 0, GroupIsManual: false }));
         }
         return rows;
@@ -72,7 +78,7 @@ public static class GameLogic
         int u = 0, m = 0;
         foreach (var def in game.Achievements)
         {
-            switch (StatusOf(game.States.GetValueOrDefault(def.ApiName)))
+            switch (StatusOf(game.States.GetValueOrDefault(def.ApiName), game.CountManualMarks))
             {
                 case EffectiveStatus.Unlocked: u++; break;
                 case EffectiveStatus.ManualDone: m++; break;

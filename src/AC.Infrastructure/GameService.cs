@@ -80,6 +80,7 @@ public sealed class GameService
     {
         var warnings = new List<string>();
         var game = _store.LoadGame(appId) ?? new GameData { AppId = appId, Name = knownName ?? "" };
+        game.CountManualMarks = Settings.ManualUnlocks;
         if (!string.IsNullOrEmpty(knownName) && string.IsNullOrEmpty(game.Name)) game.Name = knownName;
 
         var lib = CachedLibrary().FirstOrDefault(g => g.AppId == appId);
@@ -298,6 +299,7 @@ public sealed class GameService
     /// </summary>
     public async Task<MarkReport> UnlockInSteamAsync(GameData game, IReadOnlyList<string> apiNames, CancellationToken ct = default)
     {
+        if (ManualUnlocksOff() is { } off) return off;
         var byName = game.Achievements.ToDictionary(a => a.ApiName, StringComparer.Ordinal);
         var skipped = new List<string>();
         var toWrite = new List<string>();
@@ -328,6 +330,7 @@ public sealed class GameService
     /// </summary>
     public async Task<MarkReport> SetManualDoneAsync(GameData game, string apiName, bool done, CancellationToken ct = default)
     {
+        if (ManualUnlocksOff() is { } off) return off;
         var s = game.StateOf(apiName);
         s.ManualDone = done;
         s.ManualAt = done ? DateTimeOffset.Now : null;
@@ -401,6 +404,7 @@ public sealed class GameService
     /// <summary>Отправляет накопленную очередь в Steam.</summary>
     public async Task<MarkReport> FlushQueueAsync(GameData game, CancellationToken ct = default)
     {
+        if (ManualUnlocksOff() is { } off) return off;
         var names = game.PendingUnlocks.Where(n => !game.StateOf(n).SteamUnlocked).ToList();
         if (names.Count == 0) return new MarkReport(false, null);
         var r = await WriteToSteamAsync(game, names, unlock: true, ct);
@@ -411,6 +415,7 @@ public sealed class GameService
     /// <summary>Снимает в Steam достижение, поставленное через приложение (по журналу).</summary>
     public async Task<MarkReport> RevertInSteamAsync(GameData game, string apiName, CancellationToken ct = default)
     {
+        if (ManualUnlocksOff() is { } off) return off;
         var r = await WriteToSteamAsync(game, new[] { apiName }, unlock: false, ct);
         _store.SaveGame(game);
         return r;
@@ -461,6 +466,9 @@ public sealed class GameService
     }
 
     // ---------- внутреннее ----------
+
+    private MarkReport? ManualUnlocksOff() =>
+        Settings.ManualUnlocks ? null : new MarkReport(false, "ручные отметки и запись в Steam выключены в настройках");
 
     private void RequireKey()
     {

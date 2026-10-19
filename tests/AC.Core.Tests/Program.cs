@@ -158,6 +158,24 @@ static class Tests
         Assert.Equal(0, fresh.Count);
     }
 
+    public static void ManualMarks_IgnoredWhenOff()
+    {
+        var g = SampleGame();
+        g.CompletionMinutes = null;
+        g.PlaytimeMinutes = 300;
+        g.StateOf("ch1").SteamUnlocked = true;
+        g.StateOf("grind").ManualDone = true;
+        Assert.Equal(300.0, TimeEstimator.PersonalCompletion(g)); // самое редкое отмечено - вся шкала пройдена
+
+        g.CountManualMarks = false;
+        Assert.Equal(EffectiveStatus.Locked, GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "grind").Status);
+        Assert.Equal((1, 0, 5), GameLogic.Progress(g));
+        Assert.True(Planner.Build(g, Percentile.P50).Ordered.Any(r => r.ApiName == "grind"), "без отметок гринд остаётся в плане");
+        Assert.Equal(0, new AchievementQuery { Status = StatusFilter.NotCounted }.Apply(g, Percentile.P50).Count);
+        Assert.Equal((double?)null, TimeEstimator.PersonalCompletion(g));
+        Assert.True(g.States["grind"].ManualDone, "отметка не стирается, а только не учитывается");
+    }
+
     public static void Planner_StageOrder()
     {
         var g = SampleGame();

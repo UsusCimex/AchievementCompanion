@@ -66,7 +66,7 @@
                         <TextBlock Text="{Binding Estimate}" FontSize="11" />
                     </Border>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0" HorizontalAlignment="Right"
-                                Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                                Visibility="{Binding DataContext.ShowActions, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                         <Button Content="Сделал" Style="{StaticResource OvButton}"
                                 ToolTip="Отметить: выполнено, но не засчиталось"
                                 Command="{Binding DataContext.Main.OverlayMarkCommand, RelativeSource={RelativeSource AncestorType=Window}}"

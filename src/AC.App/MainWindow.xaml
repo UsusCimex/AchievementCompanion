@@ -238,18 +238,20 @@
                         </Border>
                     </WrapPanel>
 
-                    <StackPanel Grid.Row="1" Grid.Column="2" Style="{StaticResource CardActions}" Orientation="Horizontal"
-                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
-                        <CheckBox Content="Сделал" MinWidth="0" VerticalAlignment="Center" Margin="0,0,8,0"
-                                  IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  Visibility="{Binding IsUnlocked, Converter={StaticResource InverseVis}}"
-                                  ToolTip="Выполнено, но в Steam не засчиталось" />
-                        <Button Content="В Steam" Padding="10,3"
-                                ToolTip="Записать достижение в Steam сейчас (как в SAM)"
-                                Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                CommandParameter="{Binding}"
-                                Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
-                    </StackPanel>
+                    <Border Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0"
+                            Visibility="{Binding DataContext.ManualUnlocks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Style="{StaticResource CardActions}" Orientation="Horizontal">
+                            <CheckBox Content="Сделал" MinWidth="0" VerticalAlignment="Center" Margin="0,0,8,0"
+                                      IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Visibility="{Binding IsUnlocked, Converter={StaticResource InverseVis}}"
+                                      ToolTip="Выполнено, но в Steam не засчиталось" />
+                            <Button Content="В Steam" Padding="10,3"
+                                    ToolTip="Записать достижение в Steam сейчас (как в SAM)"
+                                    Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Grid>
         </DataTemplate>
@@ -265,6 +267,7 @@
                 </Grid.ColumnDefinitions>
                 <CheckBox MinWidth="0" VerticalAlignment="Center" Margin="0,0,4,0"
                           IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Visibility="{Binding DataContext.ManualUnlocks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"
                           ToolTip="Сделал (в Steam не засчиталось)" />
                 <Border Grid.Column="1" Width="32" Height="32" CornerRadius="4" VerticalAlignment="Center"
                         Background="{DynamicResource SubtleFillColorSecondaryBrush}">
@@ -506,9 +509,11 @@
                                 <MenuItem.Icon>
                                     <TextBlock Text="&#xE74E;" Style="{StaticResource Glyph}" />
                                 </MenuItem.Icon>
-                                <MenuItem Header="Не засчитанные - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="manual" />
-                                <MenuItem Header="Не засчитанные - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="manual" />
-                                <Separator />
+                                <MenuItem Header="Не засчитанные - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="manual"
+                                          Visibility="{Binding ManualUnlocks, Converter={StaticResource BoolToVis}}" />
+                                <MenuItem Header="Не засчитанные - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="manual"
+                                          Visibility="{Binding ManualUnlocks, Converter={StaticResource BoolToVis}}" />
+                                <Separator Visibility="{Binding ManualUnlocks, Converter={StaticResource BoolToVis}}" />
                                 <MenuItem Header="Все достижения - CSV" Command="{Binding ExportCsvCommand}" CommandParameter="all" />
                                 <MenuItem Header="Все достижения - JSON" Command="{Binding ExportJsonCommand}" CommandParameter="all" />
                             </MenuItem>
@@ -566,6 +571,7 @@
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton Style="{StaticResource FilterChip}" ToolTip="Сделано, но в Steam не засчиталось"
+                                         Visibility="{Binding ManualUnlocks, Converter={StaticResource BoolToVis}}"
                                          IsChecked="{Binding Status, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static core:StatusFilter.NotCounted}}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="Не засчитаны" />
@@ -590,6 +596,7 @@
 
                             <ListBox x:Name="AchievementList" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
                                      ItemTemplate="{StaticResource AchievementCard}" ItemContainerStyle="{StaticResource CardItem}"
+                                     ContextMenuOpening="OnAchievementMenuOpening"
                                      SelectionMode="Extended" HorizontalContentAlignment="Stretch"
                                      Background="Transparent" BorderThickness="0" Padding="0"
                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
@@ -696,19 +703,21 @@
                                                         Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="google" />
                                             </WrapPanel>
 
-                                            <CheckBox Content="Сделал, но не засчиталось" Margin="0,12,0,8"
-                                                      IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                      Visibility="{Binding IsUnlocked, Converter={StaticResource InverseVis}}" />
-                                            <WrapPanel>
-                                                <Button Content="Записать в Steam" Margin="0,0,8,8" Padding="12,5"
-                                                        Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
-                                                <Button Content="Снять в Steam" Margin="0,0,8,8" Padding="12,5"
-                                                        Command="{Binding DataContext.RevertCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Visibility="{Binding IsUnlocked, Converter={StaticResource BoolToVis}}" />
-                                            </WrapPanel>
+                                            <StackPanel Visibility="{Binding DataContext.ManualUnlocks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                                                <CheckBox Content="Сделал, но не засчиталось" Margin="0,12,0,8"
+                                                          IsChecked="{Binding ManualDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                          Visibility="{Binding IsUnlocked, Converter={StaticResource InverseVis}}" />
+                                                <WrapPanel>
+                                                    <Button Content="Записать в Steam" Margin="0,0,8,8" Padding="12,5"
+                                                            Command="{Binding DataContext.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            Visibility="{Binding CanWriteToSteam, Converter={StaticResource BoolToVis}}" />
+                                                    <Button Content="Снять в Steam" Margin="0,0,8,8" Padding="12,5"
+                                                            Command="{Binding DataContext.RevertCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            Visibility="{Binding IsUnlocked, Converter={StaticResource BoolToVis}}" />
+                                                </WrapPanel>
+                                            </StackPanel>
                                         </StackPanel>
                                     </ScrollViewer>
                                 </Grid>
@@ -721,8 +730,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                         <StackPanel MaxWidth="980" HorizontalAlignment="Left">
                             <TextBlock Text="{Binding RemainingText}" Style="{StaticResource Subtitle}" TextWrapping="Wrap" />
-                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
-                                       Text="Сначала миссибл, потом сюжет, прочее и гринд; внутри этапа - по оценке времени от начала игры. Группы задаются в карточке достижения, галочка - сделано, но не засчитано." />
+                            <TextBlock Text="{Binding PlanHint}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12" />
                             <ItemsControl ItemsSource="{Binding PlanSections}" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>

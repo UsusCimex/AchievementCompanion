@@ -17,6 +17,7 @@ public partial class SettingsWindow : Window
         ApiKeyBox.Password = svc.ApiKey;
         SteamIdBox.Text = s.SteamId64 == 0 ? "" : s.SteamId64.ToString(CultureInfo.InvariantCulture);
         LanguageBox.SelectedItem = Options.Languages.FirstOrDefault(l => l.Value == s.Language) ?? Options.Languages[0];
+        ManualUnlocksBox.IsChecked = s.ManualUnlocks;
         WriteModeBox.SelectedItem = Options.WriteModes.FirstOrDefault(m => m.Value == s.WriteMode) ?? Options.WriteModes[0];
         StatusSourceBox.SelectedItem = Options.StatusSources.FirstOrDefault(m => m.Value == s.StatusSource) ?? Options.StatusSources[0];
         ThemeBox.SelectedItem = Options.Themes.FirstOrDefault(t => t.Value == s.Theme) ?? Options.Themes[0];
@@ -37,6 +38,17 @@ public partial class SettingsWindow : Window
 
     private void OnGetKey(object sender, RoutedEventArgs e) =>
         Process.Start(new ProcessStartInfo("https://steamcommunity.com/dev/apikey") { UseShellExecute = true });
+
+    private void OnManualUnlocksClick(object sender, RoutedEventArgs e)
+    {
+        if (ManualUnlocksBox.IsChecked != true) return;
+        var answer = MessageBox.Show(this,
+            "Появятся галочка \"Сделал\" для достижений, которые не засчитались, и запись достижений в твой Steam-аккаунт.\n\n" +
+            "Valve такую запись официально не поддерживает, а сайты-рейтинги (Steam Hunters, completionist.me) могут пометить профиль, " +
+            "если много достижений откроется разом. Записанное можно снять, каждая запись попадает в журнал.\n\nВключить?",
+            Title, MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes) ManualUnlocksBox.IsChecked = false;
+    }
 
     private void OnDetectSteamId(object sender, RoutedEventArgs e)
     {
@@ -71,23 +83,11 @@ public partial class SettingsWindow : Window
             }
         }
 
-        var mode = (WriteModeBox.SelectedItem as Option<WriteMode>)?.Value ?? WriteMode.MarkOnly;
-        if (mode != WriteMode.MarkOnly && !s.WriteModeConfirmed)
-        {
-            var answer = MessageBox.Show(this,
-                "Приложение будет записывать отмеченные достижения в твой Steam-аккаунт через Steam-клиент (как SAM).\n\n" +
-                "- Valve официально такое не поддерживает.\n" +
-                "- Сайты-рейтинги (Steam Hunters, completionist.me) могут пометить профиль, если много достижений откроется в одну секунду.\n" +
-                "- Записанное можно снять обратно (правый клик по строке).\n\nВключить?",
-                Title, MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (answer != MessageBoxResult.Yes) return;
-            s.WriteModeConfirmed = true;
-        }
-
         _svc.ApiKey = ApiKeyBox.Password;
         s.SteamId64 = steamId;
         s.Language = (LanguageBox.SelectedItem as Option<string>)?.Value ?? "russian";
-        s.WriteMode = mode;
+        s.ManualUnlocks = ManualUnlocksBox.IsChecked == true;
+        s.WriteMode = (WriteModeBox.SelectedItem as Option<WriteMode>)?.Value ?? WriteMode.MarkOnly;
         s.StatusSource = (StatusSourceBox.SelectedItem as Option<StatusSource>)?.Value ?? StatusSource.WebApi;
         s.Theme = (ThemeBox.SelectedItem as Option<AppTheme>)?.Value ?? AppTheme.System;
         s.HideSpoilers = HideSpoilersBox.IsChecked == true;

@@ -49,7 +49,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ReloadCommand = new AsyncCommand(() => ReloadAsync(force: true), OnError, () => _game != null);
         RefreshStateCommand = new AsyncCommand(RefreshStateAsync, OnError, () => _game != null);
         ReadViaBridgeCommand = new AsyncCommand(ReadViaBridgeAsync, OnError, () => _game != null);
-        FlushQueueCommand = new AsyncCommand(FlushQueueAsync, OnError, () => QueueCount > 0);
+        FlushQueueCommand = new AsyncCommand(FlushQueueAsync, OnError, () => ManualUnlocks && QueueCount > 0);
         FetchCompletionCommand = new AsyncCommand(FetchCompletionAsync, OnError, () => _game != null);
         ApplyCompletionCommand = new RelayCommand(ApplyCompletion, () => _game != null);
         ApplyPlaytimeCommand = new RelayCommand(ApplyPlaytime, () => _game != null);
@@ -59,10 +59,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ExportJsonCommand = new RelayCommand(p => Export("json", p as string == "manual"), _ => _game != null);
         ExportTagsCommand = new RelayCommand(ExportTags, () => _game != null);
         ImportTagsCommand = new RelayCommand(ImportTags, () => _game != null);
-        RevertCommand = new AsyncCommand(p => RevertAsync(p as AchievementRowViewModel), OnError, p => p is AchievementRowViewModel { IsUnlocked: true });
+        RevertCommand = new AsyncCommand(p => RevertAsync(p as AchievementRowViewModel), OnError, p => ManualUnlocks && p is AchievementRowViewModel { IsUnlocked: true });
         UnlockInSteamCommand = new AsyncCommand(p => UnlockInSteamAsync(p, fromOverlay: false), OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
         OverlayUnlockCommand = new AsyncCommand(p => UnlockInSteamAsync(p, fromOverlay: true), OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
-        OverlayMarkCommand = new RelayCommand(p => { if (p is AchievementRowViewModel r) MarkDoneFromOverlay(r); });
+        OverlayMarkCommand = new RelayCommand(p => { if (p is AchievementRowViewModel r) MarkDoneFromOverlay(r); }, _ => ManualUnlocks);
 
         _runningTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _runningTimer.Tick += async (_, _) => await OnRunningTickAsync();
@@ -145,6 +145,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool HideSpoilers => _svc.Settings.HideSpoilers;
     public bool HasApiKey => _svc.HasApiKey;
+    /// <summary>Ручные отметки и запись в Steam включены в настройках.</summary>
+    public bool ManualUnlocks => _svc.Settings.ManualUnlocks;
+
+    public string PlanHint =>
+        "Сначала миссибл, потом сюжет, прочее и гринд; внутри этапа - по оценке времени от начала игры. Группы задаются в карточке достижения" +
+        (ManualUnlocks ? ", галочка - сделано, но не засчитано." : ".");
 
     // ---------- данные текущей игры ----------
 
@@ -248,13 +254,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
     public string QueueText => QueueCount > 0 ? $"Отправить в Steam ({QueueCount})" : "Очередь пуста";
-    public bool QueueVisible => _svc.Settings.WriteMode == WriteMode.Queue;
+    public bool QueueVisible => ManualUnlocks && _svc.Settings.WriteMode == WriteMode.Queue;
 
     private bool _autoFollow = true;
     /// <summary>Сам переключаться на игру, которая запущена в Steam.</summary>
     public bool AutoFollow { get => _autoFollow; set => Set(ref _autoFollow, value); }
 
-    public bool IsPending(string apiName) => _game?.PendingUnlocks.Contains(apiName) == true;
+    public bool IsPending(string apiName) => ManualUnlocks && _game?.PendingUnlocks.Contains(apiName) == true;
 
     // ---------- команды ----------
 
@@ -472,33 +478,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var rows = RowsFrom(p).Where(r => r.CanWriteToSteam).ToList();
         if (rows.Count == 0) return;
 
-        if (fromOverlay && !_svc.Settings.WriteModeConfirmed)
-        {
-            const string msg = "Сначала один раз запиши любое достижение из главного окна - там нужно подтвердить запись в Steam";
-            StatusMessage = msg;
-            Toast?.Invoke(msg);
+        if (!fromOverlay && rows.Count > 1 &&
+            MessageBox.Show($"Записать в Steam {Ru.Count(rows.Count, "достижение", "достижения", "достижений")}?", "Achievement Companion",
+                MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
             return;
-        }
-
-        if (fromOverlay) { /* без подтверждений: пользователь в игре */ }
-        else if (!_svc.Settings.WriteModeConfirmed)
-        {
-            var answer = MessageBox.Show(
-                "Достижение будет записано в твой Steam-аккаунт через Steam-клиент, как в SAM.\n\n" +
-                "- Время открытия в Steam будет текущим.\n" +
-                "- Valve официально такое не поддерживает; сайты-рейтинги могут пометить профиль, если много достижений откроется в одну секунду.\n" +
-                "- Снять обратно: правый клик по строке, \"Снять это достижение в Steam\".\n\nПродолжить?",
-                "Achievement Companion", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (answer != MessageBoxResult.Yes) return;
-            _svc.Settings.WriteModeConfirmed = true;
-            _svc.SaveSettings();
-        }
-        else if (rows.Count > 1 &&
-                 MessageBox.Show($"Записать в Steam {Ru.Count(rows.Count, "достижение", "достижения", "достижений")}?", "Achievement Companion",
-                     MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
-        {
-            return;
-        }
 
         var game = _game;
         await Busy("Записываю в Steam...", async () =>
@@ -650,7 +633,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Отметка из оверлея.</summary>
     public void MarkDoneFromOverlay(AchievementRowViewModel row)
     {
-        if (row.IsDone) return;
+        if (!ManualUnlocks || row.IsDone) return;
         row.ManualDone = true;
     }
 
@@ -734,7 +717,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void SettingsChanged()
     {
+        if (_game != null) _game.CountManualMarks = ManualUnlocks;
+        if (!ManualUnlocks && _status == StatusFilter.NotCounted)
+        {
+            _status = StatusFilter.All;
+            OnPropertyChanged(nameof(Status));
+        }
         OnPropertyChanged(nameof(HideSpoilers));
+        OnPropertyChanged(nameof(ManualUnlocks));
+        OnPropertyChanged(nameof(PlanHint));
         OnPropertyChanged(nameof(QueueVisible));
         OnPropertyChanged(nameof(HasApiKey));
         RestartWatcher();

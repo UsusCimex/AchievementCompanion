@@ -70,6 +70,12 @@ public partial class MainWindow : Window
         _vm.StatusMessage = "Настройки сохранены";
     }
 
+    /// <summary>В контекстном меню списка только запись в Steam - без неё меню не нужно.</summary>
+    private void OnAchievementMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (!_vm.ManualUnlocks) e.Handled = true;
+    }
+
     /// <summary>Кнопка с выпадающим меню: меню - её ContextMenu, открываем по обычному клику.</summary>
     private void OnDropDown(object sender, RoutedEventArgs e)
     {

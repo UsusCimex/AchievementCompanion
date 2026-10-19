@@ -150,6 +150,13 @@ public sealed class GameData
     [JsonIgnore]
     public double? DerivedCompletionMinutes { get; set; }
 
+    /// <summary>
+    /// Считать ли ручные отметки "сделано, но не засчитано" полученными.
+    /// Задаёт приложение по своей настройке, в файле игры не хранится.
+    /// </summary>
+    [JsonIgnore]
+    public bool CountManualMarks { get; set; } = true;
+
     /// <summary>Время до 100%, которым реально пользуются оценки: заданное или выведенное.</summary>
     [JsonIgnore]
     public double? UsedCompletionMinutes =>

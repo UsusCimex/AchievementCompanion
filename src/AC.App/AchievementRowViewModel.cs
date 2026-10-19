@@ -98,8 +98,8 @@ public sealed class AchievementRowViewModel : ObservableObject
         (_row.Def.Hidden ? "[секрет] " : "") +
         (_row.Def.Description.Length > 0 ? _row.Def.Description : _row.Def.Hidden ? "описание Steam не отдал" : "");
 
-    /// <summary>Можно записать в Steam: ещё не открыто и не защищено.</summary>
-    public bool CanWriteToSteam => !IsUnlocked && !IsProtected;
+    /// <summary>Можно записать в Steam: запись включена в настройках, достижение ещё не открыто и не защищено.</summary>
+    public bool CanWriteToSteam => _owner.ManualUnlocks && !IsUnlocked && !IsProtected;
 
     public string? Icon
     {

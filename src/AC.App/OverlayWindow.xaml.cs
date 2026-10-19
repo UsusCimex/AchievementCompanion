@@ -28,13 +28,21 @@ public sealed class OverlayViewModel : ObservableObject
     public bool HasToast => Toast.Length > 0;
 
     private bool _isInteractive;
-    public bool IsInteractive { get => _isInteractive; set { if (Set(ref _isInteractive, value)) OnPropertyChanged(nameof(ModeHint)); } }
+    public bool IsInteractive { get => _isInteractive; set { if (Set(ref _isInteractive, value)) RefreshHints(); } }
+
+    /// <summary>Кнопки "Сделал" и "В Steam" у пунктов: только в режиме кликов и если отметки включены.</summary>
+    public bool ShowActions => IsInteractive && Main.ManualUnlocks;
 
     public string ModeHint => IsInteractive
-        ? $"Режим кликов: можно отмечать и перетаскивать. {Main.Service.Settings.OverlayInteractHotkey} - вернуть в игру"
+        ? (Main.ManualUnlocks ? "Режим кликов: можно отмечать и перетаскивать. " : "Режим кликов: можно перетаскивать. ") +
+          $"{Main.Service.Settings.OverlayInteractHotkey} - вернуть в игру"
         : $"{Main.Service.Settings.OverlayToggleHotkey} - скрыть, {Main.Service.Settings.OverlayInteractHotkey} - режим кликов";
 
-    public void RefreshHints() => OnPropertyChanged(nameof(ModeHint));
+    public void RefreshHints()
+    {
+        OnPropertyChanged(nameof(ModeHint));
+        OnPropertyChanged(nameof(ShowActions));
+    }
 }
 
 /// <summary>

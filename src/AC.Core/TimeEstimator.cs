@@ -73,8 +73,7 @@ public static class TimeEstimator
         double sMax = 0;
         foreach (var a in withPct)
         {
-            var st = game.States.GetValueOrDefault(a.ApiName);
-            if (st is null || !(st.SteamUnlocked || st.ManualDone)) continue;
+            if (GameLogic.StatusOf(game.States.GetValueOrDefault(a.ApiName), game.CountManualMarks) == EffectiveStatus.Locked) continue;
             sMax = Math.Max(sMax, Math.Log(max / a.Percent!.Value) / span);
         }
         if (sMax < 0.15) return null;

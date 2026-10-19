@@ -41,9 +41,12 @@ public sealed class AppSettings
     /// <summary>Язык схемы в терминах Steam: russian, english...</summary>
     public string Language { get; set; } = "russian";
     public Percentile Percentile { get; set; } = Percentile.P50;
+    /// <summary>
+    /// Ручные отметки "сделал, но не засчиталось" и запись в Steam.
+    /// Выключено - прогресс только по достижениям, полученным в игре.
+    /// </summary>
+    public bool ManualUnlocks { get; set; }
     public WriteMode WriteMode { get; set; } = WriteMode.MarkOnly;
-    /// <summary>Пользователь подтвердил, что понимает, что делает запись в Steam.</summary>
-    public bool WriteModeConfirmed { get; set; }
     public bool HideSpoilers { get; set; } = true;
     public char CsvSeparator { get; set; } = ';';
 

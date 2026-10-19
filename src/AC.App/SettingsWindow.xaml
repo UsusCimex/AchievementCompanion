@@ -54,14 +54,20 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Запись в Steam -->
+                <!-- Ручные отметки и запись в Steam -->
                 <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Text="Запись в Steam" Style="{StaticResource Subtitle}" Margin="0,0,0,10" />
-                        <TextBlock Text="Что делать с галочкой &quot;Сделал&quot;" Style="{StaticResource Caption}" Margin="0,0,0,2" />
-                        <ComboBox x:Name="WriteModeBox" ItemsSource="{x:Static local:Options.WriteModes}" HorizontalAlignment="Stretch" />
-                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
-                                   Text="Кнопка &quot;В Steam&quot; у достижения записывает его сразу при любом режиме, как SAM. Запись идёт через помощник на основе SAM.API; время открытия будет временем записи. Защищённые достижения (ставит только сервер игры) записать нельзя. Каждая запись пишется в журнал unlock_log.jsonl." />
+                        <TextBlock Text="Ручные отметки и запись в Steam" Style="{StaticResource Subtitle}" Margin="0,0,0,10" />
+                        <CheckBox x:Name="ManualUnlocksBox" Content="Отмечать достижения вручную и записывать их в Steam"
+                                  Click="OnManualUnlocksClick" />
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Text="Пока выключено, прогресс считается только по достижениям, полученным в игре." />
+                        <StackPanel Margin="0,12,0,0" Visibility="{Binding IsChecked, ElementName=ManualUnlocksBox, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Что делать с галочкой &quot;Сделал&quot;" Style="{StaticResource Caption}" Margin="0,0,0,2" />
+                            <ComboBox x:Name="WriteModeBox" ItemsSource="{x:Static local:Options.WriteModes}" HorizontalAlignment="Stretch" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                       Text="Кнопка &quot;В Steam&quot; у достижения записывает его сразу при любом режиме, как SAM. Запись идёт через помощник на основе SAM.API; время открытия будет временем записи. Защищённые достижения (ставит только сервер игры) записать нельзя. Каждая запись пишется в журнал unlock_log.jsonl." />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
