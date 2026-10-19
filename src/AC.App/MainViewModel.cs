@@ -370,10 +370,55 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             (_svc.Settings.StatusSource == StatusSource.SteamClient || !_svc.HasApiKey) && _svc.Bridge.Exists)
             await SafeAsync(RefreshStateAsync);
 
-        // Steam gave no percentages (happens with new games) - collect player statistics ourselves, once.
-        if (seq == _loadSeq && _game is { } g && g.AppId == appId && _svc.HasApiKey &&
-            g.Achievements.Count > 0 && g.Achievements.All(a => a.GlobalPercent is null) && g.SampleFetchedAt is null)
-            await SafeAsync(() => CollectSampleAsync(auto: true));
+        // Steam gave no percentages (happens with new games) - collect player statistics ourselves, once;
+        // a collected sample is refreshed in the background about once a week.
+        if (seq == _loadSeq && _game is { } g && g.AppId == appId && _svc.HasApiKey && g.Achievements.Count > 0)
+        {
+            if (g.Achievements.All(a => a.GlobalPercent is null) && g.SampleFetchedAt is null)
+                await SafeAsync(() => CollectSampleAsync(auto: true));
+            else if (g.SampleFetchedAt is { } fetched && DateTimeOffset.Now - fetched > SampleRefresh)
+                _ = RefreshSampleAsync(g);
+        }
+    }
+
+    private static readonly TimeSpan SampleRefresh = TimeSpan.FromDays(7);
+    private bool _sampleRefreshing;
+
+    /// <summary>
+    /// Collects a week-old sample again without blocking the window. A much smaller fresh sample does not replace
+    /// a good one; either way the next try is in a week.
+    /// </summary>
+    private async Task RefreshSampleAsync(GameData game)
+    {
+        if (_sampleRefreshing) return;
+        _sampleRefreshing = true;
+        try
+        {
+            var r = await _svc.CollectSampleAsync(game);
+            // The game may have been reopened meanwhile: apply to the current copy or the saved one, not a stale one.
+            var target = _game?.AppId == game.AppId ? _game : _svc.Cached(game.AppId);
+            if (target is null) return;
+            if (r.Players >= Math.Max(1, target.SamplePlayers / 2))
+            {
+                _svc.ApplySample(target, r);
+            }
+            else
+            {
+                target.SampleFetchedAt = DateTimeOffset.Now;
+                _svc.Store.SaveGame(target);
+            }
+            if (!ReferenceEquals(target, _game)) return;
+            Recompute(rebuildRows: true);
+            StatusMessage = Loc.Plural("status.sampleDone", r.Players);
+        }
+        catch (Exception e) when (e is SteamApiException or System.Net.Http.HttpRequestException or TaskCanceledException)
+        {
+            AppLog.Info($"{game.AppId}: sample refresh: {e.Message}");
+        }
+        finally
+        {
+            _sampleRefreshing = false;
+        }
     }
 
     private async Task CollectSampleAsync(bool auto)
