@@ -4,9 +4,9 @@ using System.Text.RegularExpressions;
 namespace AC.Infrastructure;
 
 /// <summary>
-/// Медиана времени до 100% по игре со страницы completionist.me.
-/// Публичного API у сайта нет, поэтому это разбор HTML: один запрос по кнопке, результат кешируется в игре.
-/// Если вёрстка сайта поменяется - вернётся null, и время можно ввести вручную.
+/// Median time to 100% of a game from its completionist.me page.
+/// The site has no public API, so this parses HTML: one request per button click, cached in the game.
+/// If the layout changes, it returns null and the time can be entered manually.
 /// </summary>
 public sealed partial class CompletionTimeSource(HttpClient http)
 {
@@ -22,14 +22,14 @@ public sealed partial class CompletionTimeSource(HttpClient http)
         return ParseMedian(html);
     }
 
-    /// <summary>Ищет "Completion Playtime Median" и ближайшее за ним время вида "22h 20m".</summary>
+    /// <summary>Finds "Completion Playtime Median" and the nearest time, like "22h 20m".</summary>
     public static double? ParseMedian(string html)
     {
         var text = Tags().Replace(html, " ");
         text = Regex.Replace(text, @"\s+", " ");
         int idx = text.IndexOf("Completion Playtime Median", StringComparison.OrdinalIgnoreCase);
         if (idx < 0) return null;
-        // значение может стоять как до подписи, так и после - смотрим окно вокруг
+        // the value can be before or after the label - search a window around it
         var window = text.Substring(Math.Max(0, idx - 80), Math.Min(text.Length - Math.Max(0, idx - 80), 240));
         var labelPos = window.IndexOf("Completion Playtime Median", StringComparison.OrdinalIgnoreCase);
         Match? best = null;

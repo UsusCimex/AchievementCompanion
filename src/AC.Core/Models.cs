@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace AC.Core;
 
-/// <summary>Тип достижения. Steam знает только флаг hidden, остальное - эвристика или ручная разметка.</summary>
+/// <summary>Achievement kind. Steam only knows the hidden flag; the rest is a heuristic or manual tags.</summary>
 public enum AchievementKind
 {
     Unknown = 0,
@@ -18,16 +18,16 @@ public enum KindSource
     Manual = 1,
 }
 
-/// <summary>Итоговый статус, который видит пользователь.</summary>
+/// <summary>The resulting status the user sees.</summary>
 public enum EffectiveStatus
 {
     Locked = 0,
     Unlocked = 1,
-    /// <summary>Выполнено, но в Steam не засчиталось (ручная отметка).</summary>
+    /// <summary>Done, but not counted by Steam (manual mark).</summary>
     ManualDone = 2,
 }
 
-/// <summary>Описание достижения из схемы игры.</summary>
+/// <summary>Achievement definition from the game schema.</summary>
 public sealed class AchievementDef
 {
     public string ApiName { get; set; } = "";
@@ -36,22 +36,22 @@ public sealed class AchievementDef
     public bool Hidden { get; set; }
     public string IconUrl { get; set; } = "";
     public string IconGrayUrl { get; set; } = "";
-    /// <summary>Глобальный процент получения из Steam, 0..100. null - Steam не отдал.</summary>
+    /// <summary>Global unlock percentage from Steam, 0..100. null - Steam did not provide it.</summary>
     public double? GlobalPercent { get; set; }
-    /// <summary>Процент по своей выборке игроков (если Steam глобальную статистику не отдаёт).</summary>
+    /// <summary>Percentage in our own player sample (when Steam does not provide global stats).</summary>
     public double? SamplePercent { get; set; }
 
-    /// <summary>Процент, который показываем и по которому считаем: из Steam, иначе из выборки.</summary>
+    /// <summary>The percentage shown and used in estimates: from Steam, else from the sample.</summary>
     [JsonIgnore]
     public double? Percent => GlobalPercent ?? SamplePercent;
 
     [JsonIgnore]
     public bool PercentFromSample => GlobalPercent is null && SamplePercent is not null;
-    /// <summary>Защищено: ставится только сервером игры, досчитать через Steam-клиент нельзя.</summary>
+    /// <summary>Protected: set only by the game server, cannot be written through the Steam client.</summary>
     public bool Protected { get; set; }
 }
 
-/// <summary>Состояние достижения у игрока.</summary>
+/// <summary>The player's state of an achievement.</summary>
 public sealed class AchievementState
 {
     public bool SteamUnlocked { get; set; }
@@ -61,25 +61,25 @@ public sealed class AchievementState
     public string Note { get; set; } = "";
 }
 
-/// <summary>Разметка достижения: тип и группа "за один заход".</summary>
+/// <summary>Achievement tags: kind and "one sitting" group.</summary>
 public sealed class AchievementTag
 {
     public AchievementKind Kind { get; set; }
     public KindSource Source { get; set; }
-    /// <summary>Метка группы: глава, локация, режим. Пусто - без группы.</summary>
+    /// <summary>Group label: chapter, location, mode. Empty - no group.</summary>
     public string Group { get; set; } = "";
     /// <summary>
-    /// Откуда группа: Auto - из описания ("в главе 3"), Manual - задал пользователь.
-    /// null - не записано (старый формат файла, где группы ставились только вручную).
+    /// Group origin: Auto - from the description ("in chapter 3"), Manual - set by the user.
+    /// null - not recorded (old file format, where groups were only set manually).
     /// </summary>
     public KindSource? GroupSource { get; set; }
 
-    /// <summary>Группа задана пользователем (в старых файлах - любая непустая).</summary>
+    /// <summary>The group was set by the user (in old files - any non-empty one).</summary>
     [JsonIgnore]
     public bool GroupIsManual => (GroupSource ?? (Group.Length > 0 ? KindSource.Manual : KindSource.Auto)) == KindSource.Manual;
 }
 
-/// <summary>Оценка времени "от начала игры" в минутах.</summary>
+/// <summary>Time estimate "from the start of the game" in minutes.</summary>
 public sealed class TimeEstimate
 {
     public string Source { get; set; } = "";
@@ -103,29 +103,29 @@ public enum Percentile
     P90 = 90,
 }
 
-/// <summary>Всё, что хранится по одной игре.</summary>
+/// <summary>Everything stored for one game.</summary>
 public sealed class GameData
 {
     public uint AppId { get; set; }
     public string Name { get; set; } = "";
-    /// <summary>Наиграно по данным Steam.</summary>
+    /// <summary>Playtime according to Steam.</summary>
     public int PlaytimeMinutes { get; set; }
     /// <summary>
-    /// Своё "реально наиграно" в минутах. Если задано - заменяет данные Steam
-    /// (например, много AFK или часть игры пройдена в другой версии).
+    /// The user's own "actually played" minutes. When set, replaces the Steam figure
+    /// (for example, lots of AFK or part of the game played in another version).
     /// </summary>
     public double? PlaytimeOverrideMinutes { get; set; }
     /// <summary>
-    /// Сколько минут из времени Steam не считать: часы до того, как в игру добавили достижения,
-    /// или AFK. Работает, только если PlaytimeOverrideMinutes не задан.
+    /// Minutes of Steam playtime to ignore: hours before the game got achievements,
+    /// or AFK. Applies only when PlaytimeOverrideMinutes is not set.
     /// </summary>
     public double PlaytimeOffsetMinutes { get; set; }
 
-    /// <summary>Время, от которого считается прогресс к 100%.</summary>
+    /// <summary>Playtime used to measure progress toward 100%.</summary>
     [JsonIgnore]
     public double EffectivePlaytimeMinutes =>
         PlaytimeOverrideMinutes ?? Math.Max(0, PlaytimeMinutes - PlaytimeOffsetMinutes);
-    /// <summary>Время до 100% по игре в минутах (медиана с внешнего сайта или вручную).</summary>
+    /// <summary>Time to 100% for the game in minutes (median from an external site, or manual).</summary>
     public double? CompletionMinutes { get; set; }
     public DateTimeOffset? SchemaFetchedAt { get; set; }
     public DateTimeOffset? StateFetchedAt { get; set; }
@@ -134,41 +134,41 @@ public sealed class GameData
     public List<AchievementDef> Achievements { get; set; } = new();
     public Dictionary<string, AchievementState> States { get; set; } = new();
     public Dictionary<string, AchievementTag> Tags { get; set; } = new();
-    /// <summary>Автоматические оценки времени.</summary>
+    /// <summary>Automatic time estimates.</summary>
     public Dictionary<string, TimeEstimate> Estimates { get; set; } = new();
-    /// <summary>Ручные оценки времени (минуты), важнее автоматических.</summary>
+    /// <summary>Manual time estimates (minutes), preferred over automatic ones.</summary>
     public Dictionary<string, double> ManualEstimates { get; set; } = new();
-    /// <summary>Отмечены и ждут отправки в Steam (режим "накопить и отправить").</summary>
+    /// <summary>Marked and waiting to be sent to Steam (the "queue" write mode).</summary>
     public List<string> PendingUnlocks { get; set; } = new();
-    /// <summary>Откуда взято время до 100%: "manual", "completionist.me" и т.п.</summary>
+    /// <summary>Where the time to 100% came from: "manual", "completionist.me", etc.</summary>
     public string CompletionSource { get; set; } = "";
 
     /// <summary>
-    /// Время до 100%, выведенное из своего прогресса, когда CompletionMinutes не задан.
-    /// Считается заново при каждой оценке, не сохраняется.
+    /// Time to 100% derived from the player's own progress when CompletionMinutes is not set.
+    /// Recomputed on every estimate, not saved.
     /// </summary>
     [JsonIgnore]
     public double? DerivedCompletionMinutes { get; set; }
 
     /// <summary>
-    /// Считать ли ручные отметки "сделано, но не засчитано" полученными.
-    /// Задаёт приложение по своей настройке, в файле игры не хранится.
+    /// Whether manual "done but not counted" marks count as earned.
+    /// Set by the app from its settings, not stored in the game file.
     /// </summary>
     [JsonIgnore]
     public bool CountManualMarks { get; set; } = true;
 
-    /// <summary>Время до 100%, которым реально пользуются оценки: заданное или выведенное.</summary>
+    /// <summary>Time to 100% the estimates actually use: set or derived.</summary>
     [JsonIgnore]
     public double? UsedCompletionMinutes =>
         CompletionMinutes is > 0 ? CompletionMinutes :
         SampleCompletionMinutes is > 0 ? SampleCompletionMinutes :
         DerivedCompletionMinutes;
 
-    /// <summary>Медиана времени до 100% по выборке игроков.</summary>
+    /// <summary>Median time to 100% in the player sample.</summary>
     public double? SampleCompletionMinutes { get; set; }
-    /// <summary>Сколько игроков в выборке (с открытым профилем).</summary>
+    /// <summary>Players in the sample (with a public profile).</summary>
     public int SamplePlayers { get; set; }
-    /// <summary>Сколько из них прошли на 100%.</summary>
+    /// <summary>How many of them reached 100%.</summary>
     public int SampleCompleters { get; set; }
     public DateTimeOffset? SampleFetchedAt { get; set; }
 
@@ -193,7 +193,7 @@ public sealed class GameData
     }
 }
 
-/// <summary>Строка списка: схема + состояние + разметка + оценка.</summary>
+/// <summary>List row: schema + state + tags + estimate.</summary>
 public sealed record AchievementRow(
     AchievementDef Def,
     EffectiveStatus Status,

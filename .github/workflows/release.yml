@@ -1,6 +1,6 @@
 name: Release
 
-# Релиз - пуш аннотированного тега vX.Y.Z; заголовок и описание релиза берутся из сообщения тега.
+# Runs on pushing an annotated tag vX.Y.Z; the release title and notes come from the tag message.
 on:
   push:
     tags: [ 'v*' ]
@@ -31,11 +31,11 @@ jobs:
       - name: Tests
         run: dotnet run --project tests/AC.Core.Tests -c Release
 
-      # Помощник: x86, self-contained (RID задан в его csproj)
+      # Helper: x86, self-contained (RID is set in its csproj)
       - name: Publish SteamBridge
         run: dotnet publish src/AC.SteamBridge -c Release -o out/bridge -p:Version=${{ steps.ver.outputs.num }}
 
-      # Приложение: один exe без установки .NET
+      # App: one exe, no .NET install needed
       - name: Publish app
         run: >
           dotnet publish src/AC.App -c Release -r win-x64 --self-contained true
@@ -63,10 +63,10 @@ jobs:
         shell: bash
         run: |
           tag="${{ github.ref_name }}"
-          # checkout кладёт тег ссылкой на коммит, без сообщения - забираем сам аннотированный тег.
+          # checkout leaves the tag as a commit ref without the message; fetch the annotated tag.
           git fetch --force origin "+refs/tags/$tag:refs/tags/$tag"
           if [ "$(git cat-file -t "refs/tags/$tag")" != tag ]; then
-            echo "::error::Нужен аннотированный тег с описанием: git tag -a $tag --cleanup=whitespace -F notes.md"
+            echo "::error::Use an annotated tag with notes: git tag -a $tag --cleanup=whitespace -F notes.md"
             exit 1
           fi
           echo "title=$(git tag -l --format='%(contents:subject)' "$tag")" >> "$GITHUB_OUTPUT"

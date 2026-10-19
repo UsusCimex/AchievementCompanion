@@ -20,7 +20,7 @@ public sealed class Option<T> : ObservableObject
         if (key is not null) Loc.Changed += () => OnPropertyChanged(nameof(Title));
     }
 
-    /// <summary>Подпись без перевода: названия языков пишутся на самих языках.</summary>
+    /// <summary>Untranslated caption: each language name is in that language.</summary>
     public static Option<T> Fixed(T value, string title) => new(value, null, title);
 
     public T Value { get; }
@@ -39,7 +39,7 @@ public static class Options
         new Option<AchievementKind>(AchievementKind.Other, "kind.other"),
     };
 
-    /// <summary>Фильтр по типу: null - все.</summary>
+    /// <summary>Filter by type: null - all.</summary>
     public static IReadOnlyList<Option<AchievementKind?>> KindFilters { get; } = new[]
     {
         new Option<AchievementKind?>(null, "kind.all"),

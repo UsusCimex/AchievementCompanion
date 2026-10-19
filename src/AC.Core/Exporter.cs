@@ -9,20 +9,20 @@ namespace AC.Core;
 
 public enum ExportScope
 {
-    /// <summary>Все достижения.</summary>
+    /// <summary>All achievements.</summary>
     All = 0,
-    /// <summary>Только "выполнено, но не засчиталось" - список для досчёта.</summary>
+    /// <summary>Only "done but not counted" - the ones still to get counted.</summary>
     ManualOnly = 1,
 }
 
-/// <summary>Экспорт в CSV (открывается в Excel) и JSON.</summary>
+/// <summary>Export to CSV (opens in Excel) and JSON.</summary>
 public static class Exporter
 {
     public static IEnumerable<AchievementRow> Select(GameData game, ExportScope scope) =>
         GameLogic.BuildRows(game, Percentile.P50)
             .Where(r => scope == ExportScope.All || r.Status == EffectiveStatus.ManualDone);
 
-    /// <summary>CSV с разделителем ";" (русский Excel) и UTF-8 BOM, чтобы не было кракозябр.</summary>
+    /// <summary>CSV with a ";" separator (Russian Excel) and a UTF-8 BOM to avoid mojibake.</summary>
     public static byte[] ToCsv(GameData game, ExportScope scope, char separator = ';')
     {
         var sb = new StringBuilder();

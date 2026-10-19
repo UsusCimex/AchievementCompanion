@@ -5,9 +5,9 @@ using System.Text;
 namespace AC.Infrastructure;
 
 /// <summary>
-/// Шифрование API-ключа средствами Windows (DPAPI, область текущего пользователя).
-/// Расшифровать может только этот пользователь на этом компьютере.
-/// Сделано через P/Invoke, чтобы не тянуть NuGet-пакет ProtectedData.
+/// Encrypts the API key with Windows DPAPI (current user scope).
+/// Only the same user on the same computer can decrypt it.
+/// Uses P/Invoke to avoid pulling in the ProtectedData NuGet package.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public static class Dpapi
@@ -54,7 +54,7 @@ public static class Dpapi
             bool ok = protect
                 ? CryptProtectData(ref inBlob, null, ref entropyBlob, IntPtr.Zero, IntPtr.Zero, CryptprotectUiForbidden, ref outBlob)
                 : CryptUnprotectData(ref inBlob, IntPtr.Zero, ref entropyBlob, IntPtr.Zero, IntPtr.Zero, CryptprotectUiForbidden, ref outBlob);
-            if (!ok) throw new CryptographicFailure($"DPAPI ошибка {Marshal.GetLastWin32Error()}");
+            if (!ok) throw new CryptographicFailure($"DPAPI error {Marshal.GetLastWin32Error()}");
 
             var result = new byte[outBlob.cbData];
             Marshal.Copy(outBlob.pbData, result, 0, outBlob.cbData);

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Тесты без внешних пакетов: обычное консольное приложение, запуск dotnet run, проект tests/AC.Core.Tests.
-       Код возврата 0 - все тесты прошли. -->
+  <!-- Tests without external packages: a plain console app, run with dotnet run on tests/AC.Core.Tests.
+       Exit code 0 - all tests passed. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>

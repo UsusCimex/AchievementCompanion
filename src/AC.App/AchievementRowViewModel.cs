@@ -3,7 +3,7 @@ using AC.Core;
 
 namespace AC.App;
 
-/// <summary>Строка таблицы достижений. Правки сразу уходят в MainViewModel (и на диск).</summary>
+/// <summary>Achievement table row. Edits go straight to MainViewModel (and to disk).</summary>
 public sealed class AchievementRowViewModel : ObservableObject
 {
     private readonly MainViewModel _owner;
@@ -37,7 +37,7 @@ public sealed class AchievementRowViewModel : ObservableObject
 
     public string Name => _row.Def.Name.Length > 0 ? _row.Def.Name : _row.ApiName;
 
-    /// <summary>Описание секретного неполученного достижения размыто, пока его не открыли кликом.</summary>
+    /// <summary>A hidden unearned achievement's description is blurred until a click reveals it.</summary>
     public bool IsSpoilerHidden =>
         _row.Def.Hidden && !_row.IsDone && _row.Def.Description.Length > 0 && _owner.HideSpoilers && !_owner.IsRevealed(ApiName);
 
@@ -53,7 +53,7 @@ public sealed class AchievementRowViewModel : ObservableObject
     public string KindTitle => Options.KindTitle(_kind);
     public bool HasKind => _kind != AchievementKind.Unknown;
 
-    /// <summary>Подпись редкости по глобальному проценту.</summary>
+    /// <summary>Rarity caption by the global percentage.</summary>
     public string RarityText
     {
         get
@@ -70,7 +70,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         }
     }
 
-    /// <summary>0 - нет данных, 1 - частое, 2 - необычное, 3 - редкое, 4 - очень редкое. Для цвета.</summary>
+    /// <summary>0 - no data, 1 - common, 2 - uncommon, 3 - rare, 4 - very rare. For the color.</summary>
     public int RarityLevel => _row.Def.Percent switch
     {
         null => 0,
@@ -80,7 +80,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         _ => 1,
     };
 
-    /// <summary>Откуда оценка времени - для подсказки.</summary>
+    /// <summary>Time estimate source, for the tooltip.</summary>
     public string EstimateHint
     {
         get
@@ -100,7 +100,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         _row.Def.Description.Length > 0 ? _row.Def.Description :
         _row.Def.Hidden ? Loc.T("card.noDescription") : "";
 
-    /// <summary>Для оверлея: описание всегда видно, скрытые помечены.</summary>
+    /// <summary>Overlay: always shows the text, tags hidden ones.</summary>
     public string OverlayDescription
     {
         get
@@ -111,7 +111,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         }
     }
 
-    /// <summary>Можно записать в Steam: запись включена в настройках, достижение ещё не открыто и не защищено.</summary>
+    /// <summary>Writable to Steam: writes are on in settings, the achievement is not unlocked or protected.</summary>
     public bool CanWriteToSteam => _owner.ManualUnlocks && !IsUnlocked && !IsProtected;
 
     public string? Icon
@@ -138,7 +138,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         _ => "",
     };
 
-    /// <summary>Галочка "выполнено, но не засчиталось". Для открытых в Steam недоступна.</summary>
+    /// <summary>"Done but not counted" checkbox. Unavailable once unlocked in Steam.</summary>
     public bool ManualDone
     {
         get => IsUnlocked || _manualDone;
@@ -184,7 +184,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         }
     }
 
-    /// <summary>Ручная оценка в часах, пусто - автоматическая.</summary>
+    /// <summary>Manual estimate in hours, empty - automatic.</summary>
     public string EstimateInput
     {
         get => _estimateInput;
@@ -207,8 +207,8 @@ public sealed class AchievementRowViewModel : ObservableObject
         }
     }
 
-    // Только вычисляемые свойства: поля ввода (Kind, Group, Note, EstimateInput) не трогаем,
-    // иначе фоновое обновление стирает то, что пользователь сейчас печатает.
+    // Derived properties only: input fields (Kind, Group, Note, EstimateInput) are skipped,
+    // otherwise a background refresh erases what the user is typing.
     private static readonly string[] Derived =
     {
         nameof(Def), nameof(Status), nameof(IsDone), nameof(IsUnlocked), nameof(IsProtected), nameof(Name),
@@ -218,7 +218,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         nameof(GroupIsAuto), nameof(IsPendingWrite), nameof(RarityText), nameof(RarityLevel), nameof(EstimateHint),
     };
 
-    /// <summary>Подменяет данные строки после пересчёта, не пересоздавая объект (чтобы не терять фокус).</summary>
+    /// <summary>Swaps the row data after a recalculation without recreating the object (keeps focus).</summary>
     public void Update(AchievementRow row)
     {
         _row = row;

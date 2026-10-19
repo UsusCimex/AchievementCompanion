@@ -8,7 +8,7 @@ public enum PlanStage
     Grind = 4,
 }
 
-/// <summary>Группа "можно сделать за один заход".</summary>
+/// <summary>A "can be done in one sitting" group.</summary>
 public sealed record PlanGroup(string Label, IReadOnlyList<AchievementRow> Items, double? LongestMinutes);
 
 public sealed record PlanSection(PlanStage Stage, IReadOnlyList<PlanGroup> Groups)
@@ -16,8 +16,8 @@ public sealed record PlanSection(PlanStage Stage, IReadOnlyList<PlanGroup> Group
     public int Count => Groups.Sum(g => g.Items.Count);
 }
 
-/// <param name="Pace">Во сколько раз игрок медленнее медианы (1 - не медленнее или не знаем).</param>
-/// <param name="Overtime">Наиграно больше, чем обычно уходит на 100%, а открыто не всё: остаток не оценить.</param>
+/// <param name="Pace">How many times slower than the median the player is (1 - not slower, or unknown).</param>
+/// <param name="Overtime">Played longer than 100% usually takes, yet not all unlocked: the rest cannot be estimated.</param>
 public sealed record Plan(
     IReadOnlyList<PlanSection> Sections,
     double? RemainingMinutes,
@@ -26,23 +26,23 @@ public sealed record Plan(
     double Pace = 1,
     bool Overtime = false)
 {
-    /// <summary>Плоский порядок прохождения.</summary>
+    /// <summary>Flat playthrough order.</summary>
     public IEnumerable<AchievementRow> Ordered => Sections.SelectMany(s => s.Groups).SelectMany(g => g.Items);
 
-    /// <summary>Неоткрытых не осталось.</summary>
+    /// <summary>Nothing left to unlock.</summary>
     public bool IsComplete => Sections.Count == 0;
 }
 
 /// <summary>
-/// Планировщик порядка.
-/// 1) миссибл, 2) сюжет, 3) прочее, 4) гринд. Внутри этапа - по оценке времени от начала игры,
-/// без оценки - по убыванию глобального %. Группы по метке Group.
+/// Order planner.
+/// 1) missable, 2) story, 3) other, 4) grind. Within a stage - by time estimate from the start of the game,
+/// without an estimate - by global % descending. Groups by the Group label.
 /// </summary>
 public static class Planner
 {
     /// <summary>
-    /// Насколько игрок может быть медленнее медианы, чтобы мы ещё верили его темпу.
-    /// Больше - это скорее AFK или часы до появления достижений (они правятся во вкладке "Время").
+    /// How much slower than the median a player may be for us to still trust their pace.
+    /// Beyond that it is more likely AFK or hours before achievements existed (fixed on the "Time" tab).
     /// </summary>
     public const double MaxPace = 3;
 
@@ -64,7 +64,7 @@ public static class Planner
                     var longest = ordered.Where(r => r.EstimateMinutes.HasValue).Select(r => r.EstimateMinutes!.Value).DefaultIfEmpty().Max();
                     return new PlanGroup(g.Key, ordered, ordered.Any(r => r.EstimateMinutes.HasValue) ? longest : null);
                 })
-                // группы упорядочены по самому раннему элементу
+                // groups are ordered by their earliest item
                 .OrderBy(g => g.Items[0], RowOrder.Instance)
                 .ToList();
 
@@ -83,8 +83,8 @@ public static class Planner
     }
 
     /// <summary>
-    /// Во сколько раз игрок медленнее медианы - по своему прогрессу (TimeEstimator.PersonalCompletion).
-    /// Быстрее медианы не ускоряем (запас не вредит), медленнее - не больше MaxPace.
+    /// How many times slower than the median the player is, by own progress (TimeEstimator.PersonalCompletion).
+    /// Faster than the median gives no speed-up (a margin does not hurt), slower is capped at MaxPace.
     /// </summary>
     public static double PaceOf(GameData game, double? total)
     {
@@ -102,10 +102,10 @@ public static class Planner
     };
 
     /// <summary>
-    /// Остаток = (самое позднее среди неоткрытых сюжетных и миссибл - уже наиграно)
-    /// + сумма по группам "прочее" и "гринд" (за группу - самая долгая в ней).
-    /// Оценки здесь - "время от начала игры", поэтому сюжетные перекрываются, а не складываются.
-    /// Считаем на шкале медианы: наигранное и свои оценки делим на темп, а ответ умножаем обратно.
+    /// Remaining = (latest of the locked story and missable ones - already played)
+    /// + sum over the "other" and "grind" groups (the longest item per group).
+    /// Estimates here are "time from the start of the game", so story ones overlap rather than add up.
+    /// Computed on the median scale: playtime and manual estimates are divided by pace, the result multiplied back.
     /// </summary>
     private static double? Remaining(IReadOnlyList<PlanSection> sections, double playedMinutes, double pace)
     {
@@ -134,8 +134,8 @@ public static class Planner
         }
 
         if (!any) return null;
-        // "Прочее" и "гринд" тоже оценены от начала игры; если игрок уже наиграл больше,
-        // чем сюжетный путь, вычитаем наигранное только из сюжетной части.
+        // "Other" and "grind" are also estimated from the start of the game; if the player has played
+        // longer than the story path, playtime is subtracted from the story part only.
         return (Math.Max(0, mainPath - playedMinutes / pace) + extra) * pace;
     }
 
@@ -148,7 +148,7 @@ public static class Planner
             if (ReferenceEquals(x, y)) return 0;
             if (x is null) return -1;
             if (y is null) return 1;
-            // с оценкой раньше, чем без
+            // estimated before unestimated
             if (x.EstimateMinutes.HasValue != y.EstimateMinutes.HasValue)
                 return x.EstimateMinutes.HasValue ? -1 : 1;
             if (x.EstimateMinutes.HasValue)
@@ -156,7 +156,7 @@ public static class Planner
                 int c = x.EstimateMinutes!.Value.CompareTo(y.EstimateMinutes!.Value);
                 if (c != 0) return c;
             }
-            // частые раньше редких
+            // common before rare
             int pc = (y.Def.Percent ?? -1).CompareTo(x.Def.Percent ?? -1);
             if (pc != 0) return pc;
             return string.CompareOrdinal(x.ApiName, y.ApiName);

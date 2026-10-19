@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace AC.Core;
 
 /// <summary>
-/// Файл разметки игры: типы, группы, ручные оценки. Его можно собрать по гайду,
-/// сохранить и перенести на другой компьютер или отдать другу.
+/// A game's tags file: kinds, groups, manual estimates. It can be put together from a guide,
+/// saved and moved to another computer or shared with a friend.
 /// </summary>
 public sealed class TagPack
 {
@@ -21,7 +21,7 @@ public sealed class TagPack
         {
             game.Tags.TryGetValue(def.ApiName, out var t);
             bool manualKind = t?.Source == KindSource.Manual;
-            // автоматические группы ("в главе 3") у получателя определятся сами
+            // automatic groups ("in chapter 3") are detected again on the receiving side
             bool hasGroup = t is { GroupIsManual: true } && !string.IsNullOrWhiteSpace(t.Group);
             bool hasEst = game.ManualEstimates.TryGetValue(def.ApiName, out var est);
             if (!manualKind && !hasGroup && !hasEst) continue;
@@ -36,7 +36,7 @@ public sealed class TagPack
         return pack;
     }
 
-    /// <summary>Применяет разметку. Возвращает число применённых записей (неизвестные api-имена пропускаются).</summary>
+    /// <summary>Applies the tags. Returns the number of applied items (unknown api names are skipped).</summary>
     public int ApplyTo(GameData game)
     {
         var known = game.Achievements.Select(a => a.ApiName).ToHashSet(StringComparer.Ordinal);

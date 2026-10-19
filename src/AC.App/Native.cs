@@ -35,8 +35,8 @@ internal static class Native
     private static extern bool AllowSetForegroundWindow(int dwProcessId);
 
     /// <summary>
-    /// Разрешает любому процессу вывести своё окно на передний план. Вызывает вторая копия приложения
-    /// (её запустил пользователь, поэтому ей можно), чтобы первая смогла показать окно поверх остальных.
+    /// Lets any process bring its window to the foreground. The second app instance calls it
+    /// (the user started it, so it is allowed to) so that the first one can show its window on top.
     /// </summary>
     public static void AllowAnyForeground() => AllowSetForegroundWindow(-1);
 
@@ -48,7 +48,7 @@ internal static class Native
     }
 }
 
-/// <summary>Глобальные горячие клавиши через RegisterHotKey: работают, даже когда фокус в игре.</summary>
+/// <summary>Global hotkeys through RegisterHotKey: they work even when the game has focus.</summary>
 internal sealed class HotkeyManager : IDisposable
 {
     private readonly IntPtr _hwnd;
@@ -59,11 +59,11 @@ internal sealed class HotkeyManager : IDisposable
     public HotkeyManager(IntPtr hwnd)
     {
         _hwnd = hwnd;
-        _source = HwndSource.FromHwnd(hwnd) ?? throw new InvalidOperationException("нет HwndSource");
+        _source = HwndSource.FromHwnd(hwnd) ?? throw new InvalidOperationException("no HwndSource");
         _source.AddHook(WndProc);
     }
 
-    /// <summary>Регистрирует сочетание вида "Ctrl+Shift+A". Возвращает false, если строка плохая или сочетание занято.</summary>
+    /// <summary>Registers a shortcut like "Ctrl+Shift+A". Returns false if the string is bad or the shortcut is taken.</summary>
     public bool Register(string gesture, Action action)
     {
         if (!TryParse(gesture, out var mods, out var vk)) return false;
@@ -101,7 +101,7 @@ internal sealed class HotkeyManager : IDisposable
         var keyName = parts[^1];
         if (keyName.Length == 1 && char.IsDigit(keyName[0])) keyName = "D" + keyName;
         if (!Enum.TryParse<Key>(keyName, ignoreCase: true, out var key) || key == Key.None) return false;
-        // Без модификатора клавиша отнимется у игры по всей системе - разрешаем так только F1-F24.
+        // Without a modifier the key is lost to the game system-wide, so only F1-F24 may go bare.
         if (modifiers == 0 && key is not (>= Key.F1 and <= Key.F24)) return false;
         vk = (uint)KeyInterop.VirtualKeyFromKey(key);
         return vk != 0;

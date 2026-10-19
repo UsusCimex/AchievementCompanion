@@ -8,7 +8,7 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
-        <!-- Выделение карточки - акцентная рамка поверх, без заливки: заливка темы спорит с фоном карточки. -->
+        <!-- Selection is an accent ring on top, no fill: the theme fill clashes with the card background. -->
         <Style x:Key="CardItem" TargetType="ListBoxItem">
             <Setter Property="Margin" Value="0,0,6,6" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -67,7 +67,7 @@
             </Setter>
         </Style>
 
-        <!-- Описание секретного достижения размыто; кнопка поверх открывает его. -->
+        <!-- A hidden achievement's text is blurred; a button on top reveals it. -->
         <Style x:Key="SpoilerText" TargetType="TextBlock" BasedOn="{StaticResource Muted}">
             <Setter Property="TextWrapping" Value="Wrap" />
             <Style.Triggers>
@@ -149,7 +149,7 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Действия карточки видны при наведении и у выбранной; место под них занято всегда, чтобы список не прыгал. -->
+        <!-- Card actions show on hover and when selected; their space is always reserved so the list does not jump. -->
         <Style x:Key="CardActions" TargetType="StackPanel">
             <Setter Property="Visibility" Value="Hidden" />
             <Style.Triggers>
@@ -398,7 +398,7 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- Шапка: широкая картинка игры под затемнением, чтобы белый текст читался на любом арте -->
+            <!-- Header: the wide game image under a dark overlay so white text reads on any art -->
             <Grid Grid.Row="0" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
                 <Border CornerRadius="10" Background="#141A23" />
                 <Border CornerRadius="10" local:RemoteImage.DecodeWidth="1600" local:RemoteImage.Url="{Binding HeroImageUrl}" />
@@ -423,7 +423,7 @@
 
                     <StackPanel Grid.Column="1" Margin="20,0,0,0">
                         <TextBlock Text="{Binding GameName}" FontSize="26" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" />
-                        <!-- Прогресс из трёх частей: открыто в Steam, сделано без засчёта, осталось -->
+                        <!-- Three-part progress: unlocked in Steam, done but not counted, remaining -->
                         <Grid Height="6" Margin="0,10,0,4" ToolTip="{Binding ProgressText}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="{Binding SegUnlocked}" />

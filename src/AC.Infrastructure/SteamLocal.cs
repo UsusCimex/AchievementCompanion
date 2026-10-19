@@ -5,8 +5,8 @@ using Microsoft.Win32;
 namespace AC.Infrastructure;
 
 /// <summary>
-/// Чтение локального Steam без сети и без доступа к процессу игры:
-/// реестр, loginusers.vdf, appcache/stats.
+/// Reads local Steam offline, no game process access: registry,
+/// loginusers.vdf, appcache/stats.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public static class SteamLocal
@@ -22,7 +22,7 @@ public static class SteamLocal
         return string.IsNullOrEmpty(p) ? null : Path.GetFullPath(p.Replace('/', Path.DirectorySeparatorChar));
     }
 
-    /// <summary>AppID запущенной игры (Steam пишет его сам), 0 - ничего не запущено.</summary>
+    /// <summary>Running game AppID (Steam writes it itself), 0 - nothing is running.</summary>
     public static uint RunningAppId()
     {
         var v = Registry.GetValue(SteamKey, "RunningAppID", 0);
@@ -33,7 +33,7 @@ public static class SteamLocal
         };
     }
 
-    /// <summary>Язык клиента Steam (russian, english...).</summary>
+    /// <summary>Steam UI language (russian, english...).</summary>
     public static string? ClientLanguage() => Registry.GetValue(SteamKey, "Language", null) as string;
 
     public static (ulong SteamId, string PersonaName)? MostRecentUser()
@@ -55,7 +55,7 @@ public static class SteamLocal
         return steam is null ? null : Path.Combine(steam, "appcache", "stats");
     }
 
-    /// <summary>Схема из кеша клиента: со скрытыми описаниями и флагом "защищено".</summary>
+    /// <summary>Client cache schema: hidden descriptions and the "protected" flag.</summary>
     public static IReadOnlyList<SchemaAchievement>? ReadSchema(uint appId, string language)
     {
         var dir = StatsDir();
@@ -70,8 +70,8 @@ public static class SteamLocal
 }
 
 /// <summary>
-/// Следит за файлом UserGameStats_*_appid.bin: Steam переписывает его, когда меняется статистика игрока.
-/// Сам файл не разбираем (формат не документирован), это только сигнал "пора обновить статус".
+/// Watches UserGameStats_*_appid.bin: Steam rewrites it when the player's stats change.
+/// The file is not parsed (undocumented format); it only signals "time to refresh the status".
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class StatsFileWatcher : IDisposable
@@ -97,7 +97,7 @@ public sealed class StatsFileWatcher : IDisposable
 
     public bool IsActive => _watcher is not null;
 
-    // Steam пишет файл несколько раз подряд - ждём 3 секунды тишины.
+    // Steam writes the file in bursts - wait for 3 seconds of quiet.
     private void Kick() => _debounce.Change(3000, Timeout.Infinite);
 
     public void Dispose()

@@ -13,7 +13,7 @@ public sealed class InverseBoolToVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
 }
 
-/// <summary>Пустая строка - Collapsed, иначе Visible. С параметром invert наоборот.</summary>
+/// <summary>Empty string - Collapsed, else Visible. The invert parameter flips it.</summary>
 public sealed class EmptyToCollapsedConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
@@ -22,7 +22,7 @@ public sealed class EmptyToCollapsedConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
 }
 
-/// <summary>Для RadioButton: отмечен, когда значение равно параметру.</summary>
+/// <summary>For RadioButton: checked when value equals the parameter.</summary>
 public sealed class EnumEqualsConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => Equals(value, parameter);
@@ -31,7 +31,7 @@ public sealed class EnumEqualsConverter : IValueConverter
         value is true ? parameter : Binding.DoNothing;
 }
 
-/// <summary>0 - Visible, иначе Collapsed: подсказка для пустого списка.</summary>
+/// <summary>0 - Visible, otherwise Collapsed: a hint for an empty list.</summary>
 public sealed class ZeroToVisibleConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>

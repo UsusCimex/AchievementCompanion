@@ -1,6 +1,6 @@
-// Парсер бинарного формата Valve KeyValues (файлы Steam/appcache/stats/*.bin).
-// Написан по мотивам SAM.Game/KeyValue.cs из Steam Achievement Manager
-// (c) 2024 Rick (gibbed), zlib license. Это изменённая версия, не оригинал.
+// Parser for the binary Valve KeyValues format (Steam/appcache/stats/*.bin files).
+// Based on SAM.Game/KeyValue.cs from Steam Achievement Manager
+// (c) 2024 Rick (gibbed), zlib license. This is an altered version, not the original.
 
 using System.Text;
 
@@ -86,11 +86,11 @@ public static class BinaryKeyValue
 
     private static List<KvNode> ReadChildren(BinaryReader r, int depth)
     {
-        if (depth > 64) throw new FormatException("слишком глубокая вложенность");
+        if (depth > 64) throw new FormatException("nesting too deep");
         var list = new List<KvNode>();
         while (true)
         {
-            if (r.BaseStream.Position >= r.BaseStream.Length) break; // файл без завершающего End
+            if (r.BaseStream.Position >= r.BaseStream.Length) break; // file without a closing End
             var type = (KvType)r.ReadByte();
             if (type == KvType.End) break;
             var name = ReadCString(r);
@@ -102,7 +102,7 @@ public static class BinaryKeyValue
                 KvType.Float32 => new KvNode { Name = name, Type = type, Valid = true, Value = r.ReadSingle() },
                 KvType.Pointer or KvType.Color => new KvNode { Name = name, Type = type, Valid = true, Value = r.ReadUInt32() },
                 KvType.UInt64 => new KvNode { Name = name, Type = type, Valid = true, Value = r.ReadUInt64() },
-                _ => throw new FormatException($"неизвестный тип {(byte)type}"),
+                _ => throw new FormatException($"unknown type {(byte)type}"),
             };
             list.Add(node);
         }

@@ -1,14 +1,14 @@
 namespace AC.Core;
 
-/// <summary>Один игрок из выборки: когда что открыл и сколько наиграл в известные моменты.</summary>
+/// <summary>One sampled player: what they unlocked when, and their playtime at known moments.</summary>
 public sealed class PlayerSample
 {
     public ulong SteamId { get; init; }
-    /// <summary>Открытые достижения: api-имя и время открытия.</summary>
+    /// <summary>Unlocked achievements: api name and unlock time.</summary>
     public Dictionary<string, DateTimeOffset> Unlocks { get; init; } = new();
     /// <summary>
-    /// Опорные точки "момент - наиграно минут": обзор (время и наигранное на момент обзора),
-    /// последний запуск (время и наигранное всего). По ним восстанавливаем, сколько было наиграно к каждому открытию.
+    /// Anchor points "moment - minutes played": the review (its time and playtime at the review),
+    /// the last launch (its time and total playtime). They give the playtime at each unlock.
     /// </summary>
     public List<(DateTimeOffset At, double PlayedMinutes)> Anchors { get; init; } = new();
 }
@@ -21,13 +21,13 @@ public sealed record SampleResult(
     int Completers);
 
 /// <summary>
-/// Своя статистика по выборке игроков (когда Steam не отдаёт глобальные проценты, а сайты не знают времени).
+/// Our own statistics from a player sample (when Steam has no global percentages and sites have no completion times).
 ///
-/// Процент = сколько игроков выборки открыли достижение.
-/// Время: у каждого игрока известно, когда он открыл достижение, и две опорные точки наигранного времени
-/// (на момент обзора и всего на момент последнего запуска). Считаем, что между точками он играл равномерно,
-/// и переводим время открытия в "сколько было наиграно". По игрокам берём медиану и перцентили.
-/// Это оценка: выборка - авторы обзоров, они обычно играют больше среднего.
+/// Percent = share of sampled players who unlocked the achievement.
+/// Time: for each player we know when they unlocked the achievement and two playtime anchor points
+/// (at the review, and the total at the last launch). Assuming even play between the points,
+/// the unlock time is converted to "minutes played by then". Across players we take the median and percentiles.
+/// This is an estimate: the sample is review authors, who usually play more than average.
 /// </summary>
 public static class SampleStats
 {
@@ -83,7 +83,7 @@ public static class SampleStats
         return new SampleResult(n, percent, times, completion, completions.Count);
     }
 
-    /// <summary>Сколько было наиграно минут к моменту, по опорным точкам (кусочно-линейно, от 0 в момент первого открытия).</summary>
+    /// <summary>Minutes played by a given moment, from the anchor points (piecewise linear, 0 at the first unlock).</summary>
     internal static Func<DateTimeOffset, double?> BuildCurve(PlayerSample p)
     {
         var first = p.Unlocks.Values.Min();
@@ -94,7 +94,7 @@ public static class SampleStats
             if (t <= pts[^1].T) continue;
             pts.Add((t, Math.Max(pts[^1].M, played)));
         }
-        if (pts.Count < 2) return _ => null; // не к чему привязать время
+        if (pts.Count < 2) return _ => null; // nothing to anchor the time to
 
         return at =>
         {
@@ -109,7 +109,7 @@ public static class SampleStats
                     return m0 + (m1 - m0) * (t - t0) / (t1 - t0);
                 }
             }
-            return pts[^1].M; // открыто позже последней точки - знаем только, что не больше всего наигранного
+            return pts[^1].M; // unlocked after the last point: known only to be at most the total playtime
         };
     }
 
@@ -122,7 +122,7 @@ public static class SampleStats
         return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
     }
 
-    /// <summary>Записывает результат в игру: проценты выборки, замеры времени, время до 100%.</summary>
+    /// <summary>Writes the result into the game: sample percentages, measured times, time to 100%.</summary>
     public static void Apply(GameData game, SampleResult r, DateTimeOffset now)
     {
         foreach (var a in game.Achievements)

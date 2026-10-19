@@ -4,7 +4,7 @@ using AC.Infrastructure;
 
 namespace AC.App;
 
-/// <summary>Игра в библиотеке: время в игре и прогресс из сводки (сводка есть у игр, которые открывались в приложении).</summary>
+/// <summary>A library game: playtime and progress from the summary (only games opened in the app have one).</summary>
 public sealed class LibraryItemViewModel : ObservableObject
 {
     private GameSummary? _summary;
@@ -46,7 +46,7 @@ public sealed class LibraryItemViewModel : ObservableObject
     public bool ShowProgressText => HasProgress && !IsPerfect;
     public string ProgressText => _summary is { Total: > 0 } s ? $"{s.Unlocked}/{s.Total}" : "";
 
-    // Ширины частей полоски прогресса (колонки Grid в звёздочках).
+    // Widths of the progress bar parts (Grid star columns).
     public GridLength DoneStars => new(_summary?.Unlocked ?? 0, GridUnitType.Star);
     public GridLength RestStars => new(_summary is { } s ? Math.Max(0, s.Total - s.Unlocked) : 1, GridUnitType.Star);
 }

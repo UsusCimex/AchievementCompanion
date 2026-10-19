@@ -31,7 +31,7 @@ public sealed class OverlayViewModel : ObservableObject
     private bool _isInteractive;
     public bool IsInteractive { get => _isInteractive; set { if (Set(ref _isInteractive, value)) RefreshHints(); } }
 
-    /// <summary>Кнопки "Сделал" и "В Steam" у пунктов: только в режиме кликов и если отметки включены.</summary>
+    /// <summary>"Done" and "To Steam" buttons on items: only in click mode and when marks are enabled.</summary>
     public bool ShowActions => IsInteractive && Main.ManualUnlocks;
 
     public string ModeHint
@@ -53,9 +53,9 @@ public sealed class OverlayViewModel : ObservableObject
 }
 
 /// <summary>
-/// Оверлей - обычное прозрачное окно поверх остальных.
-/// Ничего не внедряет в игру; виден в оконном и borderless режиме.
-/// В режиме просмотра клики проходят сквозь окно (WS_EX_TRANSPARENT).
+/// The overlay is a plain transparent topmost window.
+/// Injects nothing; visible in windowed and borderless modes.
+/// In view mode clicks pass through the window (WS_EX_TRANSPARENT).
 /// </summary>
 public partial class OverlayWindow : Window
 {
@@ -123,7 +123,7 @@ public partial class OverlayWindow : Window
         else Native.SetExStyle(_hwnd, Native.WS_EX_TRANSPARENT | Native.WS_EX_LAYERED, 0);
     }
 
-    /// <summary>Если сохранённая позиция оказалась за пределами экранов (сменился монитор) - возвращаем в угол.</summary>
+    /// <summary>If the saved position is off all screens (the monitor changed), moves it back to the corner.</summary>
     private void KeepOnScreen()
     {
         var left = SystemParameters.VirtualScreenLeft;

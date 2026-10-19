@@ -1,6 +1,6 @@
-// Чтение UserGameStatsSchema_<appid>.bin. Логика разбора повторяет
-// SAM.Game/Manager.cs (LoadUserGameStatsSchema) из Steam Achievement Manager,
-// (c) 2024 Rick (gibbed), zlib license. Изменённая версия.
+// Reads UserGameStatsSchema_<appid>.bin. The parsing logic follows
+// SAM.Game/Manager.cs (LoadUserGameStatsSchema) from Steam Achievement Manager,
+// (c) 2024 Rick (gibbed), zlib license. Altered version.
 
 using System.Globalization;
 
@@ -15,13 +15,13 @@ public sealed class SchemaAchievement
     public string Icon { get; init; } = "";
     public string IconGray { get; init; } = "";
     public int Permission { get; init; }
-    /// <summary>Ставится только доверенным сервером, клиентом не выставить.</summary>
+    /// <summary>Set only by a trusted server; the client cannot set it.</summary>
     public bool Protected => (Permission & 3) != 0;
 }
 
 public static class StatsSchemaReader
 {
-    // Типы из SAM.API.Types.UserStatType
+    // Types from SAM.API.Types.UserStatType
     private const int TypeAchievements = 4;
     private const int TypeGroupAchievements = 5;
 
@@ -96,7 +96,7 @@ public static class StatsSchemaReader
         return string.IsNullOrEmpty(v) ? fallback : v;
     }
 
-    /// <summary>Ссылка на иконку из имени файла в схеме.</summary>
+    /// <summary>Icon URL from the file name in the schema.</summary>
     public static string IconUrl(uint appId, string file) =>
         string.IsNullOrEmpty(file) ? "" :
         file.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? file :

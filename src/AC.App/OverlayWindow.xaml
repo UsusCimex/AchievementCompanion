@@ -6,7 +6,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight" MaxWidth="480" Foreground="White">
-    <!-- Оверлей всегда тёмный: он лежит поверх игры, светлая панель слепит. -->
+    <!-- The overlay is always dark: over a game, a light panel is blinding. -->
     <Window.Resources>
         <SolidColorBrush x:Key="OvText" Color="#F2F2F2" />
         <SolidColorBrush x:Key="OvMuted" Color="#A8B0BA" />
@@ -20,7 +20,7 @@
             <Setter Property="Foreground" Value="{StaticResource OvText}" />
         </Style>
 
-        <!-- Плоская кнопка оверлея: свой шаблон, чтобы не зависеть от темы приложения. -->
+        <!-- Flat overlay button: own template so it does not depend on the app theme. -->
         <Style x:Key="OvButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource OvText}" />
             <Setter Property="Background" Value="#33FFFFFF" />

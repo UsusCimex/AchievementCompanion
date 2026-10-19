@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>AC.Infrastructure</RootNamespace>
-    <!-- Реестр и DPAPI есть только на Windows; вызовы помечены SupportedOSPlatform. -->
+    <!-- Registry and DPAPI are Windows-only; calls are marked SupportedOSPlatform. -->
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\AC.Core\AC.Core.csproj" />

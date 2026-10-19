@@ -7,9 +7,9 @@ using Microsoft.Win32;
 namespace AC.App;
 
 /// <summary>
-/// Тема оформления: встроенная Fluent (светлая, тёмная или как в Windows) и своя палитра поверх неё -
-/// цвета, которых во Fluent нет (редкость). Палитра подбирается под тему, которая реально применилась:
-/// текст должен читаться и на белом, и на тёмном (контраст не ниже 4,5:1 по WCAG AA).
+/// Color theme: built-in Fluent (light, dark or as in Windows) with an own palette on top of it -
+/// colors that Fluent lacks (rarity). The palette follows the theme actually applied:
+/// text must read on both white and dark (contrast at least 4.5:1 per WCAG AA).
 /// </summary>
 internal static class ThemeManager
 {
@@ -27,13 +27,13 @@ internal static class ThemeManager
 #pragma warning restore WPF0001
         UpdatePalette();
         if (_listening) return;
-        // "Как в Windows": Fluent переключается сам, палитру догоняем после него.
+        // "As in Windows": Fluent switches itself, then the palette catches up.
         SystemEvents.UserPreferenceChanged += (_, _) =>
             Application.Current?.Dispatcher.BeginInvoke(UpdatePalette, DispatcherPriority.Background);
         _listening = true;
     }
 
-    /// <summary>Тёмная ли тема сейчас - по фону, который выставил Fluent.</summary>
+    /// <summary>Whether the theme is dark, by the background Fluent set.</summary>
     public static bool IsDark =>
         Application.Current.TryFindResource("ApplicationBackgroundColor") is Color c && c.R + c.G + c.B < 3 * 128;
 

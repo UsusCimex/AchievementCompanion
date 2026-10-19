@@ -4,7 +4,7 @@ using System.Windows.Input;
 
 namespace AC.App;
 
-/// <summary>Минимальный MVVM без внешних пакетов.</summary>
+/// <summary>Minimal MVVM, no external packages.</summary>
 public abstract class ObservableObject : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -37,7 +37,7 @@ public sealed class RelayCommand(Action<object?> execute, Func<object?, bool>? c
     public void Execute(object? parameter) => execute(parameter);
 }
 
-/// <summary>Асинхронная команда: пока выполняется, повторно не запускается. Ошибки уходят в onError.</summary>
+/// <summary>Async command: does not start again while running. Errors go to onError.</summary>
 public sealed class AsyncCommand(Func<object?, Task> execute, Action<Exception> onError, Func<object?, bool>? canExecute = null) : ICommand
 {
     private bool _running;

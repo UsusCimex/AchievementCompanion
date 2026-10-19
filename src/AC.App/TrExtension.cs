@@ -4,7 +4,7 @@ using AC.Core;
 
 namespace AC.App;
 
-/// <summary>Текст интерфейса по ключу: {local:Tr ключ}. Привязка, а не строка, чтобы текст сменился вместе с языком.</summary>
+/// <summary>UI text by key: {local:Tr key}. A binding rather than a string, so the text changes with the language.</summary>
 [MarkupExtensionReturnType(typeof(string))]
 public sealed class TrExtension : MarkupExtension
 {

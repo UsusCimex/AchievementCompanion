@@ -11,19 +11,19 @@ indent_size = 4
 [*.{csproj,props,json,yml,manifest}]
 indent_size = 2
 
-# Так сохраняет Visual Studio.
+# As Visual Studio saves it.
 [*.sln]
 charset = utf-8-bom
 indent_style = tab
 
-# Без BOM Windows PowerShell 5.1 читает скрипт в кодировке ANSI и ломает кириллицу.
+# Without BOM, Windows PowerShell 5.1 reads scripts as ANSI and mangles non-ASCII.
 [*.ps1]
 charset = utf-8-bom
 
-# Два пробела в конце строки - перенос в Markdown.
+# Two trailing spaces are a Markdown line break.
 [*.md]
 trim_trailing_whitespace = false
 
-# Чужой код: кодировка как в оригинале.
+# Third-party code: original encoding.
 [src/AC.SteamBridge/SAM.API/**.cs]
 charset = utf-8-bom

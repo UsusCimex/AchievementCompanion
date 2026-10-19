@@ -72,13 +72,13 @@ public partial class MainWindow : Window
         _vm.StatusMessage = Loc.T("status.settingsSaved");
     }
 
-    /// <summary>В контекстном меню списка только запись в Steam - без неё меню не нужно.</summary>
+    /// <summary>The list context menu only holds Steam writes; no writes, no menu.</summary>
     private void OnAchievementMenuOpening(object sender, ContextMenuEventArgs e)
     {
         if (!_vm.ManualUnlocks) e.Handled = true;
     }
 
-    /// <summary>Кнопка с выпадающим меню: меню - её ContextMenu, открываем по обычному клику.</summary>
+    /// <summary>A drop-down button: the menu is its ContextMenu, opened on a normal click.</summary>
     private void OnDropDown(object sender, RoutedEventArgs e)
     {
         if (sender is Button { ContextMenu: { } menu } button)
@@ -92,7 +92,7 @@ public partial class MainWindow : Window
     protected override void OnClosing(CancelEventArgs e)
     {
         _overlay?.SavePosition();
-        // Пока окно живо - снимаем горячие клавиши (после уничтожения окна UnregisterHotKey не сработает).
+        // Unregister the hotkeys while the window is alive (UnregisterHotKey fails once it is destroyed).
         _hotkeys?.Dispose();
         _hotkeys = null;
         base.OnClosing(e);

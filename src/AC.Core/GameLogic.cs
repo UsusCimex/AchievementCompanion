@@ -1,6 +1,6 @@
 namespace AC.Core;
 
-/// <summary>Сведение статусов и сборка строк для списка.</summary>
+/// <summary>Combines statuses and builds the list rows.</summary>
 public static class GameLogic
 {
     public static EffectiveStatus StatusOf(AchievementState? s, bool manualMarks = true)
@@ -12,9 +12,9 @@ public static class GameLogic
     }
 
     /// <summary>
-    /// Применяет свежий статус из Steam. Ручная отметка и заметка не стираются:
-    /// если достижение потом открылось в Steam, статус сам станет "открыто".
-    /// Возвращает api-имена, которые открылись с прошлой синхронизации.
+    /// Applies fresh status from Steam. Manual marks and notes are kept:
+    /// once the achievement unlocks in Steam, its status becomes "unlocked" by itself.
+    /// Returns the api names unlocked since the last sync.
     /// </summary>
     public static IReadOnlyList<string> ApplySteamState(
         GameData game,
@@ -72,7 +72,7 @@ public static class GameLogic
         return rows;
     }
 
-    /// <summary>Прогресс: (открыто в Steam, отмечено вручную, всего).</summary>
+    /// <summary>Progress: (unlocked in Steam, marked manually, total).</summary>
     public static (int Unlocked, int Manual, int Total) Progress(GameData game)
     {
         int u = 0, m = 0;
@@ -88,7 +88,7 @@ public static class GameLogic
     }
 
     /// <summary>
-    /// Ставит автоматический тип и группу ("в главе 3" - группа "Глава 3") всем, у кого они не заданы вручную.
+    /// Sets the automatic kind and group ("in chapter 3" - group "Chapter 3") wherever they are not set manually.
     /// </summary>
     public static void AutoClassify(GameData game)
     {
@@ -115,7 +115,7 @@ public static class GameLogic
         tag.Source = KindSource.Manual;
     }
 
-    /// <summary>Группа от пользователя. Пустая тоже ручная: автоопределение её больше не заполнит.</summary>
+    /// <summary>A user-set group. An empty one is manual too: auto-detection will not fill it again.</summary>
     public static void SetGroup(GameData game, string apiName, string group)
     {
         var tag = game.TagOf(apiName);

@@ -3,15 +3,15 @@ using System.Globalization;
 namespace AC.Core;
 
 /// <summary>
-/// Оценка "вариант А": время до 100% по игре раскладывается по достижениям
-/// по их глобальному проценту. Чем реже достижение, тем позже (и дольше) его получают.
+/// Rarity model: the game's time to 100% is spread over the achievements
+/// by their global percentage. The rarer an achievement, the later it is earned (and the longer it takes).
 ///
-/// Время от начала игры t = T * ln(maxPct / pct) / ln(maxPct / minPct),
-/// где T - время до 100%. Самое частое достижение получает около 0,
-/// самое редкое - T. Логарифм нужен, потому что проценты падают не линейно:
-/// между 90% и 45% обычно меньше игры, чем между 4% и 2%.
+/// Time from the start of the game t = T * ln(maxPct / pct) / ln(maxPct / minPct),
+/// where T is the time to 100%. The most common achievement gets about 0,
+/// the rarest gets T. The logarithm is needed because percentages do not fall linearly:
+/// there is usually less play between 90% and 45% than between 4% and 2%.
 ///
-/// P75 и P90 - не статистика, а запас: x1.3 и x1.7 от P50 (помечено в Source).
+/// P75 and P90 are not statistics but a margin: x1.3 and x1.7 of P50 (marked in Source).
 /// </summary>
 public static class TimeEstimator
 {
@@ -47,7 +47,7 @@ public static class TimeEstimator
 
         foreach (var a in withPct)
         {
-            // Есть замер по выборке игроков - он точнее модели, не трогаем.
+            // A measurement from the player sample is more accurate than the model: keep it.
             if (game.Estimates.TryGetValue(a.ApiName, out var measured) && measured.Source == SampleStats.SourceName) continue;
             double share = span > 1e-9 ? Math.Log(max / a.Percent!.Value) / span : 0.5;
             double p50 = Math.Round(total.Value * share, 1);
@@ -63,10 +63,10 @@ public static class TimeEstimator
     }
 
     /// <summary>
-    /// Время до 100% по своему прогрессу (когда сайты молчат, например игра новая).
-    /// По той же шкале: если самое "позднее" из полученных достижений стоит на доле s шкалы,
-    /// а наиграно P, то до 100% примерно P / s. Нужно наиграть хотя бы 30 минут
-    /// и получить что-то не из самого начала (s от 0.15), иначе экстраполяция бессмысленна.
+    /// Time to 100% from the player's own progress (when sites have nothing, e.g. a new game).
+    /// Same scale: if the "latest" earned achievement sits at fraction s of the scale
+    /// and P is played, then 100% takes about P / s. Requires at least 30 minutes played
+    /// and something past the very start (s from 0.15), otherwise extrapolation is meaningless.
     /// </summary>
     public static double? DeriveCompletion(GameData game, IReadOnlyList<AchievementDef> withPct, double max, double span)
     {
@@ -82,7 +82,7 @@ public static class TimeEstimator
         return Math.Round(played / sMax, 0);
     }
 
-    /// <summary>Время до 100% по своему прогрессу (см. DeriveCompletion) или null, если судить рано.</summary>
+    /// <summary>Time to 100% from own progress (see DeriveCompletion), or null if it is too early to tell.</summary>
     public static double? PersonalCompletion(GameData game)
     {
         var withPct = game.Achievements.Where(a => a.Percent is > 0).ToList();

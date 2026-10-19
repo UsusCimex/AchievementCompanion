@@ -5,7 +5,7 @@ using AC.Core;
 
 namespace AC.Infrastructure;
 
-// DTO повторяют вывод AC.SteamBridge (snake_case). Проект помощника - x86 exe, ссылаться на него напрямую нельзя.
+// DTOs mirror the AC.SteamBridge output (snake_case). The helper is an x86 exe, so it cannot be referenced directly.
 public sealed class BridgeAchievementDto
 {
     public string ApiName { get; set; } = "";
@@ -37,7 +37,7 @@ public sealed class BridgeResultDto
     public List<BridgeChangeDto>? Changes { get; set; }
 }
 
-/// <summary>Запускает AC.SteamBridge.exe и разбирает его ответ.</summary>
+/// <summary>Runs AC.SteamBridge.exe and parses its answer.</summary>
 public sealed class BridgeClient
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
@@ -66,7 +66,7 @@ public sealed class BridgeClient
         if (!Exists)
             return new BridgeResultDto { Ok = false, Error = Loc.T("error.bridgeMissing", ExePath) };
 
-        // Steam считает процесс игрой: два помощника одновременно ни к чему.
+        // Steam takes the process for a game: no point in two helpers at once.
         await OneAtATime.WaitAsync(ct);
         try
         {

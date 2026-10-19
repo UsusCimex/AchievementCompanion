@@ -2,30 +2,30 @@ using AC.Core;
 
 namespace AC.Infrastructure;
 
-/// <summary>Что делать с Steam при ручной отметке.</summary>
+/// <summary>What to do in Steam on a manual mark.</summary>
 public enum WriteMode
 {
-    /// <summary>Только отметка в приложении, Steam не трогаем.</summary>
+    /// <summary>Mark in the app only, leave Steam alone.</summary>
     MarkOnly = 0,
-    /// <summary>Отметка и сразу запись в Steam через помощник.</summary>
+    /// <summary>Mark and write to Steam now via the helper.</summary>
     MarkAndUnlock = 1,
-    /// <summary>Отметки копятся, в Steam отправляются по кнопке.</summary>
+    /// <summary>Marks are queued and sent to Steam by a button.</summary>
     Queue = 2,
 }
 
-/// <summary>Откуда брать статус "открыто/нет" при автообновлении.</summary>
+/// <summary>Where auto refresh gets the unlocked status from.</summary>
 public enum StatusSource
 {
-    /// <summary>Steam Web API: нужен ключ и открытые "Сведения об играх".</summary>
+    /// <summary>Steam Web API: needs a key and public "Game details".</summary>
     WebApi = 0,
-    /// <summary>Через Steam-клиент (помощник): работает при скрытом профиле, на секунду показывает "в игре".</summary>
+    /// <summary>Via the Steam client (helper): works with private profiles, shows "in game" for a second.</summary>
     SteamClient = 1,
 }
 
-/// <summary>Тема оформления.</summary>
+/// <summary>Color theme.</summary>
 public enum AppTheme
 {
-    /// <summary>Как в Windows (меняется вместе с системой).</summary>
+    /// <summary>As in Windows (follows system changes).</summary>
     System = 0,
     Light = 1,
     Dark = 2,
@@ -35,7 +35,7 @@ public sealed class AppSettings
 {
     public AppTheme Theme { get; set; } = AppTheme.System;
 
-    /// <summary>API-ключ, зашифрованный DPAPI (base64). Открытым текстом не хранится.</summary>
+    /// <summary>API key encrypted with DPAPI (base64). Never stored as plain text.</summary>
     public string ApiKeyProtected { get; set; } = "";
     public ulong SteamId64 { get; set; }
     /// <summary>Interface language code (en, ru...); empty means the Windows language.</summary>
@@ -44,8 +44,8 @@ public sealed class AppSettings
     public string Language { get; set; } = "";
     public Percentile Percentile { get; set; } = Percentile.P50;
     /// <summary>
-    /// Ручные отметки "сделал, но не засчиталось" и запись в Steam.
-    /// Выключено - прогресс только по достижениям, полученным в игре.
+    /// Manual "done but not counted" marks and writes to Steam.
+    /// Off - progress counts only achievements earned in the game.
     /// </summary>
     public bool ManualUnlocks { get; set; }
     public WriteMode WriteMode { get; set; } = WriteMode.MarkOnly;
@@ -59,10 +59,10 @@ public sealed class AppSettings
     public double OverlayOpacity { get; set; } = 0.85;
     public int OverlayNearestCount { get; set; } = 5;
 
-    /// <summary>Как часто опрашивать Web API во время игры, секунды (если файл статистики не меняется).</summary>
+    /// <summary>How often to poll the Web API while playing, seconds (if the stats file is unchanged).</summary>
     public int PollSeconds { get; set; } = 60;
 
-    /// <summary>Источник статуса для автообновления (по изменению файла статистики и по таймеру).</summary>
+    /// <summary>Status source for auto refresh (on stats file changes and on the timer).</summary>
     public StatusSource StatusSource { get; set; } = StatusSource.WebApi;
 
     public uint LastAppId { get; set; }

@@ -9,26 +9,26 @@ public enum SortMode
     UnlockTime = 4,
 }
 
-/// <summary>Фильтр по статусу (чипы над списком).</summary>
+/// <summary>Status filter (the chips above the list).</summary>
 public enum StatusFilter
 {
     All = 0,
-    /// <summary>Не получены: ни в Steam, ни ручной отметкой.</summary>
+    /// <summary>Not earned: neither in Steam nor by a manual mark.</summary>
     Open = 1,
-    /// <summary>Получены: открыты в Steam или отмечены вручную.</summary>
+    /// <summary>Earned: unlocked in Steam or marked manually.</summary>
     Done = 2,
-    /// <summary>Сделано, но в Steam не засчитано.</summary>
+    /// <summary>Done, but not counted by Steam.</summary>
     NotCounted = 3,
 }
 
-/// <summary>Фильтры и сортировка списка.</summary>
+/// <summary>List filters and sorting.</summary>
 public sealed class AchievementQuery
 {
     public SortMode Sort { get; set; } = SortMode.Plan;
     public bool Descending { get; set; }
     public StatusFilter Status { get; set; }
     public bool OnlyHidden { get; set; }
-    /// <summary>Пусто - все типы.</summary>
+    /// <summary>Empty means all kinds.</summary>
     public HashSet<AchievementKind> Kinds { get; } = new();
     public string Search { get; set; } = "";
 
@@ -64,7 +64,7 @@ public sealed class AchievementQuery
                 var order = Planner.Build(game, p).Ordered
                     .Select((r, i) => (r.ApiName, i))
                     .ToDictionary(x => x.ApiName, x => x.i);
-                // открытые (не в плане) уходят в конец
+                // done ones are not in the plan and go last
                 list = list.OrderBy(r => order.TryGetValue(r.ApiName, out var i) ? i : int.MaxValue)
                            .ThenBy(r => r.Def.Name, StringComparer.CurrentCultureIgnoreCase)
                            .ToList();

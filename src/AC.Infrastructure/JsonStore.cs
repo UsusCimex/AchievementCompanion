@@ -6,8 +6,8 @@ using AC.Core;
 namespace AC.Infrastructure;
 
 /// <summary>
-/// Локальное хранилище: по файлу JSON на игру, настройки, кеш библиотеки, сводка прогресса и журнал записей в Steam.
-/// Папка по умолчанию - AppPaths.DataRoot (обычно %LocalAppData%\AchievementCompanion).
+/// Local storage: a JSON file per game, settings, the library cache, the progress summary and the Steam write log.
+/// Default folder is AppPaths.DataRoot (usually %LocalAppData%\AchievementCompanion).
 /// </summary>
 public sealed class JsonStore
 {
@@ -46,7 +46,7 @@ public sealed class JsonStore
 
     public void SaveLibrary(List<OwnedGame> games) => Write(LibraryPath, games);
 
-    /// <summary>Прогресс всех игр, которые открывались в приложении, - для библиотеки, без чтения файлов игр.</summary>
+    /// <summary>Progress of every game opened in the app, so the library does not read the game files.</summary>
     public IReadOnlyDictionary<uint, GameSummary> LoadSummaries()
     {
         lock (_summaryLock) return new Dictionary<uint, GameSummary>(Summaries());
@@ -58,7 +58,7 @@ public sealed class JsonStore
         _summaries = Read<Dictionary<uint, GameSummary>>(SummaryPath);
         if (_summaries is null)
         {
-            // Сводки ещё нет: собираем её один раз из уже сохранённых игр.
+            // No summary yet: build it once from the games already saved.
             _summaries = new();
             foreach (var file in Directory.EnumerateFiles(GamesDir, "*.json"))
             {
@@ -103,7 +103,7 @@ public sealed class JsonStore
                     var e = JsonSerializer.Deserialize<UnlockLogEntry>(line, StoreJson.Compact);
                     if (e != null && (appId is null || e.AppId == appId)) list.Add(e);
                 }
-                catch (JsonException) { /* битая строка - пропускаем */ }
+                catch (JsonException) { /* skip a broken line */ }
             }
         }
         return list;
@@ -119,13 +119,13 @@ public sealed class JsonStore
         }
         catch (JsonException)
         {
-            // Файл повреждён: сохраняем копию, чтобы не потерять ручные отметки, и начинаем с чистого.
+            // The file is corrupted: keep a copy so manual marks are not lost, and start clean.
             try { File.Copy(path, path + ".broken-" + DateTime.Now.ToString("yyyyMMddHHmmss"), overwrite: true); } catch { }
             return null;
         }
     }
 
-    /// <summary>Запись через временный файл, чтобы при сбое не остался обрезанный JSON.</summary>
+    /// <summary>Writes through a temp file so a failure does not leave truncated JSON.</summary>
     private static void Write<T>(string path, T value)
     {
         var tmp = path + ".tmp";
@@ -140,13 +140,13 @@ public sealed class UnlockLogEntry
     public DateTimeOffset At { get; set; }
     public uint AppId { get; set; }
     public string ApiName { get; set; } = "";
-    /// <summary>unlock или lock.</summary>
+    /// <summary>unlock or lock.</summary>
     public string Action { get; set; } = "";
     public bool Ok { get; set; }
     public string? Error { get; set; }
 }
 
-/// <summary>Прогресс игры для списка библиотеки.</summary>
+/// <summary>Game progress for the library list.</summary>
 public sealed record GameSummary
 {
     public int Unlocked { get; init; }
@@ -168,7 +168,7 @@ public sealed class OwnedGame
     public string IconHash { get; set; } = "";
     public DateTimeOffset? LastPlayed { get; set; }
 
-    /// <summary>Шапка игры из магазина Steam (460x215).</summary>
+    /// <summary>Steam store game header (460x215).</summary>
     [JsonIgnore]
     public string HeaderUrl => SteamImages.Header(AppId);
 
@@ -185,7 +185,7 @@ internal static class StoreJson
 
 public static class SteamImages
 {
-    /// <summary>Широкая картинка из библиотеки Steam (фон шапки).</summary>
+    /// <summary>Wide Steam library image (the header background).</summary>
     public static string Hero(uint appId) => $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/library_hero.jpg";
 
     public static string Header(uint appId) => $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/header.jpg";

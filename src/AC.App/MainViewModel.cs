@@ -29,7 +29,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private int _busyCount;
     private string _completionFetchedText = "";
     private readonly Dictionary<uint, GameSummary> _summaries;
-    /// <summary>Скрытые достижения, описание которых пользователь открыл ("appid/apiName"). Живёт до закрытия приложения.</summary>
+    /// <summary>Hidden achievements whose description the user revealed ("appid/apiName"). Kept until the app closes.</summary>
     private readonly HashSet<string> _revealed = new(StringComparer.Ordinal);
 
     public MainViewModel(GameService svc)
@@ -75,7 +75,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public GameData? Game => _game;
     public event Action<string>? Toast;
 
-    // ---------- библиотека ----------
+    // ---------- library ----------
 
     public ObservableCollection<LibraryItemViewModel> Library { get; } = new();
     public ICollectionView LibraryView { get; }
@@ -101,7 +101,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _appIdInput = "";
     public string AppIdInput { get => _appIdInput; set => Set(ref _appIdInput, value); }
 
-    // ---------- фильтры ----------
+    // ---------- filters ----------
 
     private StatusFilter _status;
     public StatusFilter Status { get => _status; set { if (Set(ref _status, value)) Recompute(rebuildRows: true); } }
@@ -145,22 +145,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool HideSpoilers => _svc.Settings.HideSpoilers;
     public bool HasApiKey => _svc.HasApiKey;
-    /// <summary>Ручные отметки и запись в Steam включены в настройках.</summary>
+    /// <summary>Manual marks and Steam writes are enabled in settings.</summary>
     public bool ManualUnlocks => _svc.Settings.ManualUnlocks;
 
     public string PlanHint => Loc.T(ManualUnlocks ? "plan.hintManual" : "plan.hint");
 
-    // ---------- данные текущей игры ----------
+    // ---------- current game data ----------
 
     public ObservableCollection<AchievementRowViewModel> Rows { get; } = new();
     public ObservableCollection<PlanSectionViewModel> PlanSections { get; } = new();
-    /// <summary>Для оверлея: неоткрытые миссибл.</summary>
+    /// <summary>Overlay: locked missables.</summary>
     public ObservableCollection<AchievementRowViewModel> OverlayMissable { get; } = new();
-    /// <summary>Для оверлея: ближайшие по времени.</summary>
+    /// <summary>Overlay: nearest by time.</summary>
     public ObservableCollection<AchievementRowViewModel> OverlayNearest { get; } = new();
 
     private AchievementRowViewModel? _selectedRow;
-    /// <summary>Выбранное достижение - для панели подробностей.</summary>
+    /// <summary>Selected achievement, for the details panel.</summary>
     public AchievementRowViewModel? SelectedRow
     {
         get => _selectedRow;
@@ -171,7 +171,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool HasGame => _game != null;
     public string? HeaderImageUrl => _game is null ? null : SteamImages.Header(_game.AppId);
 
-    // Полоска прогресса из трёх частей: открыто в Steam, сделано без засчёта, осталось (колонки Grid в звёздочках).
+    // A three-part progress bar: unlocked in Steam, done but not counted, remaining (Grid columns in star units).
     private GridLength _segUnlocked = new(0, GridUnitType.Star);
     public GridLength SegUnlocked { get => _segUnlocked; private set => Set(ref _segUnlocked, value); }
     private GridLength _segManual = new(0, GridUnitType.Star);
@@ -180,7 +180,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public GridLength SegRest { get => _segRest; private set => Set(ref _segRest, value); }
 
     private string _progressShort = "";
-    /// <summary>Коротко для оверлея: "24 из 32 (75%), +2 не засчитано".</summary>
+    /// <summary>For the overlay: "24 of 32 (75%), +2 not counted".</summary>
     public string ProgressShort { get => _progressShort; private set => Set(ref _progressShort, value); }
 
     private string _statUnlocked = "-";
@@ -214,15 +214,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string CompletionText { get => _completionText; private set => Set(ref _completionText, value); }
 
     private string _completionInput = "";
-    /// <summary>Время до 100% в часах (ручной ввод).</summary>
+    /// <summary>Time to 100%, hours (manual input).</summary>
     public string CompletionInput { get => _completionInput; set => Set(ref _completionInput, value); }
 
     private string _playtimeOverrideInput = "";
-    /// <summary>Своё "реально наиграно", часы. Пусто - из Steam.</summary>
+    /// <summary>Own "actually played" hours. Empty - from Steam.</summary>
     public string PlaytimeOverrideInput { get => _playtimeOverrideInput; set => Set(ref _playtimeOverrideInput, value); }
 
     private string _playtimeOffsetInput = "";
-    /// <summary>Сколько часов Steam не считать (до появления достижений, AFK).</summary>
+    /// <summary>Steam hours to ignore (before achievements existed, AFK).</summary>
     public string PlaytimeOffsetInput { get => _playtimeOffsetInput; set => Set(ref _playtimeOffsetInput, value); }
 
     private string _statusMessage = Loc.T("status.ready");
@@ -246,12 +246,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool QueueVisible => ManualUnlocks && _svc.Settings.WriteMode == WriteMode.Queue;
 
     private bool _autoFollow = true;
-    /// <summary>Сам переключаться на игру, которая запущена в Steam.</summary>
+    /// <summary>Switch to the game running in Steam automatically.</summary>
     public bool AutoFollow { get => _autoFollow; set => Set(ref _autoFollow, value); }
 
     public bool IsPending(string apiName) => ManualUnlocks && _game?.PendingUnlocks.Contains(apiName) == true;
 
-    // ---------- команды ----------
+    // ---------- commands ----------
 
     public AsyncCommand RefreshLibraryCommand { get; }
     public AsyncCommand LoadAppIdCommand { get; }
@@ -262,9 +262,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AsyncCommand FetchCompletionCommand { get; }
     public RelayCommand ApplyCompletionCommand { get; }
     public RelayCommand ApplyPlaytimeCommand { get; }
-    /// <summary>Собрать свою статистику по авторам обзоров (проценты и время).</summary>
+    /// <summary>Collect own stats from review authors (percentages and time).</summary>
     public AsyncCommand CollectSampleCommand { get; }
-    /// <summary>Открыть в браузере, как получить выбранное достижение: steam, discussions, youtube, google.</summary>
+    /// <summary>Look up how to get the selected achievement online: steam, discussions, youtube, google.</summary>
     public RelayCommand OpenGuideCommand { get; }
 
     private string _sampleText = "";
@@ -276,9 +276,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ExportTagsCommand { get; }
     public RelayCommand ImportTagsCommand { get; }
     public AsyncCommand RevertCommand { get; }
-    /// <summary>Записать в Steam сразу, как в SAM. Параметр - строка или список выбранных строк.</summary>
+    /// <summary>Write to Steam now, like SAM. Parameter: a row or a list of selected rows.</summary>
     public AsyncCommand UnlockInSteamCommand { get; }
-    /// <summary>То же из оверлея: без диалогов (окно могло бы спрятаться за игрой).</summary>
+    /// <summary>Same from the overlay: no dialogs, they may hide behind the game.</summary>
     public AsyncCommand OverlayUnlockCommand { get; }
     public RelayCommand OverlayMarkCommand { get; }
 
@@ -330,19 +330,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         await Busy(Loc.T("status.loadingGame", name ?? appId.ToString()), async () =>
         {
             var report = await _svc.LoadGameAsync(appId, name);
-            if (seq != _loadSeq) return; // пока грузили, выбрали другую игру
+            if (seq != _loadSeq) return; // another game picked while loading
             SetGame(report.Game);
             StatusMessage = report.Warnings.Count > 0
                 ? string.Join(" | ", report.Warnings)
                 : Loc.Plural("status.gameLoaded", report.Game.Achievements.Count);
             AnnounceNew(report.NewlyUnlocked);
         });
-        // При источнике "Steam-клиент" статус при загрузке не читался - читаем сейчас.
+        // With the "Steam client" source the load skipped the status, so read it now.
         if (seq == _loadSeq && _game?.AppId == appId &&
             (_svc.Settings.StatusSource == StatusSource.SteamClient || !_svc.HasApiKey) && _svc.Bridge.Exists)
             await SafeAsync(RefreshStateAsync);
 
-        // Steam не отдал проценты (так бывает у новых игр) - один раз сами собираем статистику по игрокам.
+        // Steam gave no percentages (happens with new games) - collect player statistics ourselves, once.
         if (seq == _loadSeq && _game is { } g && g.AppId == appId && _svc.HasApiKey &&
             g.Achievements.Count > 0 && g.Achievements.All(a => a.GlobalPercent is null) && g.SampleFetchedAt is null)
             await SafeAsync(() => CollectSampleAsync(auto: true));
@@ -412,7 +412,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var fresh = await _svc.RefreshStateAutoAsync(game);
             _lastPoll = DateTime.Now;
             if (!ReferenceEquals(game, _game)) return;
-            // Не пересобираем таблицу, пока пользователь что-то вводит в строке - иначе ввод пропадёт.
+            // Do not rebuild the table while the user types in a row, otherwise the input is lost.
             bool editing = Keyboard.FocusedElement is FrameworkElement { DataContext: AchievementRowViewModel };
             Recompute(rebuildRows: fresh.Count > 0 && Status != StatusFilter.All && !editing);
             AnnounceNew(fresh);
@@ -558,7 +558,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             : offsetMin is > 0 ? "status.playtimeOffset" : "status.playtimeSteam");
     }
 
-    /// <summary>Пусто - null (успех), число часов >= 0 - минуты, иначе ошибка.</summary>
+    /// <summary>Empty - null (success), hours >= 0 - minutes, else an error.</summary>
     private static bool TryParseHours(string text, out double? minutes)
     {
         minutes = null;
@@ -572,7 +572,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private static string Hours(double? minutes) =>
         minutes is { } m ? (m / 60).ToString("0.#", CultureInfo.CurrentCulture) : "";
 
-    // ---------- правки строк ----------
+    // ---------- row edits ----------
 
     internal async void OnManualDoneChanged(AchievementRowViewModel row, bool done)
     {
@@ -618,14 +618,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Recompute(rebuildRows: false);
     }
 
-    /// <summary>Отметка из оверлея.</summary>
+    /// <summary>Mark from overlay.</summary>
     public void MarkDoneFromOverlay(AchievementRowViewModel row)
     {
         if (!ManualUnlocks || row.IsDone) return;
         row.ManualDone = true;
     }
 
-    // ---------- экспорт / импорт ----------
+    // ---------- export / import ----------
 
     private void Export(string format, bool manualOnly)
     {
@@ -682,7 +682,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    // ---------- пересчёт ----------
+    // ---------- recompute ----------
 
     private void SetGame(GameData game)
     {
@@ -731,7 +731,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (_game is null) return;
         var p = _selectedPercentile.Value;
-        // Выведенное из своего прогресса время до 100% меняется с каждым открытием - пересчитываем.
+        // The time to 100% derived from own progress changes with every unlock, so recalculate it.
         TimeEstimator.EstimateFromGlobalPercent(_game);
 
         if (rebuildRows)
@@ -829,7 +829,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (Library.FirstOrDefault(i => i.AppId == _game.AppId) is { } item) item.Summary = summary;
     }
 
-    /// <summary>Откуда время до 100% - коротко, для шапки.</summary>
+    /// <summary>Time to 100% source, for the header.</summary>
     private static string CompletionSourceTitle(GameData g) =>
         g.CompletionMinutes is > 0
             ? g.CompletionSource == "manual" ? Loc.T("game.sourceManual") : Loc.T("game.sourceSite", g.CompletionSource)
@@ -855,11 +855,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             OverlayNearest.Add(new AchievementRowViewModel(this, r));
     }
 
-    // ---------- спойлеры ----------
+    // ---------- spoilers ----------
 
     public bool IsRevealed(string apiName) => _game is not null && _revealed.Contains(RevealKey(_game.AppId, apiName));
 
-    /// <summary>Показать описание скрытого достижения - во всех местах, где оно сейчас на экране.</summary>
+    /// <summary>Show the description of a hidden achievement everywhere it is on screen now.</summary>
     public void Reveal(string apiName)
     {
         if (_game is null || !_revealed.Add(RevealKey(_game.AppId, apiName))) return;
@@ -869,7 +869,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private static string RevealKey(uint appId, string apiName) => appId.ToString(CultureInfo.InvariantCulture) + "/" + apiName;
 
-    // ---------- слежение за игрой ----------
+    // ---------- game tracking ----------
 
     private void RestartWatcher()
     {
@@ -879,7 +879,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var w = new StatsFileWatcher(_svc.Settings.SteamId64, _game.AppId);
         w.Changed += () => Application.Current?.Dispatcher.InvokeAsync(() =>
         {
-            // Чтение через Steam-клиент само может переписать файл - не зацикливаемся.
+            // Reading via the Steam client can rewrite the file itself - avoid a loop.
             if (DateTime.Now - _lastPoll < TimeSpan.FromSeconds(10)) return;
             if (_svc.HasApiKey || _svc.Bridge.Exists) _ = SafeAsync(RefreshStateAsync);
         });
@@ -894,7 +894,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         if (running != _lastRunningAppId)
         {
-            // Пока что-то грузится - не запоминаем, попробуем на следующем тике.
+            // While something loads, do not remember it; retry on the next tick.
             if (IsBusy) return;
             _lastRunningAppId = running;
             if (running != 0 && AutoFollow && running != _game?.AppId)
@@ -904,7 +904,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             }
         }
 
-        // Пока игра идёт - опрашиваем статус (на случай, если файл статистики не поменялся).
+        // While the game runs, poll the status (in case the stats file did not change).
         bool canRefresh = _svc.HasApiKey || _svc.Bridge.Exists;
         if (running != 0 && running == _game?.AppId && canRefresh && !IsBusy &&
             DateTime.Now - _lastPoll > TimeSpan.FromSeconds(Math.Max(15, _svc.Settings.PollSeconds)))
@@ -923,7 +923,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Toast?.Invoke(text);
     }
 
-    // ---------- служебное ----------
+    // ---------- helpers ----------
 
     private async Task Busy(string message, Func<Task> action)
     {
@@ -948,7 +948,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void OnError(Exception e)
     {
-        AppLog.Error("Команда", e);
+        AppLog.Error("Command", e);
         StatusMessage = Loc.T("status.error", e.Message);
     }
 

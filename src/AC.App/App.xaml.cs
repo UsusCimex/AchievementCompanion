@@ -15,7 +15,7 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        // Одна копия на папку данных: две копии спорили бы за горячие клавиши и файлы игр.
+        // One instance per data folder: two would fight over hotkeys and game files.
         var name = "AchievementCompanion." +
                    Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(AppPaths.DataRoot.ToLowerInvariant())))[..16];
         _single = new Mutex(true, name, out bool first);
@@ -33,20 +33,20 @@ public partial class App : Application
 
         DispatcherUnhandledException += OnUnhandled;
         AppDomain.CurrentDomain.UnhandledException += (_, a) =>
-            AppLog.Error("Необработанная ошибка", a.ExceptionObject as Exception ?? new Exception(a.ExceptionObject?.ToString()));
+            AppLog.Error("Unhandled error", a.ExceptionObject as Exception ?? new Exception(a.ExceptionObject?.ToString()));
         TaskScheduler.UnobservedTaskException += (_, a) =>
         {
-            AppLog.Error("Ошибка фоновой задачи", a.Exception);
+            AppLog.Error("Background task error", a.Exception);
             a.SetObserved();
         };
-        AppLog.Info($"Запуск {typeof(App).Assembly.GetName().Version?.ToString(3)}, данные: {AppPaths.DataRoot}");
+        AppLog.Info($"Starting {typeof(App).Assembly.GetName().Version?.ToString(3)}, data: {AppPaths.DataRoot}");
 
-        // Тема (встроенная Fluent): ставим до создания окон, чтобы её словарь был в ресурсах приложения.
         // Hardware rendering stops while the display is off; scripted screenshots switch to software rendering.
         if (Environment.GetEnvironmentVariable("AC_SOFTWARE_RENDERING") == "1")
             System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
         var settings = new JsonStore().LoadSettings();
         Loc.SetLanguage(settings.UiLanguage);
+        // Theme (built-in Fluent): set before any window so its dictionary is in the app resources.
         ThemeManager.Apply(settings.Theme);
         ImageCache.TrimInBackground();
         base.OnStartup(e);
@@ -66,8 +66,8 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Вторая копия не запускается, а просит первую показать окно. Показывает первая сама:
-    /// окно своего процесса надёжнее поднять изнутри, чем искать его снаружи.
+    /// A second instance exits and asks the first to show its window. The first shows it:
+    /// raising its own window from inside beats finding it from outside.
     /// </summary>
     private static void ActivateRunningCopy(string name)
     {
@@ -88,7 +88,7 @@ public partial class App : Application
 
     private static void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        AppLog.Error("Ошибка интерфейса", e.Exception);
+        AppLog.Error("UI error", e.Exception);
         MessageBox.Show(e.Exception.Message, Loc.T("dialog.errorTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
     }

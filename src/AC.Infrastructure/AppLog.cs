@@ -1,8 +1,8 @@
 namespace AC.Infrastructure;
 
 /// <summary>
-/// Журнал приложения: app.log в папке данных, после 1 МБ старый уходит в app.log.1.
-/// Пишется из любого потока; если записать не вышло - молча пропускаем, журнал не должен ронять приложение.
+/// App log: app.log in the data folder; past 1 MB the old one moves to app.log.1.
+/// Written from any thread; failed writes are silently skipped because the log must not crash the app.
 /// </summary>
 public static class AppLog
 {

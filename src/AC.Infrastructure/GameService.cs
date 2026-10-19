@@ -8,8 +8,8 @@ public sealed record LoadReport(GameData Game, IReadOnlyList<string> NewlyUnlock
 public sealed record MarkReport(bool SteamWritten, string? Error);
 
 /// <summary>
-/// Сценарии приложения: загрузить игру, обновить статус, отметить, досчитать в Steam.
-/// Все изменения сразу сохраняются на диск.
+/// App use cases: load a game, refresh the status, mark, write marks to Steam.
+/// Changes are saved to disk right away.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class GameService
@@ -69,7 +69,7 @@ public sealed class GameService
         _store.SaveGame(game);
     }
 
-    // ---------- библиотека ----------
+    // ---------- library ----------
 
     public List<OwnedGame> CachedLibrary() => _store.LoadLibrary() ?? new List<OwnedGame>();
 
@@ -82,13 +82,13 @@ public sealed class GameService
         return games;
     }
 
-    // ---------- игра ----------
+    // ---------- game ----------
 
     public GameData? Cached(uint appId) => _store.LoadGame(appId);
 
     /// <summary>
-    /// Загружает игру: схема (из кеша, если свежая), глобальные %, локальная схема Steam,
-    /// статус игрока из Web API. Ошибки отдельных шагов не валят загрузку, а попадают в Warnings.
+    /// Loads a game: schema (from the cache if fresh), global %, the local Steam schema,
+    /// player status from the Web API. A failed step does not fail the load but goes to Warnings.
     /// </summary>
     public async Task<LoadReport> LoadGameAsync(uint appId, string? knownName = null, bool forceSchema = false, CancellationToken ct = default)
     {
@@ -124,10 +124,10 @@ public sealed class GameService
             else warnings.Add(Loc.T("warn.noKeySchema"));
         }
 
-        // Локальная схема даёт описания скрытых и флаг "защищено"; дешёвая, читаем всегда.
+        // Local schema: hidden descriptions and the "protected" flag; cheap, always read.
         MergeLocalSchema(game);
 
-        // Проценты - после того, как список достижений собран из всех источников, иначе без ключа часть теряется.
+        // Percentages go after the list is built from all sources, otherwise some are lost without a key.
         if (stale || game.Achievements.Any(a => a.GlobalPercent is null))
         {
             var err = await FetchPercentagesAsync(game, ct);
@@ -156,7 +156,7 @@ public sealed class GameService
         return new LoadReport(game, fresh, warnings);
     }
 
-    /// <summary>Статус из Web API. Возвращает только что открывшиеся.</summary>
+    /// <summary>Web API status. Returns the newly unlocked ones.</summary>
     public async Task<IReadOnlyList<string>> RefreshStateAsync(GameData game, CancellationToken ct = default)
     {
         RequireKey();
@@ -168,8 +168,8 @@ public sealed class GameService
     }
 
     /// <summary>
-    /// Автообновление статуса: из выбранного источника. Без ключа Web API - всегда через Steam-клиент.
-    /// Возвращает только что открывшиеся (их статус уже "открыто", ручные отметки закрываются сами).
+    /// Status auto refresh from the chosen source. With no Web API key - always via the Steam client.
+    /// Returns the newly unlocked ones (already "unlocked"; manual marks resolve themselves).
     /// </summary>
     public async Task<IReadOnlyList<string>> RefreshStateAutoAsync(GameData game, CancellationToken ct = default)
     {
@@ -180,7 +180,7 @@ public sealed class GameService
         return fresh;
     }
 
-    /// <summary>Своё "реально наиграно" (null - брать из Steam) и сколько часов Steam не считать.</summary>
+    /// <summary>Own "actually played" time (null - from Steam) and Steam hours to ignore.</summary>
     public void SetPlaytime(GameData game, double? overrideMinutes, double offsetMinutes)
     {
         game.PlaytimeOverrideMinutes = overrideMinutes is >= 0 ? overrideMinutes : null;
@@ -188,7 +188,7 @@ public sealed class GameService
         _store.SaveGame(game);
     }
 
-    /// <summary>Статус и схема через помощник (работает при скрытом профиле, на секунду показывает "в игре").</summary>
+    /// <summary>Status and schema via the helper (works with private profiles, shows "in game" for a second).</summary>
     public async Task<(IReadOnlyList<string> Fresh, string? Error)> RefreshViaBridgeAsync(GameData game, CancellationToken ct = default)
     {
         var r = await _bridge.ReadAsync(game.AppId, ContentLanguage, ct);
@@ -222,9 +222,9 @@ public sealed class GameService
     }
 
     /// <summary>
-    /// Своя статистика по выборке игроков: берём авторов обзоров игры, читаем их достижения
-    /// (у кого открыт профиль) и считаем проценты и время до каждого достижения.
-    /// Нужен API-ключ. Около сотни запросов, обычно 20-60 секунд.
+    /// Own stats from a player sample: reads achievements of the game's review authors
+    /// (public profiles) and computes percentages and time to each achievement.
+    /// Needs an API key; ~100 requests, usually 20-60 seconds.
     /// </summary>
     public async Task<SampleResult> CollectSampleAsync(GameData game, IProgress<string>? progress = null,
         int maxAuthors = 300, int targetPlayers = 80, CancellationToken ct = default)
@@ -263,7 +263,7 @@ public sealed class GameService
             }
             catch (Exception e) when (e is SteamApiException or HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
             {
-                // скрытый профиль или сбой - пропускаем игрока
+                // private profile or failure - skip the player
             }
             finally
             {
@@ -278,7 +278,7 @@ public sealed class GameService
         if (samples.Count == 0)
             throw new SteamApiException(Loc.Plural("sample.allPrivate", authors.Count));
 
-        // Только считаем: применяет вызывающий к актуальному объекту игры (пока шёл сбор, её могли перезагрузить).
+        // Only compute: the caller applies it to the current game object (it may have been reloaded meanwhile).
         return SampleStats.Compute(samples, game.Achievements.Select(a => a.ApiName).ToList());
     }
 
@@ -289,7 +289,7 @@ public sealed class GameService
         _store.SaveGame(game);
     }
 
-    /// <summary>Глобальные проценты (ключ не нужен). Возвращает текст ошибки или null.</summary>
+    /// <summary>Global percentages (no key needed). Returns the error text or null.</summary>
     private async Task<string?> FetchPercentagesAsync(GameData game, CancellationToken ct)
     {
         if (game.Achievements.Count == 0) return null;
@@ -308,8 +308,8 @@ public sealed class GameService
     }
 
     /// <summary>
-    /// Записать в Steam прямо сейчас, как в SAM: независимо от режима в настройках.
-    /// Заодно ставит ручную отметку "сделал". Защищённые и уже открытые пропускаются.
+    /// Writes to Steam right now, like SAM, regardless of the mode in the settings.
+    /// Also sets the manual "done" mark. Protected and unlocked ones are skipped.
     /// </summary>
     public async Task<MarkReport> UnlockInSteamAsync(GameData game, IReadOnlyList<string> apiNames, CancellationToken ct = default)
     {
@@ -336,11 +336,11 @@ public sealed class GameService
         return r;
     }
 
-    // ---------- отметки ----------
+    // ---------- marks ----------
 
     /// <summary>
-    /// Ручная отметка "выполнено, но не засчиталось". Что будет со Steam - по Settings.WriteMode.
-    /// Снятие отметки в Steam ничего не меняет (для этого есть RevertInSteamAsync).
+    /// Manual "done but not counted" mark. What happens in Steam depends on Settings.WriteMode.
+    /// Removing the mark changes nothing in Steam (RevertInSteamAsync does that).
     /// </summary>
     public async Task<MarkReport> SetManualDoneAsync(GameData game, string apiName, bool done, CancellationToken ct = default)
     {
@@ -350,7 +350,7 @@ public sealed class GameService
         s.ManualAt = done ? DateTimeOffset.Now : null;
         if (!done) game.PendingUnlocks.Remove(apiName);
 
-        // Сохраняем отметку до обращения к Steam: если помощник упадёт, отметка не потеряется.
+        // Save the mark before calling Steam so it is not lost if the helper crashes.
         _store.SaveGame(game);
 
         MarkReport report = new(false, null);
@@ -415,7 +415,7 @@ public sealed class GameService
         return m;
     }
 
-    /// <summary>Отправляет накопленную очередь в Steam.</summary>
+    /// <summary>Sends the queued marks to Steam.</summary>
     public async Task<MarkReport> FlushQueueAsync(GameData game, CancellationToken ct = default)
     {
         if (ManualUnlocksOff() is { } off) return off;
@@ -426,7 +426,7 @@ public sealed class GameService
         return r;
     }
 
-    /// <summary>Снимает в Steam достижение, поставленное через приложение (по журналу).</summary>
+    /// <summary>Locks in Steam an achievement the app unlocked (according to the log).</summary>
     public async Task<MarkReport> RevertInSteamAsync(GameData game, string apiName, CancellationToken ct = default)
     {
         if (ManualUnlocksOff() is { } off) return off;
@@ -435,7 +435,7 @@ public sealed class GameService
         return r;
     }
 
-    /// <summary>Было ли достижение выставлено в Steam через приложение (и не снято потом).</summary>
+    /// <summary>Whether the app unlocked the achievement in Steam and did not relock it.</summary>
     public bool WasWrittenByApp(uint appId, string apiName)
     {
         var last = _store.ReadLog(appId).LastOrDefault(e => e.ApiName == apiName && e.Ok);
@@ -469,7 +469,7 @@ public sealed class GameService
             failed.Count == 0 ? null : string.Join("; ", failed.Select(f => $"{f.ApiName}: {f.Error}")));
     }
 
-    // ---------- импорт/экспорт ----------
+    // ---------- import/export ----------
 
     public int ImportTags(GameData game, string json)
     {
@@ -479,7 +479,7 @@ public sealed class GameService
         return n;
     }
 
-    // ---------- внутреннее ----------
+    // ---------- internals ----------
 
     private MarkReport? ManualUnlocksOff() =>
         Settings.ManualUnlocks ? null : new MarkReport(false, Loc.T("error.manualOff"));
@@ -491,8 +491,8 @@ public sealed class GameService
     }
 
     /// <summary>
-    /// Новая схема из Web API поверх старой: всё, что Web API не отдаёт (описания скрытых, проценты,
-    /// проценты по выборке, флаг "защищено"), переносим из уже известного.
+    /// New Web API schema over the old: what the Web API omits (hidden descriptions, percentages,
+    /// sample percentages, the "protected" flag) is carried over.
     /// </summary>
     internal static void MergeSchema(GameData game, IReadOnlyList<SchemaEntry> entries)
     {
@@ -505,7 +505,7 @@ public sealed class GameService
             {
                 ApiName = e.ApiName,
                 Name = e.Name,
-                // у скрытых Web API описание не отдаёт - оставляем то, что уже знали (из локальной схемы)
+                // the Web API omits hidden descriptions - keep what was known (from the local schema)
                 Description = string.IsNullOrEmpty(e.Description) ? prev?.Description ?? "" : e.Description,
                 Hidden = e.Hidden,
                 IconUrl = e.Icon,
@@ -529,7 +529,7 @@ public sealed class GameService
         {
             if (!byName.TryGetValue(l.ApiName, out var def))
             {
-                // нет ключа или Web API недоступен - строим список из локальной схемы
+                // no key or Web API is down - build the list from the local schema
                 def = new AchievementDef
                 {
                     ApiName = l.ApiName,

@@ -3,8 +3,8 @@ using System.Text;
 namespace AC.Core.SteamFormats;
 
 /// <summary>
-/// Минимальный парсер текстового VDF (loginusers.vdf, libraryfolders.vdf).
-/// Поддерживает строки в кавычках, вложенные блоки и комментарии //.
+/// Minimal text VDF parser (loginusers.vdf, libraryfolders.vdf).
+/// Supports quoted strings, nested blocks and // comments.
 /// </summary>
 public sealed class VdfNode
 {
@@ -69,7 +69,7 @@ public static class TextVdf
     private static string ReadQuoted(string s, ref int i)
     {
         var sb = new StringBuilder();
-        i++; // открывающая кавычка
+        i++; // opening quote
         while (i < s.Length && s[i] != '"')
         {
             if (s[i] == '\\' && i + 1 < s.Length)
@@ -80,7 +80,7 @@ public static class TextVdf
             else sb.Append(s[i]);
             i++;
         }
-        i++; // закрывающая
+        i++; // closing quote
         return sb.ToString();
     }
 
@@ -92,8 +92,8 @@ public static class TextVdf
     }
 
     /// <summary>
-    /// Из loginusers.vdf: SteamID64 последнего вошедшего пользователя (MostRecent = 1),
-    /// иначе первого в списке.
+    /// From loginusers.vdf: SteamID64 of the most recently logged-in user (MostRecent = 1),
+    /// else the first one in the list.
     /// </summary>
     public static (ulong SteamId, string PersonaName)? MostRecentUser(string loginUsersVdf)
     {

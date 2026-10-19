@@ -12,17 +12,17 @@ using AC.Infrastructure;
 namespace AC.App;
 
 /// <summary>
-/// Картинка из сети фоном Border: local:RemoteImage.DecodeWidth="96" local:RemoteImage.Url="{Binding Icon}".
-/// Своя загрузка вместо BitmapImage с http-адресом: у того встроенный кеш WPF ломается, когда один адрес
-/// грузится одновременно с разной шириной (шапка и библиотека, список и оверлей) - картинка остаётся пустой,
-/// а на .NET Core он к тому же качает всё заново при каждом запуске.
+/// Border background from a URL: local:RemoteImage.DecodeWidth="96" local:RemoteImage.Url="{Binding Icon}".
+/// Own loading instead of BitmapImage with an http URL: its built-in WPF cache breaks when one URL
+/// loads at once with different widths (header and library, list and overlay) and the image stays empty,
+/// and on .NET Core it also re-downloads everything on every start.
 /// </summary>
 public static class RemoteImage
 {
     public static readonly DependencyProperty UrlProperty = DependencyProperty.RegisterAttached(
         "Url", typeof(string), typeof(RemoteImage), new PropertyMetadata(null, OnChanged));
 
-    /// <summary>Ширина декодирования в пикселях (с запасом на высокий DPI). 0 - как в файле.</summary>
+    /// <summary>Decode width in pixels (with headroom for high DPI). 0 - as in the file.</summary>
     public static readonly DependencyProperty DecodeWidthProperty = DependencyProperty.RegisterAttached(
         "DecodeWidth", typeof(int), typeof(RemoteImage), new PropertyMetadata(0, OnChanged));
 
@@ -53,7 +53,7 @@ public static class RemoteImage
     private static async Task LoadAsync(Border border, string url, int width)
     {
         var image = await ImageCache.GetAsync(url, width);
-        // пока грузили, карточку могли переиспользовать под другое достижение
+        // the card may have been reused for another achievement while loading
         if (image is null || GetUrl(border) != url || GetDecodeWidth(border) != width) return;
         border.Background = Brush(image);
         border.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
@@ -68,9 +68,9 @@ public static class RemoteImage
 }
 
 /// <summary>
-/// Картинки по адресу: сначала память (адрес + ширина), потом диск (cache\images в папке данных), потом сеть.
-/// Вызывается из UI-потока; чтение, сеть и декодирование идут в фоне. Один запрос на адрес,
-/// сколько бы карточек его ни ждали. Неудачный адрес (нет арта у игры) не дёргаем 10 минут.
+/// Images by URL: memory first (URL + width), then disk (cache\images in the data folder), then the network.
+/// Called on the UI thread; I/O and decoding run in the background. One request per URL,
+/// however many cards wait. A failed URL (no game art) is not retried for 10 minutes.
 /// </summary>
 internal static class ImageCache
 {
@@ -109,7 +109,7 @@ internal static class ImageCache
         if (image is null)
         {
             Failed[url] = DateTime.UtcNow;
-            // битый файл в кеше (например, оборванная запись) - удаляем, в следующий раз скачаем заново
+            // a broken cache file (e.g. an interrupted write) - delete it to download again next time
             try { File.Delete(PathOf(url)); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
             return null;
         }
@@ -118,7 +118,7 @@ internal static class ImageCache
         return image;
     }
 
-    /// <summary>Если кеш на диске разросся, удаляем самые старые файлы. В фоне, при запуске.</summary>
+    /// <summary>Trims an oversized disk cache, oldest first. In background, at startup.</summary>
     public static void TrimInBackground() => Task.Run(() =>
     {
         try
@@ -136,7 +136,7 @@ internal static class ImageCache
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            AppLog.Error("Очистка кеша картинок", e);
+            AppLog.Error("Image cache cleanup", e);
         }
     });
 
@@ -159,7 +159,7 @@ internal static class ImageCache
                 await File.WriteAllBytesAsync(tmp, bytes).ConfigureAwait(false);
                 File.Move(tmp, path, overwrite: true);
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* покажем и без кеша на диске */ }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* fine without the disk cache */ }
             return bytes;
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or InvalidOperationException or UriFormatException)
@@ -177,7 +177,7 @@ internal static class ImageCache
             image.StreamSource = new MemoryStream(bytes);
             if (width > 0) image.DecodePixelWidth = width;
             image.CacheOption = BitmapCacheOption.OnLoad;
-            // IgnoreImageCache здесь нельзя: кеш WPF привязан к адресу, а у потока его нет - падает ArgumentNullException.
+            // No IgnoreImageCache: the WPF cache is keyed by URL, which a stream lacks; it throws ArgumentNullException.
             image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
             image.EndInit();
             image.Freeze();
@@ -185,8 +185,8 @@ internal static class ImageCache
         }
         catch (Exception e)
         {
-            // битая или неизвестного формата картинка не должна ронять интерфейс - просто без неё
-            AppLog.Error("Картинка " + url, e);
+            // a broken or unknown-format image must not crash the UI - just do without it
+            AppLog.Error("Image " + url, e);
             return null;
         }
     }

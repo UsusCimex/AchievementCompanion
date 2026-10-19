@@ -1,9 +1,9 @@
 namespace AC.Infrastructure;
 
 /// <summary>
-/// Где лежат данные приложения. По порядку:
-/// 1) переменная окружения AC_DATA_DIR - тесты, скриншоты, отдельный профиль;
-/// 2) папка data рядом с exe - портативный режим (например, на флешке);
+/// Where the app data lives, in order:
+/// 1) AC_DATA_DIR environment variable - tests, screenshots, other profiles;
+/// 2) data folder next to the exe - portable mode (e.g. a USB stick);
 /// 3) %LocalAppData%\AchievementCompanion.
 /// </summary>
 public static class AppPaths
@@ -12,7 +12,7 @@ public static class AppPaths
 
     public static string DataRoot { get; }
 
-    /// <summary>Данные лежат рядом с exe (папка data).</summary>
+    /// <summary>Data is beside the exe (data folder).</summary>
     public static bool IsPortable { get; }
 
     static AppPaths()

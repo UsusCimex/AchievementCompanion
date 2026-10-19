@@ -17,8 +17,8 @@ public sealed record PlayerAchievement(string ApiName, bool Achieved, DateTimeOf
 public sealed record ReviewAuthor(ulong SteamId, double PlaytimeAtReview, double PlaytimeForever, DateTimeOffset? ReviewedAt, DateTimeOffset? LastPlayed);
 
 /// <summary>
-/// Клиент официального Steam Web API.
-/// Лимит Valve - 100 000 запросов в сутки на ключ; приложение кеширует схему на сутки.
+/// Official Steam Web API client.
+/// Valve limits a key to 100,000 requests a day; the app caches the schema for a day.
 /// </summary>
 public sealed class SteamWebApi(HttpClient http)
 {
@@ -70,7 +70,7 @@ public sealed class SteamWebApi(HttpClient http)
         return (name, list);
     }
 
-    /// <summary>Глобальные проценты. Ключ не нужен. Процент приходит то числом, то строкой - обрабатываем оба.</summary>
+    /// <summary>Global percentages, no key needed. The percent is a number or a string; both are handled.</summary>
     public async Task<Dictionary<string, double>> GetGlobalPercentagesAsync(uint appId, CancellationToken ct = default)
     {
         using var doc = await GetJsonAsync(
@@ -136,8 +136,8 @@ public sealed class SteamWebApi(HttpClient http)
     }
 
     /// <summary>
-    /// Авторы обзоров игры в магазине Steam (публичный API, ключ не нужен): SteamID, наиграно на момент обзора,
-    /// наиграно всего и когда играл последний раз. Это наш источник игроков для своей статистики.
+    /// Authors of the game's Steam store reviews (public API, no key needed): SteamID, playtime at review,
+    /// total playtime and when they last played. This is our player source for own statistics.
     /// </summary>
     public async Task<List<ReviewAuthor>> GetReviewAuthorsAsync(uint appId, int max, CancellationToken ct = default)
     {
@@ -192,7 +192,7 @@ public sealed class SteamWebApi(HttpClient http)
                 try
                 {
                     var errDoc = JsonDocument.Parse(body);
-                    // тело с playerstats.error разберёт вызывающий
+                    // the caller parses the playerstats.error body
                     if (errDoc.RootElement.TryGetProperty("playerstats", out _)) return errDoc;
                     errDoc.Dispose();
                 }

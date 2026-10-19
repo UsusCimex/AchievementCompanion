@@ -3,7 +3,7 @@ using System.Text;
 using AC.Core;
 using AC.Core.SteamFormats;
 
-// Мини-раннер: каждый public static void метод класса Tests - тест.
+// Mini runner: every public static void method of the Tests class is a test.
 int failed = 0, passed = 0;
 Loc.SetLanguage(Loc.Fallback);
 foreach (var m in typeof(Tests).GetMethods(BindingFlags.Public | BindingFlags.Static))
@@ -25,7 +25,7 @@ return failed == 0 ? 0 : 1;
 
 static class Assert
 {
-    public static void True(bool cond, string msg = "ожидалось true")
+    public static void True(bool cond, string msg = "expected true")
     {
         if (!cond) throw new Exception(msg);
     }
@@ -33,7 +33,7 @@ static class Assert
     public static void Equal<T>(T expected, T actual)
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
-            throw new Exception($"ожидалось {expected}, получено {actual}");
+            throw new Exception($"expected {expected}, got {actual}");
     }
 }
 
@@ -69,16 +69,16 @@ static class Tests
     public static void Classifier_RussianFormsAndPlaces()
     {
         Loc.SetLanguage("ru");
-        // Steam часто пишет инфинитивом: "Собрать", а не "Соберите"
+        // Steam often uses the infinitive rather than the imperative
         Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Ягодные места", "Собрать 80 ягод"));
         Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Охотник", "Убить 50 врагов"));
         Assert.Equal(AchievementKind.Grind, KindClassifier.Classify("Следопыт", "Найти все секреты"));
-        // упоминание главы - это место, а не сюжет
+        // a chapter mention is a place, not story
         Assert.Equal(AchievementKind.Other, KindClassifier.Classify("Сердце", "Получить Хрустальное сердце в главе 1"));
         Assert.Equal("Глава 1", KindClassifier.Location("Сердце", "Получить Хрустальное сердце в главе 1"));
         Assert.Equal(AchievementKind.Story, KindClassifier.Classify("Сторона Б", "Завершить «Сторону Б» главы 2"));
         Assert.Equal("Глава 2", KindClassifier.Location("Сторона Б", "Завершить «Сторону Б» главы 2"));
-        // номер главы - не счётчик гринда
+        // a chapter number is not a grind counter
         Assert.Equal(AchievementKind.Other, KindClassifier.Classify("Тайник", "Получить ключ в главе 10"));
         Assert.Equal("Глава 10", KindClassifier.Location("Тайник", "Получить ключ в главе 10"));
         Assert.Equal(AchievementKind.Story, KindClassifier.Classify("Farewell", "Complete Chapter 9"));
@@ -92,11 +92,11 @@ static class Tests
     {
         Loc.SetLanguage("ru");
         var g = SampleGame();
-        Assert.Equal("Глава 5", g.Tags["ch5"].Group); // из "Complete chapter 5"
-        Assert.True(!g.Tags["ch5"].GroupIsManual, "группа определена автоматически");
-        Assert.True(GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "ch5").GroupIsAuto, "строка знает, что группа авто");
+        Assert.Equal("Глава 5", g.Tags["ch5"].Group); // from "Complete chapter 5"
+        Assert.True(!g.Tags["ch5"].GroupIsManual, "group detected automatically");
+        Assert.True(GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "ch5").GroupIsAuto, "row knows the group is auto");
 
-        GameLogic.SetGroup(g, "ch5", ""); // пользователь убрал группу - автоопределение её не вернёт
+        GameLogic.SetGroup(g, "ch5", ""); // the user cleared the group - auto-detection will not bring it back
         GameLogic.AutoClassify(g);
         Assert.Equal("", g.Tags["ch5"].Group);
 
@@ -104,7 +104,7 @@ static class Tests
         GameLogic.AutoClassify(g);
         Assert.Equal("Фоторежим", g.Tags["misc"].Group);
 
-        // старый формат: группа есть, источника нет - значит, её ставил пользователь
+        // old format: a group without a source was set by the user
         Assert.True(new AchievementTag { Group = "Старая группа" }.GroupIsManual);
         Assert.True(!new AchievementTag().GroupIsManual);
     }
@@ -130,8 +130,8 @@ static class Tests
         var g = SampleGame();
         Assert.Equal(0.0, g.Estimates["ch1"].P50!.Value);
         Assert.Equal(600.0, g.Estimates["grind"].P50!.Value);
-        Assert.True(g.Estimates["ch5"].P50 < g.Estimates["miss"].P50, "редкое должно быть позже");
-        Assert.True(g.Estimates["miss"].P90 > g.Estimates["miss"].P50, "P90 больше P50");
+        Assert.True(g.Estimates["ch5"].P50 < g.Estimates["miss"].P50, "rarer must come later");
+        Assert.True(g.Estimates["miss"].P90 > g.Estimates["miss"].P50, "P90 above P50");
     }
 
     public static void Estimator_NoCompletionTime_NoEstimates()
@@ -176,15 +176,15 @@ static class Tests
         g.PlaytimeMinutes = 300;
         g.StateOf("ch1").SteamUnlocked = true;
         g.StateOf("grind").ManualDone = true;
-        Assert.Equal(300.0, TimeEstimator.PersonalCompletion(g)); // самое редкое отмечено - вся шкала пройдена
+        Assert.Equal(300.0, TimeEstimator.PersonalCompletion(g)); // the rarest is marked: the whole scale is covered
 
         g.CountManualMarks = false;
         Assert.Equal(EffectiveStatus.Locked, GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "grind").Status);
         Assert.Equal((1, 0, 5), GameLogic.Progress(g));
-        Assert.True(Planner.Build(g, Percentile.P50).Ordered.Any(r => r.ApiName == "grind"), "без отметок гринд остаётся в плане");
+        Assert.True(Planner.Build(g, Percentile.P50).Ordered.Any(r => r.ApiName == "grind"), "without marks grind stays in the plan");
         Assert.Equal(0, new AchievementQuery { Status = StatusFilter.NotCounted }.Apply(g, Percentile.P50).Count);
         Assert.Equal((double?)null, TimeEstimator.PersonalCompletion(g));
-        Assert.True(g.States["grind"].ManualDone, "отметка не стирается, а только не учитывается");
+        Assert.True(g.States["grind"].ManualDone, "the mark is kept, just not counted");
     }
 
     public static void Planner_StageOrder()
@@ -193,7 +193,7 @@ static class Tests
         var plan = Planner.Build(g, Percentile.P50);
         var order = plan.Ordered.Select(r => r.ApiName).ToList();
         Assert.Equal("miss", order[0]);
-        Assert.True(order.IndexOf("ch1") < order.IndexOf("ch5"), "сюжет по времени");
+        Assert.True(order.IndexOf("ch1") < order.IndexOf("ch5"), "story ordered by time");
         Assert.Equal("grind", order[^1]);
     }
 
@@ -202,8 +202,8 @@ static class Tests
         var g = SampleGame();
         g.StateOf("grind").ManualDone = true;
         var plan = Planner.Build(g, Percentile.P50);
-        Assert.True(plan.Ordered.All(r => r.ApiName != "grind"), "сделанное не в плане");
-        // сюжетный путь = max(miss, ch5, ch1); плюс misc отдельно
+        Assert.True(plan.Ordered.All(r => r.ApiName != "grind"), "done ones are not in the plan");
+        // story path = max(miss, ch5, ch1), plus misc separately
         var miss = g.Estimates["miss"].P50!.Value;
         var misc = g.Estimates["misc"].P50!.Value;
         Assert.Equal(Math.Round(miss + misc, 1), Math.Round(plan.RemainingMinutes!.Value, 1));
@@ -214,25 +214,25 @@ static class Tests
         var g = SampleGame();
         g.PlaytimeMinutes = 590;
         var plan = Planner.Build(g, Percentile.P50);
-        Assert.True(plan.RemainingMinutes <= 10.0001, $"остаток {plan.RemainingMinutes} не больше 10");
+        Assert.True(plan.RemainingMinutes <= 10.0001, $"remaining {plan.RemainingMinutes} is at most 10");
     }
 
     public static void Planner_PaceFromOwnProgress()
     {
-        // Медленный игрок: наиграно 500 из 600 медианных минут, а открыто только раннее (ch5 - около 29% шкалы).
+        // Slow player: 500 of the median 600 minutes played, yet only an early one unlocked (ch5 - about 29% of the scale).
         var g = SampleGame();
         g.PlaytimeMinutes = 500;
         g.StateOf("ch5").SteamUnlocked = true;
         var plan = Planner.Build(g, Percentile.P50);
-        Assert.True(plan.Pace > 2.5 && plan.Pace <= Planner.MaxPace, $"темп {plan.Pace}");
-        Assert.True(!plan.Overtime, "ещё не перебор");
-        Assert.True(plan.RemainingMinutes > 600, $"остаток {plan.RemainingMinutes} с учётом темпа");
+        Assert.True(plan.Pace > 2.5 && plan.Pace <= Planner.MaxPace, $"pace {plan.Pace}");
+        Assert.True(!plan.Overtime, "not overtime yet");
+        Assert.True(plan.RemainingMinutes > 600, $"remaining {plan.RemainingMinutes} with pace");
 
-        // Быстрый игрок: медиану не ускоряем.
+        // Fast player: the median is not sped up.
         g.PlaytimeMinutes = 60;
         plan = Planner.Build(g, Percentile.P50);
         Assert.Equal(1.0, plan.Pace);
-        Assert.True(plan.RemainingMinutes <= 540.0001, $"остаток {plan.RemainingMinutes}");
+        Assert.True(plan.RemainingMinutes <= 540.0001, $"remaining {plan.RemainingMinutes}");
     }
 
     public static void Planner_CompleteGame()
@@ -240,8 +240,8 @@ static class Tests
         var g = SampleGame();
         foreach (var a in g.Achievements) g.StateOf(a.ApiName).SteamUnlocked = true;
         var plan = Planner.Build(g, Percentile.P50);
-        Assert.True(plan.IsComplete, "всё открыто");
-        Assert.True(!plan.Overtime, "у пройденной игры нет перебора");
+        Assert.True(plan.IsComplete, "all unlocked");
+        Assert.True(!plan.Overtime, "a completed game has no overtime");
     }
 
     public static void Planner_Groups()
@@ -299,7 +299,7 @@ static class Tests
         var g = SampleGame();
         GameLogic.SetKind(g, "misc", AchievementKind.Missable);
         GameLogic.SetGroup(g, "ch5", "Глава 5");
-        GameLogic.SetGroup(g, "ch1", ""); // ручная пустая группа не экспортируется
+        GameLogic.SetGroup(g, "ch1", ""); // a manual empty group is not exported
         g.ManualEstimates["grind"] = 120;
         var json = TagPack.From(g).ToJson();
 
@@ -309,7 +309,7 @@ static class Tests
         Assert.Equal(AchievementKind.Missable, g2.Tags["misc"].Kind);
         Assert.Equal(KindSource.Manual, g2.Tags["misc"].Source);
         Assert.Equal("Глава 5", g2.Tags["ch5"].Group);
-        Assert.True(g2.Tags["ch5"].GroupIsManual, "группа из файла разметки - ручная");
+        Assert.True(g2.Tags["ch5"].GroupIsManual, "a group from the tags file is manual");
         Assert.Equal(120.0, g2.ManualEstimates["grind"]);
     }
 
@@ -327,7 +327,7 @@ static class Tests
         Assert.True(g.Achievements[0].Protected);
         Assert.Equal(90.0, g.Achievements[0].GlobalPercent);
         Assert.Equal("Глава 1!", g.Achievements[0].Name);
-        Assert.Equal("Пройдите главу 1", g.Achievements[0].Description); // пустое из Web API не затирает известное
+        Assert.Equal("Пройдите главу 1", g.Achievements[0].Description); // an empty value from the Web API does not overwrite a known one
     }
 
     public static void Loc_PluralCategories()
@@ -403,12 +403,12 @@ static class Tests
         }
     }
 
-    /// <summary>Ключи в коде есть в файлах перевода, а в файлах нет лишних.</summary>
+    /// <summary>Keys used in code exist in the translation files, and the files have no extra keys.</summary>
     public static void Loc_KeysMatchCode()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root != null && !File.Exists(Path.Combine(root.FullName, "AchievementCompanion.sln"))) root = root.Parent;
-        Assert.True(root != null, "не найден корень репозитория");
+        Assert.True(root != null, "repository root not found");
         var src = Path.Combine(root!.FullName, "src");
         var sections = Loc.Strings(Loc.Fallback).Keys.Select(k => k.Split('.')[0]).ToHashSet();
         var used = new HashSet<string>();
@@ -418,7 +418,7 @@ static class Tests
             var text = File.ReadAllText(file);
             foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(text, @"(?:""|\{local:Tr )([a-z][A-Za-z]*)\.([a-z][A-Za-z0-9]*)[""}]"))
             {
-                // имена файлов вроде "settings.json" похожи на ключи
+                // file names like "settings.json" look like keys
                 if (m.Groups[2].Value is "json" or "jsonl" or "log" or "exe" or "dll" or "bin" or "vdf") continue;
                 if (sections.Contains(m.Groups[1].Value)) used.Add(m.Groups[1].Value + "." + m.Groups[2].Value);
             }
@@ -427,15 +427,15 @@ static class Tests
         {
             var keys = Loc.Strings(lang).Keys.Select(k => k.Split('#')[0]).ToHashSet();
             var missing = used.Where(k => !keys.Contains(k)).ToList();
-            Assert.True(missing.Count == 0, $"{lang}: нет ключей {string.Join(", ", missing)}");
+            Assert.True(missing.Count == 0, $"{lang}: missing keys {string.Join(", ", missing)}");
             var unused = keys.Where(k => !used.Contains(k)).ToList();
-            Assert.True(unused.Count == 0, $"{lang}: лишние ключи {string.Join(", ", unused)}");
+            Assert.True(unused.Count == 0, $"{lang}: unused keys {string.Join(", ", unused)}");
         }
     }
 
     public static void BinaryKeyValue_SchemaParse()
     {
-        // Собираем бинарный KV вручную: { "480" { "stats" { "1" { type=4 bits { "0" { name, display{...}, permission } } } } } }
+        // Binary KV built by hand: { "480" { "stats" { "1" { type=4 bits { "0" { name, display{...}, permission } } } } } }
         var ms = new MemoryStream();
         void B(byte b) => ms.WriteByte(b);
         void S(string s) { var x = Encoding.UTF8.GetBytes(s); ms.Write(x); B(0); }
@@ -519,7 +519,7 @@ static class Tests
             var store = new AC.Infrastructure.JsonStore(dir);
             store.SaveLibrary(new List<AC.Infrastructure.OwnedGame> { new() { AppId = 480, Name = "Spacewar", IconHash = "abc" } });
             var json = File.ReadAllText(Path.Combine(dir, "library.json"));
-            Assert.True(!json.Contains("HeaderUrl") && !json.Contains("IconUrl"), "адреса картинок вычисляются, в файл не пишутся");
+            Assert.True(!json.Contains("HeaderUrl") && !json.Contains("IconUrl"), "image URLs are computed, not written to the file");
             Assert.Equal("abc", store.LoadLibrary()!.Single().IconHash);
         }
         finally
@@ -539,7 +539,7 @@ static class Tests
             g.StateOf("misc").Note = "заметка";
             g.PendingUnlocks.Add("misc");
             GameLogic.SetKind(g, "ch1", AchievementKind.Grind);
-            g.Tags["grind"] = new AchievementTag { Kind = AchievementKind.Grind, Group = "Старая группа" }; // старый формат, без GroupSource
+            g.Tags["grind"] = new AchievementTag { Kind = AchievementKind.Grind, Group = "Старая группа" }; // old format, no GroupSource
             store.SaveGame(g);
 
             var back = store.LoadGame(1)!;
@@ -550,9 +550,9 @@ static class Tests
             Assert.Equal(KindSource.Manual, back.Tags["ch1"].Source);
             Assert.Equal("misc", back.PendingUnlocks.Single());
             Assert.Equal(KindSource.Auto, back.Tags["ch5"].GroupSource!.Value);
-            Assert.True(back.Tags["grind"].GroupSource is null && back.Tags["grind"].GroupIsManual, "старый файл: группа ручная");
+            Assert.True(back.Tags["grind"].GroupSource is null && back.Tags["grind"].GroupIsManual, "old file: the group is manual");
 
-            // сводка для библиотеки обновляется при сохранении и собирается заново, если файла нет
+            // the library summary is updated on save and rebuilt if its file is missing
             var summary = new AC.Infrastructure.GameSummary { Unlocked = 0, Manual = 1, Total = 5 };
             Assert.Equal(summary, store.LoadSummaries()[1]);
             File.Delete(Path.Combine(dir, "summary.json"));
@@ -573,8 +573,8 @@ static class Tests
             Assert.Equal(2, store.ReadLog().Count);
 
             File.WriteAllText(store.GamePath(3), "{ broken");
-            Assert.True(store.LoadGame(3) is null, "битый файл - null");
-            Assert.True(Directory.GetFiles(Path.Combine(dir, "games"), "3.json.broken-*").Length == 1, "копия битого файла");
+            Assert.True(store.LoadGame(3) is null, "a broken file loads as null");
+            Assert.True(Directory.GetFiles(Path.Combine(dir, "games"), "3.json.broken-*").Length == 1, "a copy of the broken file");
         }
         finally
         {
@@ -585,17 +585,17 @@ static class Tests
     public static void Playtime_OverrideAndOffset()
     {
         var g = SampleGame();
-        g.PlaytimeMinutes = 6000; // 100 ч в Steam, но достижения добавили позже
+        g.PlaytimeMinutes = 6000; // 100 h in Steam, but achievements were added later
         var over = Planner.Build(g, Percentile.P50);
-        Assert.True(over.Overtime, "наиграно больше, чем уходит на 100%");
+        Assert.True(over.Overtime, "played longer than 100% takes");
         Assert.Equal((double?)null, over.RemainingMinutes);
 
-        g.PlaytimeOffsetMinutes = 5900; // 98 ч 20 мин было до достижений
+        g.PlaytimeOffsetMinutes = 5900; // 98 h 20 min were before achievements
         Assert.Equal(100.0, g.EffectivePlaytimeMinutes);
         var withOffset = Planner.Build(g, Percentile.P50).RemainingMinutes!.Value;
-        Assert.True(withOffset > 0, "с вычетом есть остаток");
+        Assert.True(withOffset > 0, "with the offset there is a remainder");
 
-        g.PlaytimeOverrideMinutes = 0; // своё значение важнее вычета
+        g.PlaytimeOverrideMinutes = 0; // the override beats the offset
         Assert.Equal(0.0, g.EffectivePlaytimeMinutes);
         Assert.True(Planner.Build(g, Percentile.P50).RemainingMinutes >= withOffset);
 
@@ -610,15 +610,15 @@ static class Tests
         g.CompletionMinutes = null;
         g.PlaytimeMinutes = 300;
         TimeEstimator.EstimateFromGlobalPercent(g);
-        Assert.Equal(0, g.Estimates.Count); // ничего не получено - не из чего выводить
+        Assert.Equal(0, g.Estimates.Count); // nothing earned - nothing to derive from
 
-        g.StateOf("ch5").SteamUnlocked = true; // 30% - примерно середина шкалы
+        g.StateOf("ch5").SteamUnlocked = true; // 30% is roughly the middle of the scale
         TimeEstimator.EstimateFromGlobalPercent(g);
-        Assert.True(g.DerivedCompletionMinutes is > 300, $"выведено {g.DerivedCompletionMinutes}");
-        Assert.True(g.Estimates.Count == 5, "оценки появились");
+        Assert.True(g.DerivedCompletionMinutes is > 300, $"derived {g.DerivedCompletionMinutes}");
+        Assert.True(g.Estimates.Count == 5, "estimates appeared");
         Assert.Equal(g.DerivedCompletionMinutes, g.UsedCompletionMinutes);
 
-        g.CompletionMinutes = 1000; // заданное важнее выведенного
+        g.CompletionMinutes = 1000; // a set value beats a derived one
         TimeEstimator.EstimateFromGlobalPercent(g);
         Assert.Equal((double?)null, g.DerivedCompletionMinutes);
         Assert.Equal(1000.0, g.Estimates["grind"].P50!.Value);
@@ -629,7 +629,7 @@ static class Tests
         var t0 = DateTimeOffset.FromUnixTimeSeconds(1_760_000_000);
         PlayerSample P(int hoursTotal, params (string Name, double HoursIn)[] unl)
         {
-            // играл ровно 1 час реального времени = 60 минут игры, чтобы проверить пересчёт
+            // every real hour is exactly 60 minutes of play, to check the conversion
             var p = new PlayerSample();
             foreach (var (n, h) in unl) p.Unlocks[n] = t0.AddHours(h);
             p.Anchors.Add((t0.AddHours(hoursTotal), hoursTotal * 60));
@@ -648,9 +648,9 @@ static class Tests
         Assert.Equal(100.0, r.Percent["a"]);
         Assert.Equal(75.0, r.Percent["b"]);
         Assert.Equal(50.0, r.Percent["c"]);
-        Assert.Equal(180.0, r.Times["b"].P50!.Value); // медиана 2, 3, 4 часов
+        Assert.Equal(180.0, r.Times["b"].P50!.Value); // median of 2, 3 and 4 hours
         Assert.Equal(2, r.Completers);
-        Assert.Equal(540.0, r.CompletionMedianMinutes); // 8 и 10 часов
+        Assert.Equal(540.0, r.CompletionMedianMinutes); // 8 and 10 hours
 
         var g = SampleGame();
         g.Achievements.Clear();
@@ -660,7 +660,7 @@ static class Tests
         TimeEstimator.EstimateFromGlobalPercent(g);
         Assert.Equal(75.0, g.Achievements[1].Percent);
         Assert.True(g.Achievements[1].PercentFromSample);
-        Assert.Equal(180.0, g.Estimates["b"].P50!.Value); // замер не перезаписан моделью
+        Assert.Equal(180.0, g.Estimates["b"].P50!.Value); // the model did not overwrite the measurement
         Assert.Equal(SampleStats.SourceName, g.Estimates["b"].Source);
         Assert.Equal(540.0, g.UsedCompletionMinutes);
     }
