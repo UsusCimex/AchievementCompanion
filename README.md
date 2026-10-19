@@ -75,13 +75,18 @@ dotnet src\AC.App\bin\Release\net10.0-windows\AchievementCompanion.dll
 | `src/AC.App` | интерфейс WPF: главное окно, оверлей, настройки |
 | `tests/AC.Core.Tests` | тесты логики и хранилища |
 
-Релиз собирается GitHub Actions по тегу: `git tag v0.3.0 && git push origin v0.3.0`.
+Релиз собирается GitHub Actions по тегу: `git tag v0.4.0 && git push origin v0.4.0`.
 
 ## Предупреждение
 
 Запись достижений в Steam через Steam-клиент Valve официально не поддерживает. Сайты-рейтинги
 (Steam Hunters, completionist.me) могут пометить профиль, если много достижений откроется в одну секунду.
 Пользуйся на свой страх и риск.
+
+## Документация
+
+- [docs/PROJECT.md](docs/PROJECT.md) - идея, архитектура, источники данных, как считается время, состояние и планы.
+- [CHANGELOG.md](CHANGELOG.md) - что менялось по версиям.
 
 ## Лицензия
 
