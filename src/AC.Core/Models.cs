@@ -213,7 +213,8 @@ public sealed record AchievementRow(
     bool EstimateIsManual,
     string Note,
     DateTimeOffset? UnlockTime,
-    bool GroupIsAuto = false)
+    bool GroupIsAuto = false,
+    bool ProbablyMissed = false)
 {
     public string ApiName => Def.ApiName;
     public bool IsDone => Status != EffectiveStatus.Locked;

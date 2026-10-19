@@ -67,12 +67,39 @@ public static class KindClassifier
             if (string.IsNullOrEmpty(text)) continue;
             var m = Place.Match(text);
             if (!m.Success) continue;
-            var kind = m.Groups["kind"].Value.ToLowerInvariant();
-            var label = kind.StartsWith("ch") || kind.StartsWith("глав") ? "group.chapter"
-                : kind.StartsWith("ep") || kind.StartsWith("эпизод") ? "group.episode"
-                : "group.act";
+            var label = Series(m) switch { "chapter" => "group.chapter", "episode" => "group.episode", _ => "group.act" };
             return Loc.T(label, m.Groups["n"].Value.ToUpperInvariant());
         }
         return null;
+    }
+
+    /// <summary>The part of the game a text names, as a series ("chapter", "act", "episode") and a number.</summary>
+    public static (string Series, int Number)? PlaceIn(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return null;
+        var m = Place.Match(text);
+        if (!m.Success) return null;
+        var n = m.Groups["n"].Value;
+        return (Series(m), int.TryParse(n, out var arabic) ? arabic : Roman(n));
+    }
+
+    private static string Series(Match m)
+    {
+        var kind = m.Groups["kind"].Value.ToLowerInvariant();
+        return kind.StartsWith("ch") || kind.StartsWith("глав") ? "chapter"
+            : kind.StartsWith("ep") || kind.StartsWith("эпизод") ? "episode"
+            : "act";
+    }
+
+    private static int Roman(string s)
+    {
+        int total = 0, previous = 0;
+        foreach (var c in s.ToLowerInvariant().Reverse())
+        {
+            int v = c switch { 'i' => 1, 'v' => 5, _ => 10 };
+            total += v < previous ? -v : v;
+            previous = Math.Max(previous, v);
+        }
+        return total;
     }
 }

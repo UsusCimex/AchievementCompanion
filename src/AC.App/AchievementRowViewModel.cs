@@ -129,6 +129,11 @@ public sealed class AchievementRowViewModel : ObservableObject
 
     public string Estimate => TimeEstimator.Format(_row.EstimateMinutes) + (_row.EstimateIsManual ? " *" : "");
 
+    public bool IsProbablyMissed => _row.ProbablyMissed;
+
+    /// <summary>The overlay pill: the estimate, or a warning for a missable one that was probably missed.</summary>
+    public string OverlayBadge => _row.ProbablyMissed ? Loc.T("card.missedShort") : Estimate;
+
     public string StatusText => _row.Status switch
     {
         EffectiveStatus.Unlocked => _row.UnlockTime is { } t

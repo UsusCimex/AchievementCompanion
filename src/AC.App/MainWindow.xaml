@@ -231,6 +231,10 @@
                         <Border Style="{StaticResource Chip}" Visibility="{Binding IsHidden, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="{local:Tr card.hidden}" Style="{StaticResource ChipText}" />
                         </Border>
+                        <Border Style="{StaticResource Chip}" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+                                Visibility="{Binding IsProbablyMissed, Converter={StaticResource BoolToVis}}" ToolTip="{local:Tr card.missedTip}">
+                            <TextBlock Text="{local:Tr card.missed}" Style="{StaticResource ChipText}" />
+                        </Border>
                         <Border Style="{StaticResource Chip}" Visibility="{Binding IsProtected, Converter={StaticResource BoolToVis}}"
                                 ToolTip="{local:Tr card.protectedTip}">
                             <TextBlock Text="{local:Tr card.protected}" Style="{StaticResource ChipText}" />
@@ -277,6 +281,9 @@
                 </Border>
                 <StackPanel Grid.Column="2" Margin="8,0,12,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Name}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <TextBlock Text="{local:Tr card.missed}" Style="{StaticResource Caption}" ToolTip="{local:Tr card.missedTip}"
+                               Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                               Visibility="{Binding IsProbablyMissed, Converter={StaticResource BoolToVis}}" />
                     <Grid Visibility="{Binding Description, Converter={StaticResource EmptyToCollapsed}}">
                         <TextBlock Text="{Binding Description}" FontSize="12" Style="{StaticResource SpoilerText}" />
                         <Button Style="{StaticResource RevealButton}" Command="{Binding RevealCommand}"

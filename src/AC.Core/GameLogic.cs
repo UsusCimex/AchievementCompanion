@@ -46,6 +46,7 @@ public static class GameLogic
 
     public static IReadOnlyList<AchievementRow> BuildRows(GameData game, Percentile p)
     {
+        var missed = ProbablyMissed(game);
         var rows = new List<AchievementRow>(game.Achievements.Count);
         foreach (var def in game.Achievements)
         {
@@ -67,9 +68,44 @@ public static class GameLogic
                     EffectiveStatus.ManualDone => s!.ManualAt,
                     _ => null,
                 },
-                t is { Group.Length: > 0, GroupIsManual: false }));
+                t is { Group.Length: > 0, GroupIsManual: false },
+                missed.Contains(def.ApiName)));
         }
         return rows;
+    }
+
+    /// <summary>
+    /// Locked missable achievements whose part of the game (chapter, act, episode) is behind the player:
+    /// a story achievement of that part or a later one is done, or any achievement of a later part.
+    /// The place comes from the group, else from the description or the name.
+    /// </summary>
+    public static IReadOnlySet<string> ProbablyMissed(GameData game)
+    {
+        var places = new Dictionary<string, (string Series, int Number)>(StringComparer.Ordinal);
+        foreach (var a in game.Achievements)
+        {
+            var group = game.Tags.GetValueOrDefault(a.ApiName)?.Group;
+            if ((KindClassifier.PlaceIn(group) ?? KindClassifier.PlaceIn(a.Description) ?? KindClassifier.PlaceIn(a.Name)) is { } place)
+                places[a.ApiName] = place;
+        }
+
+        // The last part known to be over, per series.
+        var over = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (name, place) in places)
+        {
+            if (StatusOf(game.States.GetValueOrDefault(name), game.CountManualMarks) == EffectiveStatus.Locked) continue;
+            int done = game.Tags.GetValueOrDefault(name)?.Kind == AchievementKind.Story ? place.Number : place.Number - 1;
+            over[place.Series] = Math.Max(over.GetValueOrDefault(place.Series, int.MinValue), done);
+        }
+
+        var missed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (name, place) in places)
+        {
+            if (game.Tags.GetValueOrDefault(name)?.Kind != AchievementKind.Missable) continue;
+            if (StatusOf(game.States.GetValueOrDefault(name), game.CountManualMarks) != EffectiveStatus.Locked) continue;
+            if (over.TryGetValue(place.Series, out var last) && last >= place.Number) missed.Add(name);
+        }
+        return missed;
     }
 
     /// <summary>Progress: (unlocked in Steam, marked manually, total).</summary>

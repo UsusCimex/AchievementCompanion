@@ -189,6 +189,32 @@ static class Tests
         Assert.True(g.States["grind"].ManualDone, "the mark is kept, just not counted");
     }
 
+    public static void Classifier_PlaceNumbers()
+    {
+        Assert.Equal(("chapter", 3), KindClassifier.PlaceIn("Collect the heart in Chapter 3")!.Value);
+        Assert.Equal(("act", 4), KindClassifier.PlaceIn("Finish Act IV")!.Value);
+        Assert.Equal(("episode", 9), KindClassifier.PlaceIn("Episode ix")!.Value);
+        Assert.Equal(("chapter", 2), KindClassifier.PlaceIn("Глава 2")!.Value);
+        Assert.True(KindClassifier.PlaceIn("Final run") is null, "no place");
+    }
+
+    public static void Missable_ProbablyMissed()
+    {
+        var g = SampleGame();
+        GameLogic.SetGroup(g, "miss", "Chapter 3");
+        Assert.Equal(0, GameLogic.ProbablyMissed(g).Count);
+
+        g.StateOf("ch1").SteamUnlocked = true; // chapter 1 is over: chapter 3 is still ahead
+        Assert.Equal(0, GameLogic.ProbablyMissed(g).Count);
+
+        g.StateOf("ch5").SteamUnlocked = true; // chapter 5 is done: the chapter 3 one was left behind
+        Assert.True(GameLogic.ProbablyMissed(g).Contains("miss"), "chapter 5 is done");
+        Assert.True(GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "miss").ProbablyMissed, "flag on the row");
+
+        g.StateOf("miss").SteamUnlocked = true;
+        Assert.Equal(0, GameLogic.ProbablyMissed(g).Count);
+    }
+
     public static void Planner_StageOrder()
     {
         var g = SampleGame();
