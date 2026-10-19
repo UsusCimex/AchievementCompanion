@@ -85,8 +85,8 @@ dotnet src\AC.App\bin\Release\net10.0-windows\AchievementCompanion.dll
 
 ## Документация
 
-- [docs/PROJECT.md](docs/PROJECT.md) - идея, архитектура, источники данных, как считается время, состояние и планы.
-- [CHANGELOG.md](CHANGELOG.md) - что менялось по версиям.
+- [AGENTS.md](AGENTS.md) - устройство, источники данных, как считается время, правила и выпуск релизов.
+- Что менялось - в описаниях [релизов](https://github.com/UsusCimex/AchievementCompanion/releases).
 
 ## Лицензия
 
