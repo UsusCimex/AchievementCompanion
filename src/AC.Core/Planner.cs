@@ -71,7 +71,7 @@ public static class Planner
 
         double pace = PaceOf(game, now ?? DateTimeOffset.Now);
         int unknown = open.Count(r => r.EstimateMinutes is null);
-        return new Plan(sections, Remaining(rows, pace), unknown, pace);
+        return new Plan(sections, Remaining(rows, p, pace), unknown, pace);
     }
 
     /// <summary>
@@ -98,16 +98,23 @@ public static class Planner
 
     /// <summary>
     /// The stretches of locked achievements (<see cref="Progress.Stretches"/>), whatever the order of unlocks.
-    /// Computed on the median scale (own estimates are divided by pace), then multiplied by pace.
+    /// Computed on the scale of the median player at the chosen percentile: own estimates are divided by pace
+    /// and get the same margin as the others, then everything is multiplied by pace.
     /// null - no locked achievement has an estimate.
     /// </summary>
-    private static double? Remaining(IReadOnlyList<AchievementRow> rows, double pace)
+    private static double? Remaining(IReadOnlyList<AchievementRow> rows, Percentile p, double pace)
     {
+        double margin = p switch
+        {
+            Percentile.P75 => TimeEstimator.P75Factor,
+            Percentile.P90 => TimeEstimator.P90Factor,
+            _ => 1,
+        };
         var estimated = rows.Where(r => r.EstimateMinutes.HasValue).ToList();
         if (estimated.All(r => r.IsDone)) return null;
 
         var stretches = Progress.Stretches(estimated.Select(r =>
-            (r.ApiName, r.EstimateIsManual ? r.EstimateMinutes!.Value / pace : r.EstimateMinutes!.Value)));
+            (r.ApiName, r.EstimateIsManual ? r.EstimateMinutes!.Value / pace * margin : r.EstimateMinutes!.Value)));
         return estimated.Where(r => !r.IsDone).Sum(r => stretches[r.ApiName]) * pace;
     }
 

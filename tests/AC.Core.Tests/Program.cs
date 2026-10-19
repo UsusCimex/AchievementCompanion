@@ -245,6 +245,15 @@ static class Tests
         Assert.True(plan.RemainingMinutes <= 540.0001, $"remaining {plan.RemainingMinutes}");
     }
 
+    public static void Planner_ManualEstimateTakesMargin()
+    {
+        // At P90 an own estimate gets the same margin as the model ones.
+        var g = SampleGame();
+        g.ManualEstimates["grind"] = 600;
+        Assert.Equal(600.0, Math.Round(Planner.Build(g, Percentile.P50).RemainingMinutes!.Value, 1));
+        Assert.Equal(Math.Round(600 * TimeEstimator.P90Factor, 1), Math.Round(Planner.Build(g, Percentile.P90).RemainingMinutes!.Value, 1));
+    }
+
     public static void Planner_CompleteGame()
     {
         var g = SampleGame();
