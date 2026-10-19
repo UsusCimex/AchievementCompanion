@@ -100,7 +100,8 @@ public sealed class GameService
         if (!string.IsNullOrEmpty(knownName) && string.IsNullOrEmpty(game.Name)) game.Name = knownName;
 
         var lib = CachedLibrary().FirstOrDefault(g => g.AppId == appId);
-        if (lib != null) game.PlaytimeMinutes = lib.PlaytimeMinutes;
+        // Steam playtime only grows: an old library cache must not undo a fresher value saved with the game.
+        if (lib != null) game.PlaytimeMinutes = Math.Max(game.PlaytimeMinutes, lib.PlaytimeMinutes);
 
         bool stale = forceSchema || game.Achievements.Count == 0 || game.SchemaFetchedAt is null ||
                      DateTimeOffset.Now - game.SchemaFetchedAt > SchemaTtl ||
