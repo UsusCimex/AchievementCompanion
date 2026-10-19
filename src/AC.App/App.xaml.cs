@@ -7,6 +7,12 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Встроенная тема Fluent: светлая/тёмная по настройкам Windows, системный акцентный цвет.
+        // Ставим в коде, а не в App.xaml, чтобы словарь темы добавился к уже загруженным ресурсам приложения
+        // и был доступен окнам как StaticResource.
+#pragma warning disable WPF0001
+        ThemeMode = ThemeMode.System;
+#pragma warning restore WPF0001
         DispatcherUnhandledException += OnUnhandled;
         base.OnStartup(e);
     }

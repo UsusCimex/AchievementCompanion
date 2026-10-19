@@ -5,52 +5,112 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight" MaxWidth="480" Foreground="White">
+    <!-- Оверлей всегда тёмный: он лежит поверх игры, светлая панель слепит. -->
     <Window.Resources>
+        <SolidColorBrush x:Key="OvText" Color="#F2F2F2" />
+        <SolidColorBrush x:Key="OvMuted" Color="#A8B0BA" />
+        <SolidColorBrush x:Key="OvLine" Color="#33FFFFFF" />
+        <SolidColorBrush x:Key="OvAccent" Color="#66C0F4" />
+        <SolidColorBrush x:Key="OvWarn" Color="#FFB37A" />
+        <SolidColorBrush x:Key="OvPill" Color="#26FFFFFF" />
+
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Foreground" Value="{StaticResource OvText}" />
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="6,0" />
-            <Setter Property="Margin" Value="6,0,0,0" />
+
+        <!-- Плоская кнопка оверлея: свой шаблон, чтобы не зависеть от темы приложения. -->
+        <Style x:Key="OvButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource OvText}" />
+            <Setter Property="Background" Value="#33FFFFFF" />
             <Setter Property="FontSize" Value="11" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#5566C0F4" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <DataTemplate x:Key="OverlayItem">
-            <DockPanel Margin="0,2">
-                <Button DockPanel.Dock="Right" Content="В Steam" VerticalAlignment="Center"
-                        ToolTip="Записать в Steam сейчас (как в SAM)"
-                        Command="{Binding DataContext.Main.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                        CommandParameter="{Binding}"
-                        Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
-                <Button DockPanel.Dock="Right" Content="Сделал" VerticalAlignment="Center"
-                        ToolTip="Отметить: выполнено, но не засчиталось"
-                        Command="{Binding DataContext.Main.OverlayMarkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                        CommandParameter="{Binding}"
-                        Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
-                <TextBlock DockPanel.Dock="Right" Text="{Binding Estimate}" Foreground="#BBB" Margin="8,0,0,0" VerticalAlignment="Center" />
-                <StackPanel>
+            <Grid Margin="0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="36" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Width="28" Height="28" CornerRadius="4" VerticalAlignment="Top" Background="{StaticResource OvPill}">
+                    <Border CornerRadius="4">
+                        <Border.Background>
+                            <ImageBrush Stretch="UniformToFill"
+                                        ImageSource="{Binding Icon, Converter={StaticResource UrlToImage}, ConverterParameter=56}" />
+                        </Border.Background>
+                    </Border>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="0,0,8,0">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding OverlayDescription}" Foreground="#CCC" FontSize="11" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding OverlayDescription}" Foreground="{StaticResource OvMuted}" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
-            </DockPanel>
+                <StackPanel Grid.Column="2" VerticalAlignment="Top">
+                    <Border Background="{StaticResource OvPill}" CornerRadius="8" Padding="7,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding Estimate}" FontSize="11" />
+                    </Border>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0" HorizontalAlignment="Right"
+                                Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                        <Button Content="Сделал" Style="{StaticResource OvButton}"
+                                ToolTip="Отметить: выполнено, но не засчиталось"
+                                Command="{Binding DataContext.Main.OverlayMarkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" />
+                        <Button Content="В Steam" Style="{StaticResource OvButton}"
+                                ToolTip="Записать в Steam сейчас (как в SAM)"
+                                Command="{Binding DataContext.Main.UnlockInSteamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
         </DataTemplate>
     </Window.Resources>
 
-    <Border x:Name="OverlayPanel" CornerRadius="6" Padding="12,10" Width="440" MouseLeftButtonDown="OnPanelMouseDown">
+    <Border x:Name="OverlayPanel" CornerRadius="12" Padding="16,14" Width="440" BorderThickness="1"
+            BorderBrush="{StaticResource OvLine}" MouseLeftButtonDown="OnPanelMouseDown">
         <StackPanel>
-            <TextBlock Text="{Binding Main.GameTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
-            <TextBlock Text="{Binding Main.ProgressText}" Foreground="#CCC" FontSize="11" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding Toast}" Foreground="#FFD27F" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
-                       Visibility="{Binding HasToast, Converter={StaticResource BoolToVis}}" />
+            <DockPanel>
+                <Border DockPanel.Dock="Left" Width="3" CornerRadius="2" Background="{StaticResource OvAccent}" Margin="0,2,10,2" />
+                <StackPanel>
+                    <TextBlock Text="{Binding Main.GameName}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Main.StatUnlockedSub}" Foreground="{StaticResource OvMuted}" FontSize="11" />
+                </StackPanel>
+            </DockPanel>
+            <ProgressBar Height="4" Maximum="100" Margin="0,10,0,0" Value="{Binding Main.ProgressPercent, Mode=OneWay}"
+                         Foreground="{StaticResource OvAccent}" Background="{StaticResource OvPill}" BorderThickness="0" />
 
-            <TextBlock Text="Не пропусти" Margin="0,8,0,2" Foreground="#FF9E7F" FontWeight="SemiBold"
+            <Border Background="#3366C0F4" CornerRadius="6" Padding="10,6" Margin="0,10,0,0"
+                    Visibility="{Binding HasToast, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding Toast}" FontSize="12" TextWrapping="Wrap" />
+            </Border>
+
+            <TextBlock Text="НЕ ПРОПУСТИ" Margin="0,12,0,2" Foreground="{StaticResource OvWarn}" FontWeight="SemiBold" FontSize="11"
                        Visibility="{Binding HasMissable, Converter={StaticResource BoolToVis}}" />
             <ItemsControl ItemsSource="{Binding Main.OverlayMissable}" ItemTemplate="{StaticResource OverlayItem}" />
 
-            <TextBlock Text="Ближайшие" Margin="0,8,0,2" Foreground="#9FD3FF" FontWeight="SemiBold" />
+            <TextBlock Text="БЛИЖАЙШИЕ" Margin="0,12,0,2" Foreground="{StaticResource OvAccent}" FontWeight="SemiBold" FontSize="11" />
             <ItemsControl ItemsSource="{Binding Main.OverlayNearest}" ItemTemplate="{StaticResource OverlayItem}" />
 
-            <TextBlock Text="{Binding ModeHint}" Foreground="#888" FontSize="10" Margin="0,8,0,0" TextWrapping="Wrap" />
+            <Border Height="1" Background="{StaticResource OvLine}" Margin="0,10,0,6" />
+            <TextBlock Text="{Binding ModeHint}" Foreground="{StaticResource OvMuted}" FontSize="10" TextWrapping="Wrap" />
         </StackPanel>
     </Border>
 </Window>

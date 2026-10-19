@@ -1,0 +1,66 @@
+name: Release
+
+# Релиз собирается, когда пушится тег вида v0.3.0:
+#   git tag v0.3.0 && git push origin v0.3.0
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}"
+          if ($v -notmatch '^v\d') { $v = "v0.0.0-dev" }
+          "tag=$v" >> $env:GITHUB_OUTPUT
+          "num=$($v.TrimStart('v'))" >> $env:GITHUB_OUTPUT
+
+      - name: Tests
+        run: dotnet run --project tests/AC.Core.Tests -c Release
+
+      # Помощник: x86, self-contained (RID задан в его csproj)
+      - name: Publish SteamBridge
+        run: dotnet publish src/AC.SteamBridge -c Release -o out/bridge -p:Version=${{ steps.ver.outputs.num }}
+
+      # Приложение: один exe без установки .NET
+      - name: Publish app
+        run: >
+          dotnet publish src/AC.App -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=${{ steps.ver.outputs.num }} -o out/app
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out/app/bridge | Out-Null
+          Copy-Item out/bridge/* out/app/bridge -Recurse -Force
+          Get-ChildItem out/app -Filter *.pdb -Recurse | Remove-Item
+          $zip = "AchievementCompanion-${{ steps.ver.outputs.tag }}-win-x64.zip"
+          Compress-Archive -Path out/app/* -DestinationPath $zip
+          "ZIP=$zip" >> $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AchievementCompanion-win-x64
+          path: ${{ env.ZIP }}
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP }}
+          generate_release_notes: true

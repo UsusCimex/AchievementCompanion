@@ -36,10 +36,43 @@ public sealed class AchievementRowViewModel : ObservableObject
 
     public string Name => _row.Def.Name.Length > 0 ? _row.Def.Name : _row.ApiName;
 
-    private bool Spoiler => _row.Def.Hidden && !_row.IsDone && _owner.HideSpoilers;
+    private bool Spoiler => _row.Def.Hidden && !_row.IsDone && _owner.HideSpoilers && !_revealed;
+
+    private bool _revealed;
+    /// <summary>Пользователь попросил показать описание скрытого достижения.</summary>
+    public bool Revealed
+    {
+        get => _revealed;
+        set
+        {
+            if (!Set(ref _revealed, value)) return;
+            OnPropertyChanged(nameof(Description));
+            OnPropertyChanged(nameof(IsSpoilerHidden));
+        }
+    }
+
+    /// <summary>Описание спрятано (секретное, не получено, спойлеры скрываются).</summary>
+    public bool IsSpoilerHidden => Spoiler;
+
+    public bool IsHidden => _row.Def.Hidden;
+    public bool IsLocked => _row.Status == EffectiveStatus.Locked;
+    public bool IsManualStatus => _row.Status == EffectiveStatus.ManualDone;
+    public bool IsPendingWrite => _owner.IsPending(ApiName);
+    public string KindTitle => Options.KindTitle(_kind);
+    public bool HasKind => _kind != AchievementKind.Unknown;
+
+    /// <summary>Подпись редкости по глобальному проценту.</summary>
+    public string RarityText => _row.Def.GlobalPercent switch
+    {
+        null => "",
+        < 5 => "очень редкое",
+        < 20 => "редкое",
+        < 50 => "необычное",
+        _ => "частое",
+    };
 
     public string Description =>
-        Spoiler ? "Скрытое достижение - наведи курсор, чтобы прочитать" :
+        Spoiler ? "Скрытое достижение. Нажми \"Показать\" в карточке справа или наведи курсор" :
         _row.Def.Description.Length > 0 ? _row.Def.Description :
         _row.Def.Hidden ? "Скрытое достижение (описание Steam не отдал)" : "";
 
@@ -101,6 +134,8 @@ public sealed class AchievementRowViewModel : ObservableObject
         set
         {
             if (!Set(ref _kind, value)) return;
+            OnPropertyChanged(nameof(KindTitle));
+            OnPropertyChanged(nameof(HasKind));
             _owner.OnKindChanged(this, value);
         }
     }
@@ -157,7 +192,8 @@ public sealed class AchievementRowViewModel : ObservableObject
         nameof(Def), nameof(Status), nameof(IsDone), nameof(IsUnlocked), nameof(IsProtected), nameof(Name),
         nameof(Description), nameof(Tooltip), nameof(Icon), nameof(Percent), nameof(PercentValue),
         nameof(Estimate), nameof(Badges), nameof(StatusText), nameof(ManualDone), nameof(OverlayDescription),
-        nameof(CanWriteToSteam),
+        nameof(CanWriteToSteam), nameof(IsSpoilerHidden), nameof(IsHidden), nameof(IsLocked), nameof(IsManualStatus),
+        nameof(IsPendingWrite), nameof(RarityText),
     };
 
     /// <summary>Подменяет данные строки после пересчёта, не пересоздавая объект (чтобы не терять фокус).</summary>

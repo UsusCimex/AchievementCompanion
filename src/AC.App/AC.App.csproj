@@ -7,9 +7,16 @@
     <AssemblyName>AchievementCompanion</AssemblyName>
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Помощник - self-contained exe, приложение - нет; ссылка нужна только для порядка сборки. -->
     <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <!-- ThemeMode (встроенная тема Fluent в WPF) помечен как experimental: WPF0001. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AC.Infrastructure\AC.Infrastructure.csproj" />

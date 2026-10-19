@@ -1,26 +1,80 @@
 <Application x:Class="AC.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:AC.App"
              ShutdownMode="OnMainWindowClose"
              StartupUri="MainWindow.xaml">
+    <!--
+        Тема Fluent включается в App.xaml.cs (ThemeMode = System) - встроенная тема Fluent (.NET 9+): светлая или тёмная по настройкам Windows,
+        акцентный цвет системы. Цвета ниже берутся из темы через DynamicResource, поэтому
+        переключаются вместе с ней. Если ключа в теме нет, свойство просто остаётся по умолчанию.
+    -->
     <Application.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:InverseBoolConverter x:Key="Inverse" />
+        <local:InverseBoolToVisibilityConverter x:Key="InverseVis" />
+        <local:EmptyToCollapsedConverter x:Key="EmptyToCollapsed" />
+        <local:UrlToImageConverter x:Key="UrlToImage" />
 
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="10,3" />
-            <Setter Property="Margin" Value="0,0,6,0" />
+        <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+        <!-- Карточка: подложка + тонкая рамка + скругление -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16" />
         </Style>
-        <Style TargetType="CheckBox">
-            <Setter Property="Margin" Value="0,0,12,0" />
+
+        <!-- Плашка-метка (тип, секрет, защищено) -->
+        <Style x:Key="Chip" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,1" />
+            <Setter Property="Margin" Value="0,0,6,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
-        <Style TargetType="TextBlock" x:Key="Muted">
-            <Setter Property="Foreground" Value="#666" />
+        <Style x:Key="ChipText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         </Style>
-        <Style TargetType="TextBlock" x:Key="Header">
+
+        <Style x:Key="Title" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="24" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+        <Style x:Key="Subtitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style x:Key="Muted" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style x:Key="Header" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="Margin" Value="0,8,0,4" />
+            <Setter Property="Margin" Value="0,12,0,6" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
         </Style>
+        <Style x:Key="StatValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+        <Style x:Key="Glyph" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
     </Application.Resources>
 </Application>

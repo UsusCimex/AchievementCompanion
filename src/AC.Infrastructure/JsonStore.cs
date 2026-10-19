@@ -111,6 +111,9 @@ public sealed class OwnedGame
     public string IconHash { get; set; } = "";
     public DateTimeOffset? LastPlayed { get; set; }
 
+    /// <summary>Шапка игры из магазина Steam (460x215).</summary>
+    public string HeaderUrl => SteamImages.Header(AppId);
+
     public string? IconUrl => string.IsNullOrEmpty(IconHash) ? null :
         $"https://media.steampowered.com/steamcommunity/public/images/apps/{AppId}/{IconHash}.jpg";
 }
@@ -119,4 +122,9 @@ internal static class StoreJson
 {
     public static readonly JsonSerializerOptions Pretty = new(JsonOptions.Pretty);
     public static readonly JsonSerializerOptions Compact = new(JsonOptions.Pretty) { WriteIndented = false };
+}
+
+public static class SteamImages
+{
+    public static string Header(uint appId) => $"https://cdn.akamai.steamstatic.com/steam/apps/{appId}/header.jpg";
 }

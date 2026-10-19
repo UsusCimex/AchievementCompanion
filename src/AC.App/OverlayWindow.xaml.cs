@@ -74,7 +74,7 @@ public partial class OverlayWindow : Window
     {
         var s = _vm.Main.Service.Settings;
         var opacity = Math.Clamp(s.OverlayOpacity, 0.2, 1.0);
-        OverlayPanel.Background = new SolidColorBrush(Color.FromArgb((byte)(opacity * 255), 0x1E, 0x1E, 0x1E));
+        OverlayPanel.Background = new SolidColorBrush(Color.FromArgb((byte)(opacity * 255), 0x14, 0x1A, 0x23));
         _vm.RefreshHints();
     }
 

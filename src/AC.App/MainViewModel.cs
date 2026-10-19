@@ -143,6 +143,45 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Для оверлея: ближайшие по времени.</summary>
     public ObservableCollection<AchievementRowViewModel> OverlayNearest { get; } = new();
 
+    private AchievementRowViewModel? _selectedRow;
+    /// <summary>Выбранное достижение - для панели подробностей.</summary>
+    public AchievementRowViewModel? SelectedRow
+    {
+        get => _selectedRow;
+        set { if (Set(ref _selectedRow, value)) OnPropertyChanged(nameof(HasSelectedRow)); }
+    }
+    public bool HasSelectedRow => _selectedRow != null;
+
+    public bool HasGame => _game != null;
+    public string? HeaderImageUrl => _game is null ? null : SteamImages.Header(_game.AppId);
+
+    private double _progressPercent;
+    public double ProgressPercent { get => _progressPercent; private set => Set(ref _progressPercent, value); }
+
+    private double _progressWithManualPercent;
+    public double ProgressWithManualPercent { get => _progressWithManualPercent; private set => Set(ref _progressWithManualPercent, value); }
+
+    private string _statUnlocked = "-";
+    public string StatUnlocked { get => _statUnlocked; private set => Set(ref _statUnlocked, value); }
+
+    private string _statUnlockedSub = "";
+    public string StatUnlockedSub { get => _statUnlockedSub; private set => Set(ref _statUnlockedSub, value); }
+
+    private string _statRemaining = "-";
+    public string StatRemaining { get => _statRemaining; private set => Set(ref _statRemaining, value); }
+
+    private string _statRemainingSub = "";
+    public string StatRemainingSub { get => _statRemainingSub; private set => Set(ref _statRemainingSub, value); }
+
+    private string _statPlayed = "-";
+    public string StatPlayed { get => _statPlayed; private set => Set(ref _statPlayed, value); }
+
+    private string _statPlayedSub = "";
+    public string StatPlayedSub { get => _statPlayedSub; private set => Set(ref _statPlayedSub, value); }
+
+    private string _gameName = "";
+    public string GameName { get => _gameName; private set => Set(ref _gameName, value); }
+
     private string _gameTitle = "Игра не выбрана";
     public string GameTitle { get => _gameTitle; private set => Set(ref _gameTitle, value); }
 
@@ -584,6 +623,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         _game = game;
         GameTitle = $"{game.Name} ({game.AppId})";
+        GameName = game.Name.Length > 0 ? game.Name : $"AppID {game.AppId}";
+        SelectedRow = null;
+        OnPropertyChanged(nameof(HasGame));
+        OnPropertyChanged(nameof(HeaderImageUrl));
         CompletionInput = Hours(game.CompletionMinutes);
         _completionFetchedText = game.CompletionSource == "manual" ? "" : CompletionInput;
         PlaytimeOverrideInput = Hours(game.PlaytimeOverrideMinutes);
@@ -621,8 +664,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 Descending = Descending,
             };
             if (_kindFilter.Value is { } k) query.Kinds.Add(k);
+            var selectedApi = SelectedRow?.ApiName;
             Rows.Clear();
             foreach (var r in query.Apply(_game, p)) Rows.Add(new AchievementRowViewModel(this, r));
+            SelectedRow = selectedApi is null ? null : Rows.FirstOrDefault(r => r.ApiName == selectedApi);
         }
 
         var all = GameLogic.BuildRows(_game, p);
@@ -654,13 +699,26 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         double withManual = total == 0 ? 0 : 100.0 * (u + m) / total;
         ProgressText = $"В Steam открыто {u} из {total} ({steamPct:0}%)" +
                        (m > 0 ? $", ещё {m} сделано, но не засчитано - вместе {withManual:0}%" : "");
+        ProgressPercent = steamPct;
+        ProgressWithManualPercent = withManual;
+        StatUnlocked = $"{u} / {total}";
+        StatUnlockedSub = m > 0 ? $"{steamPct:0}% в Steam, +{m} не засчитано" : $"{steamPct:0}% в Steam";
         RemainingText = plan.RemainingMinutes is { } rem
             ? $"До 100% примерно {TimeEstimator.Format(rem)}" + (plan.UnknownEstimateCount > 0 ? $" (без оценки: {plan.UnknownEstimateCount})" : "")
             : _game.Achievements.All(a => a.GlobalPercent is null)
                 ? "До 100%: нет оценки - Steam не отдал глобальные проценты (нажми \"Обновить схему\")"
                 : "До 100%: нет оценки - задай время до 100% или получи пару достижений, тогда оценка появится сама";
 
+        StatRemaining = plan.RemainingMinutes is { } rm ? "~" + TimeEstimator.Format(rm) : "нет оценки";
+        StatRemainingSub = plan.RemainingMinutes is null
+            ? "задай время до 100% во вкладке \"Время\""
+            : _game.CompletionMinutes is not null ? "по времени до 100% " + (_game.CompletionSource == "manual" ? "(вручную)" : "(" + _game.CompletionSource + ")")
+            : "оценка по твоему прогрессу";
         var played = TimeEstimator.Format(_game.EffectivePlaytimeMinutes);
+        StatPlayed = played;
+        StatPlayedSub = _game.PlaytimeOverrideMinutes is not null ? "задано вручную"
+            : _game.PlaytimeOffsetMinutes > 0 ? $"из {TimeEstimator.Format(_game.PlaytimeMinutes)} в Steam"
+            : "по данным Steam";
         var playedNote = _game.PlaytimeOverrideMinutes is not null ? " (задано вручную)"
             : _game.PlaytimeOffsetMinutes > 0 ? $" (из {TimeEstimator.Format(_game.PlaytimeMinutes)} в Steam)"
             : "";
