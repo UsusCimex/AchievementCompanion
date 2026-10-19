@@ -14,7 +14,6 @@
         <local:InverseBoolConverter x:Key="Inverse" />
         <local:InverseBoolToVisibilityConverter x:Key="InverseVis" />
         <local:EmptyToCollapsedConverter x:Key="EmptyToCollapsed" />
-        <local:UrlToImageConverter x:Key="UrlToImage" />
 
         <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 

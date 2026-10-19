@@ -28,7 +28,7 @@ public partial class SettingsWindow : Window
         DataDirBox.Text = AppPaths.DataRoot;
         DataDirHint.Text = AppPaths.IsPortable
             ? "Портативный режим: данные лежат в папке data рядом с программой."
-            : $"Игры, настройки и журнал ошибок (app.log). Чтобы держать данные рядом с программой, создай рядом с ней папку data; другую папку можно задать переменной окружения {AppPaths.DataDirVariable}.";
+            : $"Игры, настройки, кеш картинок и журнал ошибок (app.log). Чтобы держать данные рядом с программой, создай рядом с ней папку data; другую папку можно задать переменной окружения {AppPaths.DataDirVariable}.";
     }
 
     private void OnOpenDataDir(object sender, RoutedEventArgs e) =>

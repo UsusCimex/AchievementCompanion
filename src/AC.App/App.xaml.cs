@@ -23,6 +23,7 @@ public partial class App : Application
             a.SetObserved();
         };
         AppLog.Info($"Запуск {typeof(App).Assembly.GetName().Version?.ToString(3)}, данные: {AppPaths.DataRoot}");
+        ImageCache.TrimInBackground();
         base.OnStartup(e);
     }
 

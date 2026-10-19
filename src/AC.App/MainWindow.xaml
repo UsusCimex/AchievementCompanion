@@ -40,12 +40,7 @@
 
                     <Border Width="48" Height="48" CornerRadius="6" VerticalAlignment="Top"
                             Background="{DynamicResource SubtleFillColorSecondaryBrush}">
-                        <Border CornerRadius="6">
-                            <Border.Background>
-                                <ImageBrush Stretch="UniformToFill"
-                                            ImageSource="{Binding Icon, Converter={StaticResource UrlToImage}, ConverterParameter=96}" />
-                            </Border.Background>
-                        </Border>
+                        <Border CornerRadius="6" local:RemoteImage.DecodeWidth="96" local:RemoteImage.Url="{Binding Icon}" />
                     </Border>
 
                     <StackPanel Grid.Column="1" Margin="0,0,12,0" ToolTip="{Binding Tooltip}">
@@ -186,12 +181,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Border Width="92" Height="43" CornerRadius="4" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
-                                    <Border CornerRadius="4">
-                                        <Border.Background>
-                                            <ImageBrush Stretch="UniformToFill"
-                                                        ImageSource="{Binding HeaderUrl, Converter={StaticResource UrlToImage}, ConverterParameter=184}" />
-                                        </Border.Background>
-                                    </Border>
+                                    <Border CornerRadius="4" local:RemoteImage.DecodeWidth="184" local:RemoteImage.Url="{Binding HeaderUrl}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"
@@ -229,12 +219,7 @@
             <!-- Шапка игры: фон - широкая картинка из библиотеки Steam под тёмным градиентом -->
             <Grid Grid.Row="0" Visibility="{Binding HasGame, Converter={StaticResource BoolToVis}}">
                 <Border CornerRadius="10" Background="#141A23" />
-                <Border CornerRadius="10">
-                    <Border.Background>
-                        <ImageBrush Stretch="UniformToFill" AlignmentY="Center"
-                                    ImageSource="{Binding HeroImageUrl, Converter={StaticResource UrlToImage}, ConverterParameter=1600}" />
-                    </Border.Background>
-                </Border>
+                <Border CornerRadius="10" local:RemoteImage.DecodeWidth="1600" local:RemoteImage.Url="{Binding HeroImageUrl}" />
                 <Border CornerRadius="10">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
@@ -251,12 +236,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Border Width="276" Height="129" CornerRadius="6" VerticalAlignment="Top" Background="#22FFFFFF">
-                        <Border CornerRadius="6">
-                            <Border.Background>
-                                <ImageBrush Stretch="UniformToFill"
-                                            ImageSource="{Binding HeaderImageUrl, Converter={StaticResource UrlToImage}, ConverterParameter=552}" />
-                            </Border.Background>
-                        </Border>
+                        <Border CornerRadius="6" local:RemoteImage.DecodeWidth="0" local:RemoteImage.Url="{Binding HeaderImageUrl}" />
                     </Border>
 
                     <StackPanel Grid.Column="1" Margin="20,0,0,0">
@@ -425,12 +405,7 @@
                                         <StackPanel>
                                             <Border Width="64" Height="64" CornerRadius="8" HorizontalAlignment="Left"
                                                     Background="{DynamicResource SubtleFillColorSecondaryBrush}">
-                                                <Border CornerRadius="8">
-                                                    <Border.Background>
-                                                        <ImageBrush Stretch="UniformToFill"
-                                                                    ImageSource="{Binding Icon, Converter={StaticResource UrlToImage}, ConverterParameter=128}" />
-                                                    </Border.Background>
-                                                </Border>
+                                                <Border CornerRadius="8" local:RemoteImage.DecodeWidth="128" local:RemoteImage.Url="{Binding Icon}" />
                                             </Border>
                                             <TextBlock Text="{Binding Name}" Style="{StaticResource Subtitle}" TextWrapping="Wrap" Margin="0,10,0,4" />
                                             <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Style="{StaticResource Muted}" />
