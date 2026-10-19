@@ -177,7 +177,7 @@ static class Tests
         g.StateOf("ch1").SteamUnlocked = true;
         g.StateOf("grind").ManualDone = true;
         TimeEstimator.EstimateFromGlobalPercent(g);
-        Assert.Equal(300.0, g.DerivedCompletionMinutes); // the rarest is marked: the whole scale is covered
+        Assert.Equal(496.0, g.DerivedCompletionMinutes); // 300 minutes for the grind stretch, 60% of the scale
 
         g.CountManualMarks = false;
         Assert.Equal(EffectiveStatus.Locked, GameLogic.BuildRows(g, Percentile.P50).Single(r => r.ApiName == "grind").Status);
@@ -205,13 +205,13 @@ static class Tests
         g.StateOf("grind").ManualDone = true;
         var plan = Planner.Build(g, Percentile.P50);
         Assert.True(plan.Ordered.All(r => r.ApiName != "grind"), "done ones are not in the plan");
-        // The rarest one is done (luck or a mark), the rest is behind it and costs its stretches: up to miss.
+        // The rarest one is done (luck or a mark): the others cost their stretches, together the way up to miss.
         Assert.Equal(Math.Round(g.Estimates["miss"].P50!.Value, 1), Math.Round(plan.RemainingMinutes!.Value, 1));
 
-        // Past ch5: what is left is the way to miss, plus misc left behind (the stretch from ch1 to it).
+        // ch5 is done as well: misc and miss are left, each with its own stretch.
         g.StateOf("ch5").SteamUnlocked = true;
         plan = Planner.Build(g, Percentile.P50);
-        double expected = g.Estimates["miss"].P50!.Value - g.Estimates["ch5"].P50!.Value + g.Estimates["misc"].P50!.Value;
+        double expected = g.Estimates["misc"].P50!.Value + (g.Estimates["miss"].P50!.Value - g.Estimates["ch5"].P50!.Value);
         Assert.Equal(Math.Round(expected, 1), Math.Round(plan.RemainingMinutes!.Value, 1));
     }
 
@@ -230,7 +230,7 @@ static class Tests
 
     public static void Planner_PaceFromOwnProgress()
     {
-        // Slow player: 500 of the median 600 minutes played, yet only an early one unlocked (ch5 - about 29% of the scale).
+        // Slow player: 500 minutes played, yet only ch5 unlocked (its stretch is 81 of the median 600 minutes).
         var g = SampleGame();
         g.PlaytimeMinutes = 500;
         g.StateOf("ch5").SteamUnlocked = true;
@@ -640,7 +640,7 @@ static class Tests
     {
         var g = SampleGame();
         g.PlaytimeMinutes = 6000; // 100 h in Steam, but achievements were added later
-        g.StateOf("ch5").SteamUnlocked = true;
+        foreach (var id in new[] { "ch1", "misc", "ch5" }) g.StateOf(id).SteamUnlocked = true;
         var slow = Planner.Build(g, Percentile.P50);
         Assert.Equal(Planner.MaxPace, slow.Pace);
 
@@ -652,7 +652,7 @@ static class Tests
 
         g.PlaytimeOverrideMinutes = 400; // the override beats the offset
         Assert.Equal(400.0, g.EffectivePlaytimeMinutes);
-        Assert.True(Planner.Build(g, Percentile.P50).Pace > 2, "400 minutes to ch5 is slow");
+        Assert.True(Planner.Build(g, Percentile.P50).Pace > 2, "400 minutes up to ch5 is slow");
 
         g.PlaytimeOffsetMinutes = 99999;
         g.PlaytimeOverrideMinutes = null;
@@ -663,8 +663,11 @@ static class Tests
     {
         var now = DateTimeOffset.Now;
         var g = SampleGame();
-        g.StateOf("ch5").SteamUnlocked = true;
-        g.StateOf("ch5").SteamUnlockTime = now.AddDays(-10);
+        foreach (var id in new[] { "ch1", "misc", "ch5" })
+        {
+            g.StateOf(id).SteamUnlocked = true;
+            g.StateOf(id).SteamUnlockTime = now.AddDays(-10);
+        }
         g.PlaytimeMinutes = 3000;
         // Without history all 3000 minutes went into reaching ch5: the slowest pace.
         Assert.Equal(Planner.MaxPace, Planner.Build(g, Percentile.P50, now).Pace);
@@ -680,6 +683,41 @@ static class Tests
         Assert.True(g.DerivedCompletionMinutes is > 650 and < 750, $"derived {g.DerivedCompletionMinutes}");
     }
 
+    public static void Progress_EarlyRareUnlockDoesNotFreezePace()
+    {
+        // miss (20%) came first, in 30 minutes: it brings only its own stretch, and later unlocks still count.
+        var now = DateTimeOffset.Now;
+        var g = SampleGame();
+        void Unlock(string id, int daysAgo)
+        {
+            g.StateOf(id).SteamUnlocked = true;
+            g.StateOf(id).SteamUnlockTime = now.AddDays(-daysAgo);
+        }
+        Unlock("miss", 10);
+        g.PlaytimeHistory.Add(new PlaytimePoint { At = now.AddDays(-9), Minutes = 30 });
+        foreach (var id in new[] { "ch1", "misc", "ch5" }) Unlock(id, 2);
+        g.PlaytimeHistory.Add(new PlaytimePoint { At = now.AddDays(-1), Minutes = 463 });
+        g.PlaytimeMinutes = 463;
+
+        // 433 minutes for the way up to ch5, 173 minutes for the median player.
+        var plan = Planner.Build(g, Percentile.P50, now);
+        Assert.True(plan.Pace is > 2.4 and < 2.6, $"pace {plan.Pace}");
+        double grindStretch = g.Estimates["grind"].P50!.Value - g.Estimates["miss"].P50!.Value;
+        Assert.Equal(Math.Round(grindStretch * plan.Pace, 1), Math.Round(plan.RemainingMinutes!.Value, 1));
+
+        g.CompletionMinutes = null;
+        TimeEstimator.EstimateFromGlobalPercent(g);
+        Assert.True(g.DerivedCompletionMinutes is > 1400 and < 1600, $"derived {g.DerivedCompletionMinutes}");
+    }
+
+    public static void Progress_Stretches()
+    {
+        var s = Progress.Stretches(new[] { ("c", 30.0), ("a", 10.0), ("b", 10.0) });
+        Assert.Equal(5.0, s["a"]); // a and b share the way to 10
+        Assert.Equal(5.0, s["b"]);
+        Assert.Equal(20.0, s["c"]);
+    }
+
     public static void Estimator_DerivedFromOwnProgress()
     {
         var g = SampleGame();
@@ -688,7 +726,7 @@ static class Tests
         TimeEstimator.EstimateFromGlobalPercent(g);
         Assert.Equal(0, g.Estimates.Count); // nothing earned - nothing to derive from
 
-        g.StateOf("ch5").SteamUnlocked = true; // 30% is roughly the middle of the scale
+        foreach (var id in new[] { "ch1", "misc", "ch5" }) g.StateOf(id).SteamUnlocked = true; // about 29% of the scale
         TimeEstimator.EstimateFromGlobalPercent(g);
         Assert.True(g.DerivedCompletionMinutes is > 300, $"derived {g.DerivedCompletionMinutes}");
         Assert.True(g.Estimates.Count == 5, "estimates appeared");

@@ -1,47 +1,59 @@
 namespace AC.Core;
 
 /// <summary>
-/// Where the player is in a game and how fast they go, judged by what they unlocked rather than by raw playtime,
-/// which also counts AFK, idling and a game left open.
+/// How far the player has come and how fast they go, judged by what they unlocked rather than by raw playtime,
+/// which also counts AFK, idling and a game left open. On a scale such as "minutes from the start" every achievement
+/// owns the stretch from the previous one to it: the stretches of unlocked ones are the progress made, the stretches
+/// of locked ones are what is left, whatever the order of unlocks.
 /// </summary>
 public static class Progress
 {
-    /// <summary>
-    /// Position on a scale such as "minutes from the start": the furthest unlocked achievement, 0 - none yet.
-    /// A lucky rare one puts it too far, but then the locked ones behind it still cost their stretches
-    /// (see Planner), and a pace measured too fast is not used (no speed-up).
-    /// </summary>
-    public static double Position(IEnumerable<(double At, bool Done)> achievements) =>
-        achievements.Where(a => a.Done).Select(a => a.At).DefaultIfEmpty(0).Max();
+    /// <summary>The stretch each achievement owns; achievements at the same point share it.</summary>
+    public static Dictionary<string, double> Stretches(IEnumerable<(string Name, double At)> achievements)
+    {
+        var result = new Dictionary<string, double>(StringComparer.Ordinal);
+        double previous = 0;
+        foreach (var point in achievements.GroupBy(a => a.At).OrderBy(g => g.Key))
+        {
+            var names = point.Select(a => a.Name).ToList();
+            double share = Math.Max(0, point.Key - previous) / names.Count;
+            foreach (var name in names) result[name] = share;
+            previous = Math.Max(previous, point.Key);
+        }
+        return result;
+    }
 
     /// <summary>
     /// Own minutes of play per unit of the scale; on the "minutes from the start" scale of a typical player,
     /// 2 means twice as slow. Playtime between two known moments is matched with the progress made between them,
-    /// and the result is the median weighted by progress. Stretches with playtime but no progress (AFK, idling)
+    /// and the result is the median weighted by progress. Stretches with playtime but no unlock (AFK, idling)
     /// are left out entirely. null - less progress than <paramref name="minProgress"/> to measure by.
     /// </summary>
     public static double? MinutesPerUnit(GameData game, Func<string, double?> scale, DateTimeOffset now, double minProgress)
     {
-        var timeline = new List<(double At, DateTimeOffset DoneAt)>();
-        foreach (var a in game.Achievements)
+        var stretches = Stretches(game.Achievements
+            .Select(a => (a.ApiName, At: scale(a.ApiName)))
+            .Where(a => a.At.HasValue)
+            .Select(a => (a.ApiName, a.At!.Value)));
+        var done = new List<(DateTimeOffset At, double Stretch)>();
+        foreach (var (name, stretch) in stretches)
         {
-            if (scale(a.ApiName) is not { } at) continue;
-            var state = game.States.GetValueOrDefault(a.ApiName);
-            var doneAt = GameLogic.StatusOf(state, game.CountManualMarks) switch
+            var state = game.States.GetValueOrDefault(name);
+            DateTimeOffset? at = GameLogic.StatusOf(state, game.CountManualMarks) switch
             {
                 EffectiveStatus.Unlocked => state!.SteamUnlockTime ?? DateTimeOffset.MinValue,
                 EffectiveStatus.ManualDone => state!.ManualAt ?? DateTimeOffset.MinValue,
-                _ => DateTimeOffset.MaxValue,
+                _ => null,
             };
-            timeline.Add((at, doneAt));
+            if (at is { } t) done.Add((t, stretch));
         }
 
         var segments = new List<(double Pace, double Weight)>();
-        double lastMinutes = 0, lastPosition = 0;
+        double lastMinutes = 0, lastProgress = 0;
         foreach (var point in Points(game, now))
         {
-            var position = Position(timeline.Select(t => (t.At, t.DoneAt <= point.At)));
-            double played = point.Minutes - lastMinutes, progressed = position - lastPosition;
+            double progress = done.Where(d => d.At <= point.At).Sum(d => d.Stretch);
+            double played = point.Minutes - lastMinutes, progressed = progress - lastProgress;
             if (progressed <= 0)
             {
                 lastMinutes = point.Minutes;
@@ -51,7 +63,7 @@ public static class Progress
             if (played <= 0) continue;
             segments.Add((played / progressed, progressed));
             lastMinutes = point.Minutes;
-            lastPosition = position;
+            lastProgress = progress;
         }
         return segments.Sum(s => s.Weight) >= minProgress ? WeightedMedian(segments) : null;
     }

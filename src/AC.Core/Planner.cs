@@ -97,28 +97,18 @@ public static class Planner
     };
 
     /// <summary>
-    /// Estimates count from the start of the game, so what is left is the way from the player's position
-    /// (<see cref="Progress.Position"/>) to the latest locked achievement, with everything before it unlocked along
-    /// the way, plus the ones left behind: each costs the stretch from the previous achievement to it.
+    /// The stretches of locked achievements (<see cref="Progress.Stretches"/>), whatever the order of unlocks.
     /// Computed on the median scale (own estimates are divided by pace), then multiplied by pace.
     /// null - no locked achievement has an estimate.
     /// </summary>
     private static double? Remaining(IReadOnlyList<AchievementRow> rows, double pace)
     {
-        var timeline = rows
-            .Where(r => r.EstimateMinutes.HasValue)
-            .Select(r => (At: r.EstimateIsManual ? r.EstimateMinutes!.Value / pace : r.EstimateMinutes!.Value, Done: r.IsDone))
-            .OrderBy(x => x.At)
-            .ToList();
-        if (timeline.All(x => x.Done)) return null;
+        var estimated = rows.Where(r => r.EstimateMinutes.HasValue).ToList();
+        if (estimated.All(r => r.IsDone)) return null;
 
-        double position = Progress.Position(timeline);
-        double ahead = Math.Max(0, timeline.Where(x => !x.Done).Max(x => x.At) - position);
-        double behind = 0;
-        for (int i = 0; i < timeline.Count; i++)
-            if (!timeline[i].Done && timeline[i].At <= position)
-                behind += timeline[i].At - (i > 0 ? timeline[i - 1].At : 0);
-        return (ahead + behind) * pace;
+        var stretches = Progress.Stretches(estimated.Select(r =>
+            (r.ApiName, r.EstimateIsManual ? r.EstimateMinutes!.Value / pace : r.EstimateMinutes!.Value)));
+        return estimated.Where(r => !r.IsDone).Sum(r => stretches[r.ApiName]) * pace;
     }
 
     private sealed class RowOrder : IComparer<AchievementRow>
