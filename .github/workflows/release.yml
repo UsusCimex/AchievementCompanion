@@ -1,7 +1,6 @@
 name: Release
 
-# Релиз собирается, когда пушится тег вида v0.3.0:
-#   git tag v0.3.0 && git push origin v0.3.0
+# Релиз - пуш аннотированного тега vX.Y.Z; заголовок и описание релиза берутся из сообщения тега.
 on:
   push:
     tags: [ 'v*' ]
@@ -58,9 +57,25 @@ jobs:
           name: AchievementCompanion-win-x64
           path: ${{ env.ZIP }}
 
+      - name: Release notes
+        id: notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          tag="${{ github.ref_name }}"
+          # checkout кладёт тег ссылкой на коммит, без сообщения - забираем сам аннотированный тег.
+          git fetch --force origin "+refs/tags/$tag:refs/tags/$tag"
+          if [ "$(git cat-file -t "refs/tags/$tag")" != tag ]; then
+            echo "::error::Нужен аннотированный тег с описанием: git tag -a $tag --cleanup=whitespace -F notes.md"
+            exit 1
+          fi
+          echo "title=$(git tag -l --format='%(contents:subject)' "$tag")" >> "$GITHUB_OUTPUT"
+          git tag -l --format='%(contents:body)' "$tag" > notes.md
+
       - name: GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ steps.notes.outputs.title }}
+          body_path: notes.md
           files: ${{ env.ZIP }}
-          generate_release_notes: true
