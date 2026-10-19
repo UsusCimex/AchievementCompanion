@@ -15,7 +15,7 @@ public sealed partial class CompletionTimeSource(HttpClient http)
     public async Task<double?> GetMedianMinutesAsync(uint appId, CancellationToken ct = default)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, $"https://completionist.me/steam/app/{appId}");
-        req.Headers.UserAgent.ParseAdd("AchievementCompanion/0.1 (personal use)");
+        req.Headers.UserAgent.ParseAdd($"AchievementCompanion/{typeof(CompletionTimeSource).Assembly.GetName().Version?.ToString(3)} (personal use)");
         using var resp = await http.SendAsync(req, ct);
         if (!resp.IsSuccessStatusCode) return null;
         var html = await resp.Content.ReadAsStringAsync(ct);
