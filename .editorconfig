@@ -23,7 +23,3 @@ charset = utf-8-bom
 # Two trailing spaces are a Markdown line break.
 [*.md]
 trim_trailing_whitespace = false
-
-# Third-party code: original encoding.
-[src/AC.SteamBridge/SAM.API/**.cs]
-charset = utf-8-bom

@@ -308,7 +308,7 @@ public sealed class GameService
     }
 
     /// <summary>
-    /// Writes to Steam right now, like SAM, regardless of the mode in the settings.
+    /// Writes to Steam right now, regardless of the mode in the settings.
     /// Also sets the manual "done" mark. Protected and unlocked ones are skipped.
     /// </summary>
     public async Task<MarkReport> UnlockInSteamAsync(GameData game, IReadOnlyList<string> apiNames, CancellationToken ct = default)

@@ -17,25 +17,25 @@ tools\screenshots.ps1 -DataDir <папка данных> -OutDir <куда> -The
 ## Безопасность при проверке
 
 - Настоящую папку данных пользователя (`%LocalAppData%\AchievementCompanion`) не менять: приложение запускать с `AC_DATA_DIR` на копию.
-- Помощник `bridge\AC.SteamBridge.exe` не запускать: пока он жив, друзья видят пользователя "в игре", а `unlock` пишет достижения в его аккаунт. Для проверки - сборка без папки `bridge`, так работает `tools/screenshots.ps1`.
+- Режим клиента Steam (`AchievementCompanion.exe --steam-client ...`) не запускать: пока он жив, друзья видят пользователя "в игре", а `unlock` пишет достижения в его аккаунт. Для проверки - `AC_NO_STEAM_CLIENT=1`, так работает `tools/screenshots.ps1`.
 - Не открывать окна поверх игры: если `HKCU\Software\Valve\Steam\RunningAppID` не 0, ничего не запускать.
 
 ## Устройство
 
-`AC.App` зависит от `AC.Infrastructure`, тот - от `AC.Core`; `AC.SteamBridge` собирается рядом с приложением в папку `bridge`.
+`AC.App` зависит от `AC.Infrastructure`, тот - от `AC.Core`.
 
 | Проект | Что внутри |
 | --- | --- |
 | `src/AC.Core` | модели и вся логика, тестируется без Steam: статусы (`GameLogic`), тип и глава по тексту (`KindClassifier`), оценка времени (`TimeEstimator`, `SampleStats`), план (`Planner`), фильтры (`AchievementQuery`), экспорт, файл разметки (`TagPack`), разбор файлов Steam (`SteamFormats/`) |
-| `src/AC.Infrastructure` | ввод-вывод: сценарии (`GameService`), Steam Web API, реестр и файлы Steam (`SteamLocal`), запуск помощника (`BridgeClient`), хранилище (`JsonStore`), папка данных (`AppPaths`), журнал ошибок (`AppLog`), DPAPI, completionist.me |
-| `src/AC.SteamBridge` | помощник x86: `read`, `unlock`, `lock` через Steam-клиент, ответ JSON в stdout; `SAM.API/` - код gibbed/SteamAchievementManager |
+| `src/AC.Infrastructure` | ввод-вывод: сценарии (`GameService`), Steam Web API, реестр и файлы Steam (`SteamLocal`), клиент Steam (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), хранилище (`JsonStore`), папка данных (`AppPaths`), журнал ошибок (`AppLog`), DPAPI, completionist.me |
 | `src/AC.App` | интерфейс WPF на встроенной теме Fluent: окна, модели представления, загрузка картинок с кешем (`RemoteImage`), тема (`ThemeManager`), горячие клавиши (`Native`) |
 | `tests/AC.Core.Tests` | тесты логики и хранилища |
 
 Внешних NuGet-пакетов нет: MVVM, тесты, DPAPI и парсеры написаны в проекте.
 
-Помощник отдельный, потому что SAM.API грузит 32-битный `steamclient.dll` и задаёт процессу `SteamAppId`:
-один процесс - одна игра. Он запускается на каждую операцию и сразу выходит; собирается self-contained win-x86.
+Чтение и запись достижений идут через клиент Steam: `steamclient64.dll` и его интерфейсы по таблицам виртуальных методов.
+Steam берёт игру из переменной `SteamAppId` процесса: один процесс - одна игра, поэтому приложение на каждую операцию
+запускает свой же exe с флагом `--steam-client` (`read`, `unlock`, `lock`), тот печатает JSON в stdout и сразу выходит.
 
 ### Данные
 
@@ -57,7 +57,7 @@ tools\screenshots.ps1 -DataDir <папка данных> -OutDir <куда> -The
 | --- | --- |
 | Схема | `GetSchemaForGame` (ключ) и локальный `appcache/stats/UserGameStatsSchema_<appid>.bin`: у скрытых Web API не отдаёт описание, локальная схема отдаёт; там же флаг "защищено" |
 | Глобальные % | `GetGlobalAchievementPercentagesForApp` (без ключа); у части игр Steam их не отдаёт |
-| Статус | `GetPlayerAchievements` (ключ и открытые "Сведения об играх") или помощник |
+| Статус | `GetPlayerAchievements` (ключ и открытые "Сведения об играх") или клиент Steam |
 | Библиотека | `GetOwnedGames` (ключ) |
 | Своя выборка | авторы обзоров `store.steampowered.com/appreviews/<appid>` и их `GetPlayerAchievements` |
 | Запущенная игра и новые открытия | реестр `RunningAppID`, слежение за `appcache/stats/UserGameStats_<accountid>_<appid>.bin` и опрос по таймеру |
@@ -84,7 +84,7 @@ tools\screenshots.ps1 -DataDir <папка данных> -OutDir <куда> -The
 
 1. Отдельный коммит `chore(release): X.Y.Z` с версией в `Directory.Build.props`.
 2. Описание - в аннотированном теге: `git tag -a vX.Y.Z --cleanup=whitespace -F notes.md` (без `--cleanup` git выбросит строки на `#`, то есть заголовки). Первая строка - заголовок (`Achievement Companion X.Y.Z`), дальше группы `## Новое`, `## Изменено`, `## Исправлено`: коротко, что заметит пользователь, без деталей реализации.
-3. `git push origin main vX.Y.Z`: `release.yml` прогонит тесты, соберёт zip (exe single-file и помощник) и создаст релиз с описанием из тега.
+3. `git push origin main vX.Y.Z`: `release.yml` прогонит тесты, соберёт zip (exe single-file) и создаст релиз с описанием из тега.
 
 ## Ограничения
 

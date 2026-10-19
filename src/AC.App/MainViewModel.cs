@@ -276,7 +276,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ExportTagsCommand { get; }
     public RelayCommand ImportTagsCommand { get; }
     public AsyncCommand RevertCommand { get; }
-    /// <summary>Write to Steam now, like SAM. Parameter: a row or a list of selected rows.</summary>
+    /// <summary>Write to Steam now. Parameter: a row or a list of selected rows.</summary>
     public AsyncCommand UnlockInSteamCommand { get; }
     /// <summary>Same from the overlay: no dialogs, they may hide behind the game.</summary>
     public AsyncCommand OverlayUnlockCommand { get; }

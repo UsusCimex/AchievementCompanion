@@ -1,11 +1,12 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AC.Core;
 
 namespace AC.Infrastructure;
 
-// DTOs mirror the AC.SteamBridge output (snake_case). The helper is an x86 exe, so it cannot be referenced directly.
 public sealed class BridgeAchievementDto
 {
     public string ApiName { get; set; } = "";
@@ -37,29 +38,38 @@ public sealed class BridgeResultDto
     public List<BridgeChangeDto>? Changes { get; set; }
 }
 
-/// <summary>Runs AC.SteamBridge.exe and parses its answer.</summary>
+/// <summary>
+/// Runs the app's own exe as the Steam helper (<see cref="SteamClientCommand"/>) and reads its answer. A separate
+/// short-lived process, because Steam takes the process that connects for the game and shows the user in it.
+/// </summary>
+[SupportedOSPlatform("windows")]
 public sealed class BridgeClient
 {
-    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
+    public static readonly JsonSerializerOptions Json = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
     private static readonly SemaphoreSlim OneAtATime = new(1, 1);
 
     public string ExePath { get; }
 
     public BridgeClient(string? exePath = null)
     {
-        ExePath = exePath ?? FindExe();
+        ExePath = exePath ?? Environment.ProcessPath ?? "";
     }
 
-    public bool Exists => File.Exists(ExePath);
+    /// <summary>The helper can run; AC_NO_STEAM_CLIENT=1 turns it off (scripted screenshots must not touch Steam).</summary>
+    public bool Exists => File.Exists(ExePath) && Environment.GetEnvironmentVariable("AC_NO_STEAM_CLIENT") != "1";
 
     public Task<BridgeResultDto> ReadAsync(uint appId, string language, CancellationToken ct = default) =>
-        RunAsync(new[] { "read", appId.ToString(), "--lang", language }, ct);
+        RunAsync(["read", appId.ToString(), "--lang", language], ct);
 
     public Task<BridgeResultDto> UnlockAsync(uint appId, IEnumerable<string> apiNames, CancellationToken ct = default) =>
-        RunAsync(new[] { "unlock", appId.ToString() }.Concat(apiNames).ToArray(), ct);
+        RunAsync(["unlock", appId.ToString(), .. apiNames], ct);
 
     public Task<BridgeResultDto> LockAsync(uint appId, IEnumerable<string> apiNames, CancellationToken ct = default) =>
-        RunAsync(new[] { "lock", appId.ToString() }.Concat(apiNames).ToArray(), ct);
+        RunAsync(["lock", appId.ToString(), .. apiNames], ct);
 
     private async Task<BridgeResultDto> RunAsync(string[] args, CancellationToken ct)
     {
@@ -77,9 +87,8 @@ public sealed class BridgeClient
                 RedirectStandardError = true,
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8,
-                WorkingDirectory = Path.GetDirectoryName(ExePath)!,
             };
-            foreach (var a in args) psi.ArgumentList.Add(a);
+            foreach (var a in (string[])[SteamClientCommand.Flag, .. args, "--ui", Loc.Language]) psi.ArgumentList.Add(a);
 
             using var p = Process.Start(psi) ?? throw new InvalidOperationException(Loc.T("error.bridgeStart"));
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -114,19 +123,5 @@ public sealed class BridgeClient
         {
             OneAtATime.Release();
         }
-    }
-
-    private static string FindExe()
-    {
-        var baseDir = AppContext.BaseDirectory;
-        foreach (var candidate in new[]
-                 {
-                     Path.Combine(baseDir, "bridge", "AC.SteamBridge.exe"),
-                     Path.Combine(baseDir, "AC.SteamBridge.exe"),
-                 })
-        {
-            if (File.Exists(candidate)) return candidate;
-        }
-        return Path.Combine(baseDir, "bridge", "AC.SteamBridge.exe");
     }
 }

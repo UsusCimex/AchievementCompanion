@@ -475,6 +475,28 @@ static class Tests
         Assert.Equal("https://cdn.steamstatic.com/steamcommunity/public/images/apps/480/abc.jpg", StatsSchemaReader.IconUrl(480, list[0].Icon));
     }
 
+    public static void SteamClient_ParseCommand()
+    {
+        var read = AC.Infrastructure.BridgeCommand.Parse(["read", "480", "--lang", "russian", "--ui", "ru"]);
+        Assert.Equal(AC.Infrastructure.BridgeAction.Read, read.Action);
+        Assert.Equal(480u, read.AppId);
+        Assert.Equal("russian", read.Language);
+        Assert.Equal("ru", read.UiLanguage);
+        Assert.Equal(0, read.Names.Count);
+
+        var unlock = AC.Infrastructure.BridgeCommand.Parse(["UNLOCK", "480", "A", "--lang", "english", "B", "A"]);
+        Assert.Equal(AC.Infrastructure.BridgeAction.Unlock, unlock.Action);
+        Assert.Equal("A,B", string.Join(",", unlock.Names));
+
+        foreach (string[] bad in (string[][])[["read"], ["fly", "480"], ["read", "-1"], ["read", "0"], ["read", "4x"], ["lock", "480"]])
+        {
+            bool threw = false;
+            try { AC.Infrastructure.BridgeCommand.Parse(bad); }
+            catch (ArgumentException) { threw = true; }
+            Assert.True(threw, "accepted " + string.Join(" ", bad));
+        }
+    }
+
     public static void Vdf_LoginUsers()
     {
         const string vdf = """

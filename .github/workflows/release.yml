@@ -31,10 +31,6 @@ jobs:
       - name: Tests
         run: dotnet run --project tests/AC.Core.Tests -c Release
 
-      # Helper: x86, self-contained (RID is set in its csproj)
-      - name: Publish SteamBridge
-        run: dotnet publish src/AC.SteamBridge -c Release -o out/bridge -p:Version=${{ steps.ver.outputs.num }}
-
       # App: one exe, no .NET install needed
       - name: Publish app
         run: >
@@ -45,8 +41,6 @@ jobs:
       - name: Pack
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force out/app/bridge | Out-Null
-          Copy-Item out/bridge/* out/app/bridge -Recurse -Force
           Get-ChildItem out/app -Filter *.pdb -Recurse | Remove-Item
           $zip = "AchievementCompanion-${{ steps.ver.outputs.tag }}-win-x64.zip"
           Compress-Archive -Path out/app/* -DestinationPath $zip

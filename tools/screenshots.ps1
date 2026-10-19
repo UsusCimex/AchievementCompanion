@@ -2,8 +2,8 @@
 .SYNOPSIS
     Screenshots of the app windows for UI checks and the README.
 .DESCRIPTION
-    Works on copies: the build is copied without the bridge folder (the helper cannot start and show you in-game),
-    the data folder goes to a temp folder (the original is untouched). The data folder needs settings.json and
+    Works on copies: the build runs with the Steam client turned off (AC_NO_STEAM_CLIENT, so it cannot show you
+    in-game or write achievements), the data folder goes to a temp folder (the original is untouched). The data folder needs settings.json and
     games\<appid>.json; the game from LastAppId opens. Takes the main window, the plan tab, the overlay over the
     main window and the overlay alone on a transparent background.
     -Set overrides settings in the copy: "Key=value;Key=value", the value is JSON or a string.
@@ -94,11 +94,12 @@ $data = Join-Path $tmp "data"
 # A full path: Bitmap.Save resolves a relative path against the process folder, not PowerShell's current one.
 $OutDir = (New-Item -ItemType Directory -Force $OutDir).FullName
 Copy-Item (Resolve-Path $Build) $app -Recurse
-Remove-Item (Join-Path $app "bridge") -Recurse -Force -ErrorAction SilentlyContinue
-# A build without AC_DATA_DIR would open the user's real data folder.
+# A build without these switches would open the user's real data folder or connect to Steam.
 $latin = [Text.Encoding]::GetEncoding(28591)
 $infra = $latin.GetString([IO.File]::ReadAllBytes((Join-Path $app "AC.Infrastructure.dll")))
-if (-not $infra.Contains($latin.GetString([Text.Encoding]::Unicode.GetBytes("AC_DATA_DIR")))) { throw "The build does not support AC_DATA_DIR - not starting it" }
+foreach ($switch in "AC_DATA_DIR", "AC_NO_STEAM_CLIENT") {
+    if (-not $infra.Contains($latin.GetString([Text.Encoding]::Unicode.GetBytes($switch)))) { throw "The build does not support $switch - not starting it" }
+}
 Copy-Item (Resolve-Path $DataDir) $data -Recurse
 $settingsPath = Join-Path $data "settings.json"
 $settings = Get-Content $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -113,6 +114,7 @@ foreach ($pair in ($Set -split ";" | Where-Object { $_ })) {
 $psi = New-Object Diagnostics.ProcessStartInfo (Join-Path $app "AchievementCompanion.exe")
 $psi.UseShellExecute = $false
 $psi.EnvironmentVariables["AC_DATA_DIR"] = $data
+$psi.EnvironmentVariables["AC_NO_STEAM_CLIENT"] = "1"
 # Hardware rendering stops while the display is off, software rendering does not.
 $psi.EnvironmentVariables["AC_SOFTWARE_RENDERING"] = "1"
 $p = [Diagnostics.Process]::Start($psi)

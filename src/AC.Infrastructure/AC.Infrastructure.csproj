@@ -3,6 +3,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>AC.Infrastructure</RootNamespace>
     <!-- Registry and DPAPI are Windows-only; calls are marked SupportedOSPlatform. -->
+    <!-- The Steam client is called through raw C++ virtual tables (SteamClientSession). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\AC.Core\AC.Core.csproj" />
