@@ -1,104 +1,114 @@
 # AGENTS.md
 
-Инструкции для агентов и людей, которые правят код. Что умеет приложение и как им пользоваться - в [README](README.md).
+For agents and people who change the code. What the app does and how to use it is in the [README](README.md).
 
-## Команды
+## Commands
 
 ```
 dotnet build AchievementCompanion.sln -c Release
 dotnet run --project tests/AC.Core.Tests -c Release
-tools\screenshots.ps1 -DataDir <папка данных> -OutDir <куда> -Theme Dark
+tools\screenshots.ps1 -DataDir <data folder> -OutDir <output> -Theme Dark -Set "UiLanguage=ru"
 ```
 
-Тесты - консольный раннер без пакетов: печатает OK/FAIL по каждому тесту и итог, при провале код выхода 1.
-Изменения интерфейса проверять скриншотами в обеих темах: сборка проходит и тогда, когда разметка сломана.
-Скрипт снимает на копиях сборки и папки данных, поэтому ему можно дать и настоящую папку.
+Tests are a console runner without packages: OK/FAIL per test and a total, exit code 1 on failure.
+Check UI changes with screenshots in both themes: the build passes even when the markup is broken.
+The script works on copies of the build and of the data folder, so the real folder is fine as input.
 
-## Безопасность при проверке
+## Safety while checking
 
-- Настоящую папку данных пользователя (`%LocalAppData%\AchievementCompanion`) не менять: приложение запускать с `AC_DATA_DIR` на копию.
-- Режим клиента Steam (`AchievementCompanion.exe --steam-client ...`) не запускать: пока он жив, друзья видят пользователя "в игре", а `unlock` пишет достижения в его аккаунт. Для проверки - `AC_NO_STEAM_CLIENT=1`, так работает `tools/screenshots.ps1`.
-- Не открывать окна поверх игры: если `HKCU\Software\Valve\Steam\RunningAppID` не 0, ничего не запускать.
+- Do not change the user's real data folder (`%LocalAppData%\AchievementCompanion`): run the app with `AC_DATA_DIR` pointing to a copy.
+- Do not run the Steam client mode (`AchievementCompanion.exe --steam-client ...`): while it runs, friends see the user "in game", and `unlock` writes achievements to their account. Check with `AC_NO_STEAM_CLIENT=1`, as `tools/screenshots.ps1` does.
+- Do not open windows over a game: if `HKCU\Software\Valve\Steam\RunningAppID` is not 0, start nothing.
 
-## Устройство
-
-`AC.App` зависит от `AC.Infrastructure`, тот - от `AC.Core`.
-
-| Проект | Что внутри |
+| Variable | Effect |
 | --- | --- |
-| `src/AC.Core` | модели и вся логика, тестируется без Steam: статусы (`GameLogic`), тип и глава по тексту (`KindClassifier`), оценка времени (`TimeEstimator`, `SampleStats`), план (`Planner`), фильтры (`AchievementQuery`), экспорт, файл разметки (`TagPack`), разбор файлов Steam (`SteamFormats/`) |
-| `src/AC.Infrastructure` | ввод-вывод: сценарии (`GameService`), Steam Web API, реестр и файлы Steam (`SteamLocal`), клиент Steam (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), хранилище (`JsonStore`), папка данных (`AppPaths`), журнал ошибок (`AppLog`), DPAPI, completionist.me |
-| `src/AC.App` | интерфейс WPF на встроенной теме Fluent: окна, модели представления, загрузка картинок с кешем (`RemoteImage`), тема (`ThemeManager`), горячие клавиши (`Native`) |
-| `tests/AC.Core.Tests` | тесты логики и хранилища |
+| `AC_DATA_DIR` | data folder |
+| `AC_NO_STEAM_CLIENT=1` | the app never connects to the Steam client |
+| `AC_SOFTWARE_RENDERING=1` | software rendering: hardware rendering stops while the display is off |
+| `AC_UPDATE_URL` | another "latest release" JSON, for testing updates against a local server |
 
-Внешних NuGet-пакетов нет: MVVM, тесты, DPAPI и парсеры написаны в проекте.
+## Structure
 
-Чтение и запись достижений идут через клиент Steam: `steamclient64.dll` и его интерфейсы по таблицам виртуальных методов.
-Steam берёт игру из переменной `SteamAppId` процесса: один процесс - одна игра, поэтому приложение на каждую операцию
-запускает свой же exe с флагом `--steam-client` (`read`, `unlock`, `lock`), тот печатает JSON в stdout и сразу выходит.
+`AC.App` depends on `AC.Infrastructure`, which depends on `AC.Core`.
 
-### Данные
-
-Папка - `AppPaths.DataRoot`: `AC_DATA_DIR`, иначе `data` рядом с exe (портативный режим), иначе `%LocalAppData%\AchievementCompanion`.
-
-| Файл | Что внутри |
+| Project | Contents |
 | --- | --- |
-| `games/<appid>.json` | схема, состояния, разметка (тип, группа, источник auto/manual), оценки времени, очередь на запись, своё время в игре и история наигранного, выборка |
-| `summary.json` | прогресс игр для библиотеки, чтобы не читать файлы игр |
-| `settings.json` | настройки; API-ключ зашифрован DPAPI |
-| `library.json` | кеш библиотеки |
-| `unlock_log.jsonl` | журнал записей в Steam |
-| `app.log` | ошибки и запуски, при 1 МБ уходит в `app.log.1` |
-| `cache/images/` | картинки, при 300 МБ чистится до 200 МБ |
+| `src/AC.Core` | models and all logic, tested without Steam: statuses (`GameLogic`), kind and chapter from the text (`KindClassifier`), time estimates (`TimeEstimator`, `SampleStats`, `Progress`), plan (`Planner`), filters (`AchievementQuery`), export, tags file (`TagPack`), Steam file formats (`SteamFormats/`), texts (`Loc`, `Lang/`) |
+| `src/AC.Infrastructure` | I/O: use cases (`GameService`), Steam Web API, registry and Steam files (`SteamLocal`), Steam client (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), storage (`JsonStore`), data folder (`AppPaths`), error log (`AppLog`), DPAPI, completionist.me, updates (`UpdateService`) |
+| `src/AC.App` | WPF UI on the built-in Fluent theme: windows, view models, cached image loading (`RemoteImage`), theme (`ThemeManager`), hotkeys (`Native`) |
+| `tests/AC.Core.Tests` | tests of the logic and storage |
 
-### Источники
+No NuGet packages: MVVM, tests, DPAPI and parsers are written in the project.
 
-| Что | Откуда |
+Achievements are read and written through the Steam client: `steamclient64.dll` and its interfaces via their virtual tables.
+Steam takes the game from the process's `SteamAppId`: one process, one game. So for every operation the app starts its own
+exe with `--steam-client` (`read`, `unlock`, `lock`); it prints JSON to stdout and exits.
+
+### Texts
+
+- Interface texts are in `src/AC.Core/Lang/<lang>.json`: English (`en.json`) is the default and the fallback, the others are translations.
+- In XAML `{local:Tr section.key}`, in code `Loc.T("section.key", args)` and `Loc.Plural("section.key", n, args)`.
+- A text with a number is an object of plural forms: `one`/`other` in English, `one`/`few`/`many` in Russian.
+- Tests check that every language has the same keys and placeholders, and that every key is used in the code.
+- A new language: `<code>.json` with `language.name` and `language.steam`; plural rules other than one/other go to `Loc.Category`.
+
+### Data
+
+The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (portable mode), else `%LocalAppData%\AchievementCompanion`.
+
+| File | Contents |
 | --- | --- |
-| Схема | `GetSchemaForGame` (ключ) и локальный `appcache/stats/UserGameStatsSchema_<appid>.bin`: у скрытых Web API не отдаёт описание, локальная схема отдаёт; там же флаг "защищено" |
-| Глобальные % | `GetGlobalAchievementPercentagesForApp` (без ключа); у части игр Steam их не отдаёт |
-| Статус | `GetPlayerAchievements` (ключ и открытые "Сведения об играх") или клиент Steam |
-| Библиотека | `GetOwnedGames` (ключ); свежие часы одной игры - он же с `appids_filter` |
-| Своя выборка | авторы обзоров `store.steampowered.com/appreviews/<appid>` и их `GetPlayerAchievements` |
-| Запущенная игра и новые открытия | реестр `RunningAppID`, слежение за `appcache/stats/UserGameStats_<accountid>_<appid>.bin` и опрос по таймеру |
-| Обновления (`UpdateService`) | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: zip `*-win-x64.zip`, проверка SHA-256 из `digest`; `AC_UPDATE_URL` - другой адрес (локальный тестовый релиз). Старый exe переименовывается в `*.old` и удаляется при следующем запуске |
+| `games/<appid>.json` | schema, states, tags (kind, group, auto/manual source), time estimates, write queue, own playtime and playtime history, player sample |
+| `summary.json` | game progress for the library, so game files are not read |
+| `settings.json` | settings; the API key is encrypted with DPAPI |
+| `library.json` | library cache |
+| `unlock_log.jsonl` | log of writes to Steam |
+| `app.log` | errors and starts, moved to `app.log.1` at 1 MB |
+| `cache/images/` | images, trimmed to 200 MB at 300 MB |
 
-### Время
+### Sources
 
-- У достижения: своя оценка, иначе замер по выборке, иначе модель по редкости: t = T x ln(maxPct / pct) / ln(maxPct / minPct). P75 и P90 - запас x1.3 и x1.7.
-- T (время до 100%): вручную или completionist.me, иначе медиана выборки, иначе вывод из своего темпа.
-- Позиция (`Progress`): самое дальнее полученное достижение на шкале "минуты от начала".
-- Остаток (`Planner`): путь от позиции до самого позднего неполученного (всё до него берётся по дороге) плюс оставленные позади: каждое стоит отрезка от предыдущего достижения. Всё умножается на темп.
-- Темп: минуты Steam между снимками наигранного (`PlaytimeHistory`: при загрузке игры вне сессии и после сессии, плюс точка двухнедельной давности из Steam) делятся на прогресс за то же время, берётся медиана с весом прогресса. Отрезки без прогресса (AFK, открытая игра) не считаются. Темп от 1 до 3: быстрее медианы не ускоряем.
-- Выборка (`SampleStats`): до 300 авторов обзоров, пока не наберётся 80 открытых профилей; между точками "момент - наиграно" игра считается равномерной.
+| What | Where from |
+| --- | --- |
+| Schema | `GetSchemaForGame` (key) and the local `appcache/stats/UserGameStatsSchema_<appid>.bin`: the Web API gives no descriptions of hidden ones, the local schema does; it also has the "protected" flag |
+| Global % | `GetGlobalAchievementPercentagesForApp` (no key); Steam gives none for some games |
+| Status | `GetPlayerAchievements` (key and public "Game details") or the Steam client |
+| Library | `GetOwnedGames` (key); fresh playtime of one game - the same call with `appids_filter` |
+| Own sample | authors of `store.steampowered.com/appreviews/<appid>` and their `GetPlayerAchievements` |
+| Running game and new unlocks | registry `RunningAppID`, watching `appcache/stats/UserGameStats_<accountid>_<appid>.bin` and polling on a timer |
+| Updates | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: the `*-win-x64.zip` asset, checked against its SHA-256 `digest`; the running exe is renamed to `*.old` and removed on the next start |
 
-## Правила
+### Time
 
-- Идентификаторы и коммиты по-английски; комментарии, логи и интерфейс по-русски.
-- Комментарий - только ради неочевидного: почему, а не что. Без истории изменений, ссылок на задачи и закомментированного кода.
-- Тексты (интерфейс, документы, комментарии) - только символы с клавиатуры: дефис вместо тире, прямые кавычки, три точки.
-- Цвета - из темы Fluent через `DynamicResource`; своих цветов нет, кроме палитры редкости в `ThemeManager` и шапки с оверлеем (они всегда тёмные).
-- Коммиты - [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): what`, повелительное наклонение, до 72 символов, в теле - зачем. Одно законченное изменение на коммит вместе с тестами. Коммитить только то, что запускалось. Без Co-Authored-By и ссылок на сессии.
-- CHANGELOG не ведётся: что изменилось, пишется в описании релиза.
+- Per achievement: own estimate, else measured in the sample, else the rarity model: t = T x ln(maxPct / pct) / ln(maxPct / minPct). P75 and P90 are margins of x1.3 and x1.7.
+- T (time to 100%): manual or completionist.me, else the sample median, else derived from own pace.
+- Position (`Progress`): the furthest unlocked achievement on the "minutes from the start" scale.
+- Time left (`Planner`): the way from the position to the latest locked achievement (everything before it comes along the way) plus the ones left behind, each costing the stretch from the previous achievement. All of it times the pace.
+- Pace: Steam minutes between playtime snapshots (`PlaytimeHistory`: when a game loads outside a session, after a session, and two weeks back from Steam) divided by the progress made between them, as a progress-weighted median. Stretches without progress (AFK, a game left open) do not count. From 1 to 3: faster than the median gives no speed-up.
+- Sample (`SampleStats`): up to 300 review authors until 80 public profiles; between "moment - minutes played" points play is taken as even.
 
-## Релиз
+## Rules
 
-Каждое законченное изменение выходит релизом. Версия - [SemVer](https://semver.org/): новое - minor, исправления - patch.
+- Everything is in English: identifiers, comments, logs, commits, docs, issues. Interface texts go through the language files.
+- A comment only for the non-obvious: why, not what. No change history, task links or commented-out code.
+- Texts (interface, docs, comments) use keyboard characters only: a hyphen instead of dashes, straight quotes, three dots.
+- Colors come from the Fluent theme via `DynamicResource`; no own colors except the rarity palette in `ThemeManager` and the hero and overlay (always dark).
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): what`, imperative, up to 72 characters, the body says why. One finished change per commit, with its tests. Commit only what was run. No Co-Authored-By or session links.
+- The backlog is GitHub issues: every request gets an issue, a commit closes it (`Closes #N`).
+- No CHANGELOG: the release notes say what changed.
 
-1. Отдельный коммит `chore(release): X.Y.Z` с версией в `Directory.Build.props`.
-2. Описание - в аннотированном теге: `git tag -a vX.Y.Z --cleanup=whitespace -F notes.md` (без `--cleanup` git выбросит строки на `#`, то есть заголовки). Первая строка - заголовок (`Achievement Companion X.Y.Z`), дальше группы `## Новое`, `## Изменено`, `## Исправлено`: коротко, что заметит пользователь, без деталей реализации.
-3. `git push origin main vX.Y.Z`: `release.yml` прогонит тесты, соберёт zip (exe single-file) и создаст релиз с описанием из тега.
+## Release
 
-## Ограничения
+Every finished change is released. Versions follow [SemVer](https://semver.org/): new features - minor, fixes - patch.
 
-- Оверлей не виден в эксклюзивном полноэкранном режиме игры: это обычное окно поверх, в игру ничего не внедряется (античиты).
-- Выборка шумная, если у авторов обзоров мало открытых профилей; авторы обзоров играют больше среднего.
-- completionist.me закрыт проверкой Cloudflare и отвечает приложению 403: время до 100% - вручную или из выборки. Если проверку снимут, разбор всё равно зависит от вёрстки сайта.
-- Только Windows (WPF).
-- Обновления видны только из публичного репозитория: у приватного GitHub отвечает 404, и проверка молчит.
+1. A separate `chore(release): X.Y.Z` commit with the version in `Directory.Build.props`.
+2. The notes go into an annotated tag: `git tag -a vX.Y.Z --cleanup=whitespace -F notes.md` (without `--cleanup` git drops lines starting with `#`, the headings). The first line is the title (`Achievement Companion X.Y.Z`), then the groups `## New`, `## Changed`, `## Fixed`: short, what a user notices, no implementation details.
+3. `git push origin main vX.Y.Z`: `release.yml` runs the tests, builds the zip (a single-file exe) and creates the release with the notes from the tag.
 
-## Идеи
+## Limits
 
-- Сбор выборки в фоне и обновление раз в неделю.
-- Гайды и списки миссибл в файле разметки, текст гайда в приложении.
-- Предупреждение о пропущенном миссибл (глава закончилась, а достижения нет).
+- The overlay is not visible over exclusive fullscreen: it is a plain window on top, nothing is injected into the game (anti-cheat).
+- The sample is noisy when few review authors have public profiles; review authors play more than average.
+- completionist.me is behind a Cloudflare check and answers the app with 403: time to 100% is manual or from the sample. Even without the check, parsing depends on the site's markup.
+- Windows only (WPF).
+- Updates are seen only from a public repository: for a private one GitHub answers 404 and the check stays silent.
