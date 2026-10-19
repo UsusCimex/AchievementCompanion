@@ -25,7 +25,14 @@ public partial class SettingsWindow : Window
         OpacitySlider.Value = s.OverlayOpacity;
         NearestBox.Text = s.OverlayNearestCount.ToString(CultureInfo.InvariantCulture);
         PollBox.Text = s.PollSeconds.ToString(CultureInfo.InvariantCulture);
+        DataDirBox.Text = AppPaths.DataRoot;
+        DataDirHint.Text = AppPaths.IsPortable
+            ? "Портативный режим: данные лежат в папке data рядом с программой."
+            : $"Игры и настройки. Чтобы держать данные рядом с программой, создай рядом с ней папку data; другую папку можно задать переменной окружения {AppPaths.DataDirVariable}.";
     }
+
+    private void OnOpenDataDir(object sender, RoutedEventArgs e) =>
+        Process.Start(new ProcessStartInfo(AppPaths.DataRoot) { UseShellExecute = true });
 
     private void OnGetKey(object sender, RoutedEventArgs e) =>
         Process.Start(new ProcessStartInfo("https://steamcommunity.com/dev/apikey") { UseShellExecute = true });

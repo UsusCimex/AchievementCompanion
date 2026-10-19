@@ -6,7 +6,7 @@ namespace AC.Infrastructure;
 
 /// <summary>
 /// Локальное хранилище: по файлу JSON на игру, настройки, кеш библиотеки и журнал записей в Steam.
-/// Папка по умолчанию: %LocalAppData%\AchievementCompanion.
+/// Папка по умолчанию - AppPaths.DataRoot (обычно %LocalAppData%\AchievementCompanion).
 /// </summary>
 public sealed class JsonStore
 {
@@ -20,9 +20,7 @@ public sealed class JsonStore
 
     public JsonStore(string? root = null)
     {
-        Root = root ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "AchievementCompanion");
+        Root = root ?? AppPaths.DataRoot;
         Directory.CreateDirectory(GamesDir);
     }
 

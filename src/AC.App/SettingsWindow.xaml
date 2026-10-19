@@ -38,7 +38,7 @@
                         <ComboBox x:Name="LanguageBox" ItemsSource="{x:Static local:Options.Languages}" HorizontalAlignment="Stretch" />
 
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,0"
-                                   Text="Ключ хранится зашифрованным (Windows DPAPI) в %LocalAppData%\AchievementCompanion. На странице ключа в поле домена можно вписать localhost. Для статуса из Web API в приватности Steam должны быть открыты &quot;Сведения об играх&quot;." />
+                                   Text="Ключ хранится зашифрованным (Windows DPAPI) в папке данных. На странице ключа в поле домена можно вписать localhost. Для статуса из Web API в приватности Steam должны быть открыты &quot;Сведения об играх&quot;." />
                     </StackPanel>
                 </Border>
 
@@ -100,6 +100,18 @@
                         <TextBox x:Name="NearestBox" Width="90" HorizontalAlignment="Left" />
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
                                    Text="Сочетания вида Ctrl+Shift+A. Оверлей виден в оконном и полноэкранном оконном (borderless) режиме игры." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Данные -->
+                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Данные" Style="{StaticResource Subtitle}" Margin="0,0,0,10" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Открыть папку" Margin="8,0,0,0" Click="OnOpenDataDir" />
+                            <TextBox x:Name="DataDirBox" IsReadOnly="True" />
+                        </DockPanel>
+                        <TextBlock x:Name="DataDirHint" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
             </StackPanel>
