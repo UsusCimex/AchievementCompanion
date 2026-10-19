@@ -5,14 +5,16 @@
     Работает на копиях: сборка копируется без папки bridge (помощник не запустится и не покажет тебя в игре),
     папка данных - во временную (оригинал не меняется). Нужна папка данных с settings.json и games\<appid>.json;
     открывается игра из LastAppId. Снимает главное окно, вкладку плана и оверлей.
+    -Set подменяет настройки в копии: "Ключ=значение;Ключ=значение", значение - JSON или строка.
 .EXAMPLE
     dotnet build -c Release
-    .\tools\screenshots.ps1 -DataDir D:\ac-demo -OutDir docs\images -Theme Dark
+    .\tools\screenshots.ps1 -DataDir D:\ac-demo -OutDir docs\images -Theme Dark -Set "ManualUnlocks=true"
 #>
 param(
     [Parameter(Mandatory)] [string] $DataDir,
     [Parameter(Mandatory)] [string] $OutDir,
     [ValidateSet("Light", "Dark")] [string] $Theme = "Dark",
+    [string] $Set = "",
     [string] $Build,
     [int] $SelectIndex = 1
 )
@@ -88,6 +90,11 @@ Copy-Item (Resolve-Path $DataDir) $data -Recurse
 $settingsPath = Join-Path $data "settings.json"
 $settings = Get-Content $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $settings | Add-Member -NotePropertyName Theme -NotePropertyValue $Theme -Force
+foreach ($pair in ($Set -split ";" | Where-Object { $_ })) {
+    $key, $value = $pair -split "=", 2
+    try { $value = $value | ConvertFrom-Json } catch { }
+    $settings | Add-Member -NotePropertyName $key.Trim() -NotePropertyValue $value -Force
+}
 [IO.File]::WriteAllText($settingsPath, ($settings | ConvertTo-Json -Depth 5))
 
 $psi = New-Object Diagnostics.ProcessStartInfo (Join-Path $app "AchievementCompanion.exe")
@@ -103,10 +110,13 @@ try {
     $items = WaitFor { $i = $list.FindAll($TS::Children, (Cond $AE::ControlTypeProperty $CT::ListItem)); if ($i.Count -gt $SelectIndex) { , $i } } 60 "достижения"
     $items[$SelectIndex].GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Seconds 4
+    # Другие окна поверх могли подняться, пока ждали (окно на экране снимается как есть).
+    [Shot]::TopMost($hwnd); Start-Sleep -Milliseconds 300
     [Shot]::Grab($hwnd, (Join-Path $OutDir "main-$suffix.png"))
 
     (Named $win $CT::TabItem "План до 100%").GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Seconds 3
+    [Shot]::TopMost($hwnd); Start-Sleep -Milliseconds 300
     [Shot]::Grab($hwnd, (Join-Path $OutDir "plan-$suffix.png"))
 
     (Named $win $CT::TabItem "Достижения").GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
