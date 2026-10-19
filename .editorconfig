@@ -1,0 +1,29 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{csproj,props,json,yml,manifest}]
+indent_size = 2
+
+# Так сохраняет Visual Studio.
+[*.sln]
+charset = utf-8-bom
+indent_style = tab
+
+# Без BOM Windows PowerShell 5.1 читает скрипт в кодировке ANSI и ломает кириллицу.
+[*.ps1]
+charset = utf-8-bom
+
+# Два пробела в конце строки - перенос в Markdown.
+[*.md]
+trim_trailing_whitespace = false
+
+# Чужой код: кодировка как в оригинале.
+[src/AC.SteamBridge/SAM.API/**.cs]
+charset = utf-8-bom
