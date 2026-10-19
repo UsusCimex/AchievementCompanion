@@ -21,6 +21,9 @@
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
     <RuntimeIdentifier>win-x86</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
+    <!-- dotnet publish приложения с -r win-x64 восстанавливает и помощник под win-x64;
+         без win-x86 в списке его сборка падает с NETSDK1047. -->
+    <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\AC.Core\AC.Core.csproj" />
