@@ -831,6 +831,14 @@
             </TabControl>
 
             <DockPanel Grid.Row="3" Margin="0,8,0,0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0"
+                            Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding UpdateText}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Button x:Name="UpdateButton" Content="{local:Tr update.install}" Command="{Binding InstallUpdateCommand}"
+                            Style="{DynamicResource AccentButtonStyle}" Padding="10,2" />
+                    <Button x:Name="UpdateNotesButton" Content="{local:Tr update.notes}" Command="{Binding UpdateNotesCommand}"
+                            Padding="10,2" Margin="6,0,0,0" />
+                </StackPanel>
                 <ProgressBar DockPanel.Dock="Right" Width="120" Height="4" IsIndeterminate="True" VerticalAlignment="Center"
                              Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
                 <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis"

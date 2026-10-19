@@ -63,6 +63,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         UnlockInSteamCommand = new AsyncCommand(p => UnlockInSteamAsync(p, fromOverlay: false), OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
         OverlayUnlockCommand = new AsyncCommand(p => UnlockInSteamAsync(p, fromOverlay: true), OnError, p => _game != null && RowsFrom(p).Any(r => r.CanWriteToSteam));
         OverlayMarkCommand = new RelayCommand(p => { if (p is AchievementRowViewModel r) MarkDoneFromOverlay(r); }, _ => ManualUnlocks);
+        InstallUpdateCommand = new AsyncCommand(InstallUpdateAsync, OnError, () => _update != null && !IsBusy);
+        UpdateNotesCommand = new RelayCommand(() => OpenUrl(_update?.PageUrl), () => _update != null);
 
         _runningTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _runningTimer.Tick += async (_, _) => await OnRunningTickAsync();
@@ -281,6 +283,45 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Same from the overlay: no dialogs, they may hide behind the game.</summary>
     public AsyncCommand OverlayUnlockCommand { get; }
     public RelayCommand OverlayMarkCommand { get; }
+    public AsyncCommand InstallUpdateCommand { get; }
+    public RelayCommand UpdateNotesCommand { get; }
+
+    // ---------- updates ----------
+
+    private UpdateInfo? _update;
+    public bool HasUpdate => _update != null;
+    public string UpdateText => _update is { } u ? Loc.T("update.available", u.Version.ToString(3)) : "";
+
+    private async Task CheckUpdateAsync()
+    {
+        if (!_svc.Settings.CheckUpdates) return;
+        try
+        {
+            _update = await _svc.Updates.CheckAsync();
+        }
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            AppLog.Info("Update check: " + e.Message);
+            return;
+        }
+        OnPropertyChanged(nameof(HasUpdate));
+        OnPropertyChanged(nameof(UpdateText));
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>A build from source cannot replace itself: then the release page opens instead.</summary>
+    private async Task InstallUpdateAsync()
+    {
+        if (_update is not { } update) return;
+        if (!UpdateService.CanInstall)
+        {
+            OpenUrl(update.PageUrl);
+            return;
+        }
+        await Busy(Loc.T("update.downloading", update.Version.ToString(3)), () => _svc.Updates.InstallAsync(update));
+        UpdateService.Restart();
+        Application.Current.Shutdown();
+    }
 
     public async Task StartAsync()
     {
@@ -296,6 +337,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var running = SteamLocal.RunningAppId();
         var start = running != 0 ? running : _svc.Settings.LastAppId;
         if (start != 0) await SafeAsync(() => LoadAsync(start, Library.FirstOrDefault(g => g.AppId == start)?.Name));
+        await SafeAsync(CheckUpdateAsync);
     }
 
     private async Task RefreshLibraryAsync()
@@ -378,6 +420,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             "youtube" => $"https://www.youtube.com/results?search_query={q(game + " " + ach + " achievement")}",
             _ => $"https://www.google.com/search?q={q("\"" + game + "\" \"" + ach + "\" achievement guide")}",
         };
+        OpenUrl(url);
+    }
+
+    private void OpenUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return;
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
@@ -720,6 +768,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(QueueVisible));
         OnPropertyChanged(nameof(HasApiKey));
         OnPropertyChanged(nameof(QueueText));
+        OnPropertyChanged(nameof(UpdateText));
         foreach (var item in Library) item.RefreshTexts();
         RestartWatcher();
         Recompute(rebuildRows: true);

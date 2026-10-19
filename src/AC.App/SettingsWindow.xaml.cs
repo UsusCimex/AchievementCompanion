@@ -24,6 +24,7 @@ public partial class SettingsWindow : Window
         StatusSourceBox.SelectedItem = Options.StatusSources.FirstOrDefault(m => m.Value == s.StatusSource) ?? Options.StatusSources[0];
         ThemeBox.SelectedItem = Options.Themes.FirstOrDefault(t => t.Value == s.Theme) ?? Options.Themes[0];
         HideSpoilersBox.IsChecked = s.HideSpoilers;
+        CheckUpdatesBox.IsChecked = s.CheckUpdates;
         ToggleHotkeyBox.Text = s.OverlayToggleHotkey;
         InteractHotkeyBox.Text = s.OverlayInteractHotkey;
         OpacitySlider.Value = s.OverlayOpacity;
@@ -88,6 +89,7 @@ public partial class SettingsWindow : Window
         s.StatusSource = (StatusSourceBox.SelectedItem as Option<StatusSource>)?.Value ?? StatusSource.WebApi;
         s.Theme = (ThemeBox.SelectedItem as Option<AppTheme>)?.Value ?? AppTheme.System;
         s.HideSpoilers = HideSpoilersBox.IsChecked == true;
+        s.CheckUpdates = CheckUpdatesBox.IsChecked == true;
         s.OverlayToggleHotkey = ToggleHotkeyBox.Text.Trim();
         s.OverlayInteractHotkey = InteractHotkeyBox.Text.Trim();
         s.OverlayOpacity = OpacitySlider.Value;

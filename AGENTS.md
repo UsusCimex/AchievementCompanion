@@ -58,9 +58,10 @@ Steam берёт игру из переменной `SteamAppId` процесс�
 | Схема | `GetSchemaForGame` (ключ) и локальный `appcache/stats/UserGameStatsSchema_<appid>.bin`: у скрытых Web API не отдаёт описание, локальная схема отдаёт; там же флаг "защищено" |
 | Глобальные % | `GetGlobalAchievementPercentagesForApp` (без ключа); у части игр Steam их не отдаёт |
 | Статус | `GetPlayerAchievements` (ключ и открытые "Сведения об играх") или клиент Steam |
-| Библиотека | `GetOwnedGames` (ключ) |
+| Библиотека | `GetOwnedGames` (ключ); свежие часы одной игры - он же с `appids_filter` |
 | Своя выборка | авторы обзоров `store.steampowered.com/appreviews/<appid>` и их `GetPlayerAchievements` |
 | Запущенная игра и новые открытия | реестр `RunningAppID`, слежение за `appcache/stats/UserGameStats_<accountid>_<appid>.bin` и опрос по таймеру |
+| Обновления (`UpdateService`) | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: zip `*-win-x64.zip`, проверка SHA-256 из `digest`; `AC_UPDATE_URL` - другой адрес (локальный тестовый релиз). Старый exe переименовывается в `*.old` и удаляется при следующем запуске |
 
 ### Время
 
@@ -94,6 +95,7 @@ Steam берёт игру из переменной `SteamAppId` процесс�
 - Выборка шумная, если у авторов обзоров мало открытых профилей; авторы обзоров играют больше среднего.
 - completionist.me закрыт проверкой Cloudflare и отвечает приложению 403: время до 100% - вручную или из выборки. Если проверку снимут, разбор всё равно зависит от вёрстки сайта.
 - Только Windows (WPF).
+- Обновления видны только из публичного репозитория: у приватного GitHub отвечает 404, и проверка молчит.
 
 ## Идеи
 

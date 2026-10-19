@@ -66,4 +66,7 @@ public sealed class AppSettings
     public StatusSource StatusSource { get; set; } = StatusSource.WebApi;
 
     public uint LastAppId { get; set; }
+
+    /// <summary>Look for a new release on GitHub at startup.</summary>
+    public bool CheckUpdates { get; set; } = true;
 }
