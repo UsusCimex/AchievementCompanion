@@ -5,9 +5,23 @@ using AC.Core;
 
 namespace AC.Infrastructure;
 
-public sealed class SteamApiException(string message, HttpStatusCode? status = null) : Exception(message)
+public enum SteamFailure
+{
+    Other,
+    Private,
+    BadKey,
+    Blocked,
+    RateLimited,
+}
+
+public sealed class SteamApiException(string message, HttpStatusCode? status = null, SteamFailure failure = SteamFailure.Other)
+    : Exception(message)
 {
     public HttpStatusCode? Status { get; } = status;
+    public SteamFailure Failure { get; } = failure;
+
+    /// <summary>Every further request fails the same way: stop instead of trying the next player or step.</summary>
+    public bool Fatal => Failure is SteamFailure.BadKey or SteamFailure.Blocked or SteamFailure.RateLimited;
 }
 
 public sealed record SchemaEntry(string ApiName, string Name, string Description, bool Hidden, string Icon, string IconGray);
@@ -114,7 +128,7 @@ public sealed class SteamWebApi(HttpClient http)
                 $"{Base}/ISteamUserStats/GetPlayerAchievements/v1/?key={Esc(key)}&steamid={steamId}&appid={appId}&format=json", ct,
                 allowErrorBody: true);
         }
-        catch (SteamApiException e) when (e.Status is HttpStatusCode.Forbidden)
+        catch (SteamApiException e) when (e.Status is HttpStatusCode.Forbidden && e.Failure == SteamFailure.Other)
         {
             throw new SteamApiException(Loc.T("error.forbidden"), e.Status);
         }
@@ -127,7 +141,7 @@ public sealed class SteamWebApi(HttpClient http)
             {
                 var err = Str(ps, "error");
                 if (err.Contains("not public", StringComparison.OrdinalIgnoreCase))
-                    throw new SteamApiException(Loc.T("error.privateProfile"), HttpStatusCode.Forbidden);
+                    throw new SteamApiException(Loc.T("error.privateProfile"), HttpStatusCode.Forbidden, SteamFailure.Private);
                 throw new SteamApiException(Loc.T("error.steam", err.Length > 0 ? err : Loc.T("error.playerAchievements")));
             }
             var list = new List<PlayerAchievement>();
@@ -189,14 +203,17 @@ public sealed class SteamWebApi(HttpClient http)
     private async Task<JsonDocument> GetJsonAsync(string url, CancellationToken ct, bool allowErrorBody = false)
     {
         using var resp = await http.GetAsync(url, ct);
-        if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden && !allowErrorBody)
-            throw new SteamApiException(Loc.T("error.badKey"), resp.StatusCode);
         if (resp.StatusCode == HttpStatusCode.TooManyRequests)
-            throw new SteamApiException(Loc.T("error.rateLimited"), resp.StatusCode);
+            throw new SteamApiException(Loc.T("error.rateLimited"), resp.StatusCode, SteamFailure.RateLimited);
 
         var body = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
         {
+            if (Classify(body) is { } failure)
+                throw new SteamApiException(Loc.T(failure == SteamFailure.Blocked ? "error.networkBlocked" : "error.badKey"),
+                    resp.StatusCode, failure);
+            if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden && !allowErrorBody)
+                throw new SteamApiException(Loc.T("error.badKey"), resp.StatusCode, SteamFailure.BadKey);
             if (allowErrorBody && body.TrimStart().StartsWith('{'))
             {
                 try
@@ -218,6 +235,20 @@ public sealed class SteamWebApi(HttpClient http)
         {
             throw new SteamApiException(Loc.T("error.notJson"));
         }
+    }
+
+    /// <summary>
+    /// What a failed answer means, from its body: Akamai in front of the API turns away whole networks (often VPNs)
+    /// with its own page, even for keyless requests; Steam itself asks to verify the key. null - neither.
+    /// </summary>
+    public static SteamFailure? Classify(string body)
+    {
+        if (body.Contains("errors.edgesuite.net", StringComparison.OrdinalIgnoreCase) ||
+            body.Contains("<TITLE>Access Denied</TITLE>", StringComparison.OrdinalIgnoreCase))
+            return SteamFailure.Blocked;
+        if (body.Contains("verify your <pre>key=</pre>", StringComparison.OrdinalIgnoreCase))
+            return SteamFailure.BadKey;
+        return null;
     }
 
     private static string Str(JsonElement e, string prop) =>

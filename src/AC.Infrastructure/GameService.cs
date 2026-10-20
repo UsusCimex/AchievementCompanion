@@ -3,7 +3,9 @@ using AC.Core;
 
 namespace AC.Infrastructure;
 
-public sealed record LoadReport(GameData Game, IReadOnlyList<string> NewlyUnlocked, IReadOnlyList<string> Warnings);
+/// <param name="PercentagesMissing">Steam and Steam Hunters both answered and have no percentages for the game.</param>
+public sealed record LoadReport(GameData Game, IReadOnlyList<string> NewlyUnlocked, IReadOnlyList<string> Warnings,
+    bool PercentagesMissing = false);
 
 public sealed record MarkReport(bool SteamWritten, string? Error);
 
@@ -15,24 +17,25 @@ public sealed record MarkReport(bool SteamWritten, string? Error);
 public sealed class GameService
 {
     private static readonly TimeSpan SchemaTtl = TimeSpan.FromHours(24);
+    private static readonly TimeSpan CompletionTtl = TimeSpan.FromDays(7);
 
     private readonly JsonStore _store;
     private readonly SteamWebApi _api;
     private readonly BridgeClient _bridge;
-    private readonly CompletionTimeSource _completion;
+    private readonly SteamHunters _hunters;
 
     public AppSettings Settings { get; private set; }
     public UpdateService Updates { get; }
     public JsonStore Store => _store;
     public BridgeClient Bridge => _bridge;
 
-    public GameService(JsonStore store, SteamWebApi api, BridgeClient bridge, CompletionTimeSource completion, UpdateService? updates = null)
+    public GameService(JsonStore store, SteamWebApi api, BridgeClient bridge, SteamHunters hunters, UpdateService? updates = null)
     {
         _store = store;
         Updates = updates ?? new UpdateService(new HttpClient { Timeout = TimeSpan.FromSeconds(20) });
         _api = api;
         _bridge = bridge;
-        _completion = completion;
+        _hunters = hunters;
         Settings = store.LoadSettings();
         if (Settings.SteamId64 == 0 && SteamLocal.MostRecentUser() is { } u)
         {
@@ -44,7 +47,7 @@ public sealed class GameService
     public static GameService CreateDefault()
     {
         var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-        return new GameService(new JsonStore(), new SteamWebApi(http), new BridgeClient(), new CompletionTimeSource(http));
+        return new GameService(new JsonStore(), new SteamWebApi(http), new BridgeClient(), new SteamHunters(http));
     }
 
     public string ApiKey
@@ -107,6 +110,19 @@ public sealed class GameService
                      DateTimeOffset.Now - game.SchemaFetchedAt > SchemaTtl ||
                      NeedsSchemaReload(game);
 
+        // Once Steam's API has turned the network or the key away, its other requests would fail the same way:
+        // one warning, and the remaining API steps are skipped.
+        SteamApiException? fatal = null;
+        void Warn(string key, Exception e)
+        {
+            if (e is SteamApiException { Fatal: true } f)
+            {
+                if (fatal is null) warnings.Add(f.Message);
+                fatal ??= f;
+            }
+            else warnings.Add(Loc.T(key, e.Message));
+        }
+
         if (stale)
         {
             if (HasApiKey)
@@ -121,7 +137,7 @@ public sealed class GameService
                 }
                 catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
                 {
-                    warnings.Add(Loc.T("warn.schema", e.Message));
+                    Warn("warn.schema", e);
                 }
             }
             else warnings.Add(Loc.T("warn.noKeySchema"));
@@ -131,14 +147,19 @@ public sealed class GameService
         MergeLocalSchema(game);
 
         // Percentages go after the list is built from all sources, otherwise some are lost without a key.
+        bool percentagesMissing = false;
         if (stale || game.Achievements.Any(a => a.GlobalPercent is null))
         {
-            var err = await FetchPercentagesAsync(game, ct);
-            if (err != null) warnings.Add(Loc.T("warn.percents", err));
+            var (error, missing) = await FetchPercentagesAsync(game, steam: fatal is null, ct);
+            percentagesMissing = missing;
+            if (error != null) Warn("warn.percents", error);
+            else if (missing) warnings.Add(Loc.T("warn.percents", Loc.T("warn.noPercents")));
         }
 
+        await FetchCompletionIfDueAsync(game, ct);
+
         IReadOnlyList<string> fresh = Array.Empty<string>();
-        if (Settings.StatusSource == StatusSource.WebApi && HasApiKey && Settings.SteamId64 != 0)
+        if (fatal is null && Settings.StatusSource == StatusSource.WebApi && HasApiKey && Settings.SteamId64 != 0)
         {
             try
             {
@@ -146,11 +167,11 @@ public sealed class GameService
             }
             catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
             {
-                warnings.Add(Loc.T("warn.status", e.Message));
+                Warn("warn.status", e);
             }
         }
 
-        if (HasApiKey && Settings.SteamId64 != 0)
+        if (fatal is null && HasApiKey && Settings.SteamId64 != 0)
         {
             try
             {
@@ -168,7 +189,7 @@ public sealed class GameService
         Settings.LastAppId = appId;
         SaveSettings();
         foreach (var w in warnings) AppLog.Info($"{appId}: {w}");
-        return new LoadReport(game, fresh, warnings);
+        return new LoadReport(game, fresh, warnings, percentagesMissing);
     }
 
     /// <summary>Web API status. Returns the newly unlocked ones.</summary>
@@ -249,7 +270,7 @@ public sealed class GameService
             r.Achievements.Select(a => (a.ApiName, a.Achieved, a.UnlockTime > 0 ? DateTimeOffset.FromUnixTimeSeconds(a.UnlockTime) : (DateTimeOffset?)null)),
             DateTimeOffset.Now);
         game.PendingUnlocks.RemoveAll(n => game.StateOf(n).SteamUnlocked);
-        if (game.Achievements.Any(a => a.GlobalPercent is null)) await FetchPercentagesAsync(game, ct);
+        if (game.Achievements.Any(a => a.GlobalPercent is null)) await FetchPercentagesAsync(game, steam: true, ct);
         GameLogic.AutoClassify(game);
         TimeEstimator.EstimateFromGlobalPercent(game);
         _store.SaveGame(game);
@@ -272,6 +293,7 @@ public sealed class GameService
         if (authors.Count == 0) throw new SteamApiException(Loc.T("sample.noReviews"));
 
         var samples = new List<PlayerSample>();
+        SteamApiException? fatal = null;
         int checkedCount = 0;
         using var gate = new SemaphoreSlim(4);
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -296,6 +318,12 @@ public sealed class GameService
                 }
                 if (enough) stop.Cancel();
             }
+            catch (SteamApiException e) when (e.Fatal)
+            {
+                // A blocked network or a rejected key fails every player the same way.
+                fatal ??= e;
+                stop.Cancel();
+            }
             catch (Exception e) when (e is SteamApiException or HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
             {
                 // private profile or failure - skip the player
@@ -308,6 +336,7 @@ public sealed class GameService
             }
         });
         await Task.WhenAll(tasks);
+        if (fatal != null) throw fatal;
         ct.ThrowIfCancellationRequested();
 
         if (samples.Count == 0)
@@ -325,20 +354,63 @@ public sealed class GameService
     }
 
     /// <summary>Global percentages (no key needed). Returns the error text or null.</summary>
-    private async Task<string?> FetchPercentagesAsync(GameData game, CancellationToken ct)
+    /// <summary>
+    /// Global percentages from Steam, else from Steam Hunters (it also answers when Steam's API is blocked).
+    /// Error - Steam's failure (always when the network or key is turned away, otherwise only when nothing came);
+    /// Missing - both answered and have none.
+    /// </summary>
+    private async Task<(Exception? Error, bool Missing)> FetchPercentagesAsync(GameData game, bool steam, CancellationToken ct)
     {
-        if (game.Achievements.Count == 0) return null;
+        if (game.Achievements.Count == 0) return (null, false);
+        Exception? steamError = null, huntersError = null;
+        var pct = new Dictionary<string, double>();
+        if (steam)
+        {
+            try
+            {
+                pct = await _api.GetGlobalPercentagesAsync(game.AppId, ct);
+            }
+            catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
+            {
+                steamError = e;
+            }
+        }
+        if (pct.Count == 0)
+        {
+            try
+            {
+                pct = await _hunters.GetGlobalPercentagesAsync(game.AppId, ct);
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+            {
+                huntersError = e;
+                AppLog.Info($"{game.AppId}: {SteamHunters.Name}: {e.Message}");
+            }
+        }
+        foreach (var a in game.Achievements)
+            if (pct.TryGetValue(a.ApiName, out var v)) a.GlobalPercent = v;
+        if (pct.Count > 0) return (steamError is SteamApiException { Fatal: true } ? steamError : null, false);
+        return (steamError ?? huntersError, steam && steamError is null && huntersError is null);
+    }
+
+    /// <summary>Time to 100% from Steam Hunters, once a week, unless it was set by hand.</summary>
+    private async Task FetchCompletionIfDueAsync(GameData game, CancellationToken ct)
+    {
+        if (game.CompletionSource == "manual" ||
+            game.CompletionFetchedAt is { } at && DateTimeOffset.Now - at < CompletionTtl) return;
         try
         {
-            var pct = await _api.GetGlobalPercentagesAsync(game.AppId, ct);
-            if (pct.Count == 0) return Loc.T("warn.noPercents");
-            foreach (var a in game.Achievements)
-                if (pct.TryGetValue(a.ApiName, out var v)) a.GlobalPercent = v;
-            return null;
+            var minutes = await _hunters.GetMedianCompletionMinutesAsync(game.AppId, ct);
+            game.CompletionFetchedAt = DateTimeOffset.Now;
+            if (minutes is > 0)
+            {
+                game.CompletionMinutes = minutes;
+                game.CompletionSource = SteamHunters.Name;
+            }
         }
-        catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
-            return e.Message;
+            AppLog.Info($"{game.AppId}: {SteamHunters.Name}: {e.Message}");
         }
     }
 
@@ -445,8 +517,9 @@ public sealed class GameService
 
     public async Task<double?> FetchCompletionAsync(GameData game, CancellationToken ct = default)
     {
-        var m = await _completion.GetMedianMinutesAsync(game.AppId, ct);
-        if (m is > 0) SetCompletionMinutes(game, m, CompletionTimeSource.Name);
+        var m = await _hunters.GetMedianCompletionMinutesAsync(game.AppId, ct);
+        game.CompletionFetchedAt = DateTimeOffset.Now;
+        if (m is > 0) SetCompletionMinutes(game, m, SteamHunters.Name);
         return m;
     }
 

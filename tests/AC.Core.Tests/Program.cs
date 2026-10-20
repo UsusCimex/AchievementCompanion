@@ -1,3 +1,4 @@
+using System.Net;
 using System.Reflection;
 using System.Text;
 using AC.Core;
@@ -589,15 +590,33 @@ static class Tests
         Assert.Equal("Usus \"Cimex\"", u.Value.PersonaName);
     }
 
-    public static void Completionist_ParseMedian()
+    public static void SteamHunters_Parse()
     {
-        const string html = """
-        <div class="stat"><span class="value">22h 20m</span><span class="label">Completion Playtime Median</span></div>
-        <div class="stat"><span class="value">32h 47m</span><span class="label">Completion Playtime Avg.</span></div>
+        const string app = """{"appId":413150,"name":"Stardew Valley","fastestCompletionTime":197,"medianCompletionTime":15674}""";
+        const string achievements = """
+        [{"achievementId":1,"apiName":"a0","name":"Greenhorn","steamPercentage":62.6,"localPercentage":94.6},
+         {"achievementId":2,"apiName":"1","name":"Cowpoke","steamPercentage":55.3,"localPercentage":90.1}]
         """;
-        Assert.Equal(22 * 60 + 20.0, AC.Infrastructure.CompletionTimeSource.ParseMedian(html));
-        Assert.Equal((double?)null, AC.Infrastructure.CompletionTimeSource.ParseMedian("<p>nothing</p>"));
-        Assert.Equal(45.0, AC.Infrastructure.CompletionTimeSource.ParseMedian("<b>Completion Playtime Median</b> <i>45m</i>"));
+        Assert.Equal(15674.0, AC.Infrastructure.SteamHunters.ParseMedian(app));
+        Assert.Equal((double?)null, AC.Infrastructure.SteamHunters.ParseMedian("""{"appId":1,"medianCompletionTime":0}"""));
+        var pct = AC.Infrastructure.SteamHunters.ParsePercentages(achievements);
+        Assert.Equal(62.6, pct["a0"]);
+        Assert.Equal(2, pct.Count);
+    }
+
+    public static void SteamApi_ClassifiesFailures()
+    {
+        const string akamai = """
+        <HTML><HEAD><TITLE>Access Denied</TITLE></HEAD><BODY><H1>Access Denied</H1>
+        You don't have permission to access this server.<P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18</P></BODY></HTML>
+        """;
+        const string badKey = "<html><head><title>Forbidden</title></head><body><h1>Forbidden</h1>Access is denied. Retrying will not help. Please verify your <pre>key=</pre> parameter.</body></html>";
+        Assert.Equal(AC.Infrastructure.SteamFailure.Blocked, AC.Infrastructure.SteamWebApi.Classify(akamai)!.Value);
+        Assert.Equal(AC.Infrastructure.SteamFailure.BadKey, AC.Infrastructure.SteamWebApi.Classify(badKey)!.Value);
+        Assert.True(AC.Infrastructure.SteamWebApi.Classify("""{"playerstats":{"error":"Profile is not public","success":false}}""") is null,
+            "a private profile is not fatal");
+        Assert.True(new AC.Infrastructure.SteamApiException("x", null, AC.Infrastructure.SteamFailure.Blocked).Fatal, "blocked stops");
+        Assert.True(!new AC.Infrastructure.SteamApiException("x", null, AC.Infrastructure.SteamFailure.Private).Fatal, "private goes on");
     }
 
     public static void StoreAssets_Parse()
@@ -614,6 +633,109 @@ static class Tests
         const string details = """{"3768760":{"success":true,"data":{"header_image":"https://x/3768760/c5b5/header_alt_assets_4.jpg?t=1"}}}""";
         Assert.Equal("https://x/3768760/c5b5/header_alt_assets_4.jpg?t=1", AC.Infrastructure.StoreAssets.ParseDetailsHeader(details, 3768760));
         Assert.Equal((string?)null, AC.Infrastructure.StoreAssets.ParseDetailsHeader("""{"1":{"success":false}}""", 1));
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static void Service_BlockedNetworkWarnsOnceAndStopsTheSample()
+    {
+        const string blocked = "<HTML><HEAD><TITLE>Access Denied</TITLE></HEAD><BODY>errors&#46;edgesuite&#46;net</BODY></HTML>";
+        var fake = new FakeHttp(url =>
+            url.Contains("api.steampowered.com") ? (HttpStatusCode.Forbidden, blocked)
+            : url.EndsWith("/api/apps/1/achievements") ? (HttpStatusCode.OK, HuntersPercentages)
+            : url.EndsWith("/api/apps/1") ? (HttpStatusCode.OK, """{"appId":1,"medianCompletionTime":600}""")
+            : url.Contains("/appreviews/") ? (HttpStatusCode.OK, Reviews)
+            : (HttpStatusCode.NotFound, ""));
+        WithService(fake, (svc, store) =>
+        {
+            var g = SampleGame();
+            foreach (var a in g.Achievements) a.GlobalPercent = null;
+            store.SaveGame(g);
+
+            var report = svc.LoadGameAsync(1).GetAwaiter().GetResult();
+            Assert.Equal(Loc.T("error.networkBlocked"), report.Warnings.Single());
+            Assert.True(report.Game.Achievements.All(a => a.GlobalPercent is not null), "percentages from Steam Hunters");
+            Assert.Equal(600.0, report.Game.CompletionMinutes);
+            Assert.Equal(AC.Infrastructure.SteamHunters.Name, report.Game.CompletionSource);
+            Assert.True(!report.PercentagesMissing, "percentages came from Steam Hunters");
+
+            fake.Urls.Clear();
+            try
+            {
+                svc.CollectSampleAsync(report.Game).GetAwaiter().GetResult();
+                Assert.True(false, "a blocked network ends the sample");
+            }
+            catch (AC.Infrastructure.SteamApiException e)
+            {
+                Assert.Equal(AC.Infrastructure.SteamFailure.Blocked, e.Failure);
+            }
+            int asked = fake.Urls.Count(u => u.Contains("GetPlayerAchievements"));
+            Assert.True(asked <= 4, $"stopped at the first answers, asked {asked}");
+        });
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static void Service_PercentagesMissingOnlyWhenNobodyHasThem()
+    {
+        var fake = new FakeHttp(url =>
+            url.Contains("GetSchemaForGame") ? (HttpStatusCode.OK, Schema)
+            : url.Contains("GetGlobalAchievementPercentagesForApp") ? (HttpStatusCode.OK, """{"achievementpercentages":{"achievements":[]}}""")
+            : url.Contains("GetPlayerAchievements") ? (HttpStatusCode.OK, """{"playerstats":{"success":true,"achievements":[]}}""")
+            : url.Contains("GetOwnedGames") ? (HttpStatusCode.OK, """{"response":{}}""")
+            : (HttpStatusCode.NotFound, ""));
+        WithService(fake, (svc, store) =>
+        {
+            var report = svc.LoadGameAsync(1, "Test").GetAwaiter().GetResult();
+            Assert.Equal(5, report.Game.Achievements.Count);
+            Assert.True(report.PercentagesMissing, "Steam and Steam Hunters answered with nothing");
+            Assert.Equal((double?)null, report.Game.CompletionMinutes);
+            Assert.True(report.Game.CompletionFetchedAt is not null, "asked once, not on every load");
+        });
+    }
+
+    const string HuntersPercentages = """
+        [{"apiName":"ch1","steamPercentage":90},{"apiName":"ch5","steamPercentage":30},{"apiName":"miss","steamPercentage":20},
+         {"apiName":"grind","steamPercentage":2},{"apiName":"misc","steamPercentage":50}]
+        """;
+
+    const string Reviews = """
+        {"success":1,"cursor":"next","reviews":[
+         {"timestamp_created":1700000000,"author":{"steamid":"76561197960287931","playtime_at_review":100,"playtime_forever":200,"last_played":1700000000}},
+         {"timestamp_created":1700000000,"author":{"steamid":"76561197960287932","playtime_at_review":100,"playtime_forever":200,"last_played":1700000000}},
+         {"timestamp_created":1700000000,"author":{"steamid":"76561197960287933","playtime_at_review":100,"playtime_forever":200,"last_played":1700000000}},
+         {"timestamp_created":1700000000,"author":{"steamid":"76561197960287934","playtime_at_review":100,"playtime_forever":200,"last_played":1700000000}},
+         {"timestamp_created":1700000000,"author":{"steamid":"76561197960287935","playtime_at_review":100,"playtime_forever":200,"last_played":1700000000}},
+         {"timestamp_created":1700000000,"author":{"steamid":"76561197960287936","playtime_at_review":100,"playtime_forever":200,"last_played":1700000000}},
+         {"timestamp_created":1700000000,"author":{"steamid":"76561197960287937","playtime_at_review":100,"playtime_forever":200,"last_played":1700000000}},
+         {"timestamp_created":1700000000,"author":{"steamid":"76561197960287938","playtime_at_review":100,"playtime_forever":200,"last_played":1700000000}}]}
+        """;
+
+    const string Schema = """
+        {"game":{"gameName":"Test","availableGameStats":{"achievements":[
+         {"name":"ch1","displayName":"Глава 1","description":"Пройдите главу 1","hidden":0},
+         {"name":"ch5","displayName":"Finale","description":"Complete chapter 5","hidden":0},
+         {"name":"miss","displayName":"Mercy","description":"Spare the guard before leaving the prison","hidden":0},
+         {"name":"grind","displayName":"Collector","description":"Collect all 300 feathers","hidden":0},
+         {"name":"misc","displayName":"Photographer","description":"Take a photo","hidden":0}]}}}
+        """;
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    static void WithService(FakeHttp fake, Action<AC.Infrastructure.GameService, AC.Infrastructure.JsonStore> body)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new AC.Infrastructure.JsonStore(dir);
+            var http = new HttpClient(fake);
+            var svc = new AC.Infrastructure.GameService(store, new AC.Infrastructure.SteamWebApi(http),
+                new AC.Infrastructure.BridgeClient(), new AC.Infrastructure.SteamHunters(http));
+            svc.ApiKey = "00000000000000000000000000000000";
+            svc.Settings.SteamId64 = 76561197960287930;
+            body(svc, store);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
     }
 
     public static void Library_SkipsComputedUrls()
@@ -828,5 +950,19 @@ static class Tests
         Assert.Equal(180.0, g.Estimates["b"].P50!.Value); // the model did not overwrite the measurement
         Assert.Equal(SampleStats.SourceName, g.Estimates["b"].Source);
         Assert.Equal(540.0, g.UsedCompletionMinutes);
+    }
+}
+
+/// <summary>Answers every request by its URL and remembers what was asked.</summary>
+sealed class FakeHttp(Func<string, (HttpStatusCode Status, string Body)> answer) : HttpMessageHandler
+{
+    public List<string> Urls { get; } = new();
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        var url = request.RequestUri!.ToString();
+        lock (Urls) Urls.Add(url);
+        var (status, body) = answer(url);
+        return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
     }
 }

@@ -34,7 +34,7 @@ The script works on copies of the build and of the data folder, so the real fold
 | Project | Contents |
 | --- | --- |
 | `src/AC.Core` | models and all logic, tested without Steam: statuses and probably missed missables (`GameLogic`), kind and chapter from the text (`KindClassifier`), time estimates (`TimeEstimator`, `SampleStats`, `Progress`), plan (`Planner`), filters (`AchievementQuery`), export, tags file (`TagPack`), Steam file formats (`SteamFormats/`), texts (`Loc`, `Lang/`) |
-| `src/AC.Infrastructure` | I/O: use cases (`GameService`), Steam Web API, registry and Steam files (`SteamLocal`), Steam client (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), storage (`JsonStore`), data folder (`AppPaths`), error log (`AppLog`), DPAPI, completionist.me, store art paths (`StoreAssets`), updates (`UpdateService`) |
+| `src/AC.Infrastructure` | I/O: use cases (`GameService`), Steam Web API, registry and Steam files (`SteamLocal`), Steam client (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), storage (`JsonStore`), data folder (`AppPaths`), error log (`AppLog`), DPAPI, Steam Hunters (`SteamHunters`), store art paths (`StoreAssets`), updates (`UpdateService`) |
 | `src/AC.App` | WPF UI on the built-in Fluent theme: windows, view models, cached image loading (`RemoteImage`), theme (`ThemeManager`), hotkeys (`Native`) |
 | `tests/AC.Core.Tests` | tests of the logic and storage |
 
@@ -71,10 +71,11 @@ The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (p
 | What | Where from |
 | --- | --- |
 | Schema | `GetSchemaForGame` (key) and the local `appcache/stats/UserGameStatsSchema_<appid>.bin`: the Web API gives no descriptions of hidden ones, the local schema does; it also has the "protected" flag |
-| Global % | `GetGlobalAchievementPercentagesForApp` (no key); Steam gives none for some games |
+| Global % | `GetGlobalAchievementPercentagesForApp` (no key), else `steamhunters.com/api/apps/<appid>/achievements` |
+| Time to 100% | `steamhunters.com/api/apps/<appid>`: `medianCompletionTime`, minutes, asked once a week |
 | Status | `GetPlayerAchievements` (key and public "Game details") or the Steam client |
 | Library | `GetOwnedGames` (key); fresh playtime of one game - the same call with `appids_filter` |
-| Own sample | authors of `store.steampowered.com/appreviews/<appid>` and their `GetPlayerAchievements` |
+| Own sample | authors of `store.steampowered.com/appreviews/<appid>` and their `GetPlayerAchievements`; collected on its own only when nobody has percentages, at most once a week |
 | Store art | `store_item_assets/steam/apps/<appid>/header.jpg`; newer apps keep it in a hashed folder: `IStoreBrowseService/GetItems`, else the store's `appdetails` |
 | Running game and new unlocks | registry `RunningAppID`, watching `appcache/stats/UserGameStats_<accountid>_<appid>.bin` and polling on a timer |
 | Updates | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: the `*-win-x64.zip` asset, downloaded by the browser |
@@ -82,7 +83,7 @@ The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (p
 ### Time
 
 - Per achievement: own estimate, else measured in the sample, else the rarity model: t = T x ln(maxPct / pct) / ln(maxPct / minPct). P75 and P90 are margins of x1.3 and x1.7.
-- T (time to 100%): manual or completionist.me, else the sample median, else derived from own pace.
+- T (time to 100%): manual, else Steam Hunters, else the sample median, else derived from own pace.
 - Stretch (`Progress`): on the "minutes from the start" scale every achievement owns the way from the previous one to it. Stretches of unlocked ones are the progress made, of locked ones what is left, in any order of unlocks.
 - Time left (`Planner`): the stretches of locked achievements times the pace; own estimates get the P75 and P90 margins too.
 - Pace: Steam minutes between playtime snapshots (`PlaytimeHistory`: when a game loads outside a session, after a session, and two weeks back from Steam) divided by the progress made between them, as a progress-weighted median. Stretches without progress (AFK, a game left open) do not count. From 1 to 3: faster than the median gives no speed-up.
@@ -110,7 +111,7 @@ Every finished change is released. Versions follow [SemVer](https://semver.org/)
 
 - The overlay is not visible over exclusive fullscreen: it is a plain window on top, nothing is injected into the game (anti-cheat).
 - The sample is noisy when few review authors have public profiles; review authors play more than average.
-- completionist.me is behind a Cloudflare check and answers the app with 403: time to 100% is manual or from the sample. Even without the check, parsing depends on the site's markup.
+- api.steampowered.com turns away some networks, often VPNs, with an Akamai "Access Denied" page even for keyless requests. Then the app says so once, skips the other API steps and takes percentages and time from Steam Hunters; the status needs the Steam client.
 - Windows only (WPF).
 - Updates are seen only from a public repository: for a private one GitHub answers 404 and the check stays silent.
 - No in-place update: an unsigned exe that downloads and swaps in its replacement is taken for a dropper by behavior-based antivirus (Kaspersky: PDM:Trojan.Win32.Generic). That needs code signing first.

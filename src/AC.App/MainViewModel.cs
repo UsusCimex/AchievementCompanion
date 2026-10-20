@@ -355,10 +355,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public async Task LoadAsync(uint appId, string? name)
     {
         var seq = ++_loadSeq;
+        LoadReport? loaded = null;
         await Busy(Loc.T("status.loadingGame", name ?? appId.ToString()), async () =>
         {
             var report = await _svc.LoadGameAsync(appId, name);
             if (seq != _loadSeq) return; // another game picked while loading
+            loaded = report;
             SetGame(report.Game);
             StatusMessage = report.Warnings.Count > 0
                 ? string.Join(" | ", report.Warnings)
@@ -370,14 +372,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             (_svc.Settings.StatusSource == StatusSource.SteamClient || !_svc.HasApiKey) && _svc.Bridge.Exists)
             await SafeAsync(RefreshStateAsync);
 
-        // Steam gave no percentages (happens with new games) - collect player statistics ourselves, once;
-        // a collected sample is refreshed in the background about once a week.
+        // Neither Steam nor Steam Hunters has percentages (a new game): collect player statistics ourselves.
+        // An attempt, failed or not, is not repeated for a week; a collected sample is refreshed weekly in the background.
         if (seq == _loadSeq && _game is { } g && g.AppId == appId && _svc.HasApiKey && g.Achievements.Count > 0)
         {
-            if (g.Achievements.All(a => a.GlobalPercent is null) && g.SampleFetchedAt is null)
+            bool tried = g.SampleTriedAt is { } at && DateTimeOffset.Now - at < SampleRefresh;
+            if (loaded?.PercentagesMissing == true && g.SampleFetchedAt is null && !tried)
+            {
+                g.SampleTriedAt = DateTimeOffset.Now;
+                _svc.Store.SaveGame(g);
                 await SafeAsync(() => CollectSampleAsync(auto: true));
-            else if (g.SampleFetchedAt is { } fetched && DateTimeOffset.Now - fetched > SampleRefresh)
+            }
+            else if (g.SampleFetchedAt is { } fetched && DateTimeOffset.Now - fetched > SampleRefresh && !tried)
+            {
+                g.SampleTriedAt = DateTimeOffset.Now;
+                _svc.Store.SaveGame(g);
                 _ = RefreshSampleAsync(g);
+            }
         }
     }
 

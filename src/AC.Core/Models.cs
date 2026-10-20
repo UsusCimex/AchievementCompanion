@@ -150,8 +150,10 @@ public sealed class GameData
     public Dictionary<string, double> ManualEstimates { get; set; } = new();
     /// <summary>Marked and waiting to be sent to Steam (the "queue" write mode).</summary>
     public List<string> PendingUnlocks { get; set; } = new();
-    /// <summary>Where the time to 100% came from: "manual", "completionist.me", etc.</summary>
+    /// <summary>Where the time to 100% came from: "manual", "steamhunters.com".</summary>
     public string CompletionSource { get; set; } = "";
+    /// <summary>When the time to 100% was last asked from Steam Hunters, found or not.</summary>
+    public DateTimeOffset? CompletionFetchedAt { get; set; }
 
     /// <summary>
     /// Time to 100% derived from the player's own progress when CompletionMinutes is not set.
@@ -178,6 +180,8 @@ public sealed class GameData
     public double? SampleCompletionMinutes { get; set; }
     /// <summary>Players in the sample (with a public profile).</summary>
     public int SamplePlayers { get; set; }
+    /// <summary>When a sample was last collected on its own, successful or not: it is not retried for a week.</summary>
+    public DateTimeOffset? SampleTriedAt { get; set; }
     /// <summary>How many of them reached 100%.</summary>
     public int SampleCompleters { get; set; }
     public DateTimeOffset? SampleFetchedAt { get; set; }
