@@ -4,7 +4,7 @@
 .DESCRIPTION
     Works on copies: the build runs with the Steam client turned off (AC_NO_STEAM_CLIENT, so it cannot show you
     in-game or write achievements), the data folder goes to a temp folder (the original is untouched). The data folder needs settings.json and
-    games\<appid>.json; the game from LastAppId opens. Takes the main window, the plan tab, the overlay over the
+    games\<appid>.json; the game from LastAppId opens. Takes the main window, the plan and time tabs, the overlay over the
     main window and the overlay alone on a transparent background.
     -Set overrides settings in the copy: "Key=value;Key=value", the value is JSON or a string.
 .EXAMPLE
@@ -135,6 +135,11 @@ try {
     Start-Sleep -Seconds 3
     [Shot]::TopMost($hwnd); Start-Sleep -Milliseconds 300
     [Shot]::Grab($hwnd, (Join-Path $OutDir "plan-$suffix.png"))
+
+    SelectTab $win "TimeTab"
+    Start-Sleep -Seconds 2
+    [Shot]::TopMost($hwnd); Start-Sleep -Milliseconds 300
+    [Shot]::Grab($hwnd, (Join-Path $OutDir "time-$suffix.png"))
 
     SelectTab $win "AchievementsTab"
     (ById $win "OverlayButton").GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
