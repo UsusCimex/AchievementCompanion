@@ -151,7 +151,18 @@ internal static class ImageCache
 
         try
         {
-            var bytes = await Http.GetByteArrayAsync(url).ConfigureAwait(false);
+            byte[] bytes;
+            try
+            {
+                bytes = await Http.GetByteArrayAsync(url).ConfigureAwait(false);
+            }
+            catch (Exception e) when (StoreAssets.IsNotFound(e))
+            {
+                var real = await StoreAssets.ResolveAsync(Http, url).ConfigureAwait(false);
+                if (real is null) throw;
+                // Saved under the plain URL, so the next start finds it without asking the store again.
+                bytes = await Http.GetByteArrayAsync(real).ConfigureAwait(false);
+            }
             try
             {
                 Directory.CreateDirectory(Dir);

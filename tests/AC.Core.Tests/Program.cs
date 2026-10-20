@@ -600,6 +600,22 @@ static class Tests
         Assert.Equal(45.0, AC.Infrastructure.CompletionTimeSource.ParseMedian("<b>Completion Playtime Median</b> <i>45m</i>"));
     }
 
+    public static void StoreAssets_Parse()
+    {
+        const string items = """
+        {"response":{"store_items":[{"appid":4450620,"assets":{"asset_url_format":"steam/apps/4450620/${FILENAME}?t=1786114521",
+         "header":"697974067797577ee1803c37a44b4217d886502a/header.jpg","library_hero":"6655fbc0/library_hero.jpg"}}]}}
+        """;
+        var assets = AC.Infrastructure.StoreAssets.ParseItems(items);
+        Assert.Equal("https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4450620/697974067797577ee1803c37a44b4217d886502a/header.jpg?t=1786114521",
+            assets["header"]);
+        Assert.Equal("https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4450620/6655fbc0/library_hero.jpg?t=1786114521",
+            assets["library_hero"]);
+        const string details = """{"3768760":{"success":true,"data":{"header_image":"https://x/3768760/c5b5/header_alt_assets_4.jpg?t=1"}}}""";
+        Assert.Equal("https://x/3768760/c5b5/header_alt_assets_4.jpg?t=1", AC.Infrastructure.StoreAssets.ParseDetailsHeader(details, 3768760));
+        Assert.Equal((string?)null, AC.Infrastructure.StoreAssets.ParseDetailsHeader("""{"1":{"success":false}}""", 1));
+    }
+
     public static void Library_SkipsComputedUrls()
     {
         var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));
