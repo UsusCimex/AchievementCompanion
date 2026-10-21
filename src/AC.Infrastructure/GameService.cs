@@ -25,6 +25,7 @@ public sealed class GameService
     private readonly BridgeClient _bridge;
     private readonly SteamHunters _hunters;
     private readonly SteamGuides _guides;
+    private readonly Translator _translator = new(new HttpClient { Timeout = TimeSpan.FromSeconds(20) });
     /// <summary>When reading a game's guides last failed: not tried again for a day.</summary>
     private readonly Dictionary<uint, DateTimeOffset> _guidesFailed = new();
 
@@ -274,6 +275,22 @@ public sealed class GameService
             AppLog.Info($"{game.AppId}: guides: {e.Message}");
             return kept;
         }
+    }
+
+    /// <summary>
+    /// A tip in another language (ISO code), translated once and kept with the tips.
+    /// Null - no words to translate, or they already are in that language.
+    /// </summary>
+    public async Task<string?> TranslateTipAsync(uint appId, GuideTips tips, string apiName, string language, CancellationToken ct = default)
+    {
+        var key = language + ":" + apiName;
+        if (tips.Translations.TryGetValue(key, out var done)) return done;
+        if (!tips.Tips.TryGetValue(apiName, out var tip) || tip.Text.Length == 0) return null;
+        var text = await _translator.TranslateAsync(tip.Text, language, ct);
+        if (text is null) return null;
+        tips.Translations[key] = text;
+        _store.SaveGuides(appId, tips);
+        return text;
     }
 
     /// <summary>English names to find achievements in English guides: from the local schema, else from the Web API.</summary>

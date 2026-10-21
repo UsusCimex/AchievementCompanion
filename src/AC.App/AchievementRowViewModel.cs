@@ -54,7 +54,23 @@ public sealed class AchievementRowViewModel : ObservableObject
     public bool HasGuideTip => Tip is not null;
 
     /// <summary>What a guide says about getting it; empty when the guide only shows pictures or a video there.</summary>
-    public string GuideText => Tip?.Text ?? "";
+    public string GuideText => _translated && _owner.TipTranslation(ApiName) is { } translation ? translation : Tip?.Text ?? "";
+
+    private bool _translated;
+
+    /// <summary>The words are in another language than the interface.</summary>
+    public bool CanTranslate => Tip is { Text.Length: > 0 } t && t.Language != Loc.SteamLanguage(Loc.Language);
+
+    public bool ShowsTranslation => _translated;
+
+    public string TranslateLabel => Loc.T(_translated ? "details.original" : "details.translate");
+
+    public void ShowTranslation(bool show)
+    {
+        _translated = show;
+        OnPropertyChanged(nameof(GuideText));
+        OnPropertyChanged(nameof(TranslateLabel));
+    }
 
     public string GuideSource => Tip is not { } t ? ""
         : t.Author.Length > 0 ? Loc.T("details.guideSource", t.GuideTitle, t.Author)
@@ -68,6 +84,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         OnPropertyChanged(nameof(HasGuideTip));
         OnPropertyChanged(nameof(GuideText));
         OnPropertyChanged(nameof(GuideSource));
+        OnPropertyChanged(nameof(CanTranslate));
     }
 
     public bool IsHidden => _row.Def.Hidden;

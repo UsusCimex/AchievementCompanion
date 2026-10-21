@@ -958,6 +958,13 @@ static class Tests
         Assert.Equal("russian english english", $"{tips["a"].Language} {tips["b"].Language} {tips["c"].Language}");
     }
 
+    public static void Guides_TranslatorReadsTheAnswer()
+    {
+        var answer = """[[["Прыгни дважды.\n","Jump twice.\n",null,null,10],["Потом беги.","Then run.",null,null,10]],null,"en",null,null,null,1,[]]""";
+        Assert.Equal("Прыгни дважды.\nПотом беги.", AC.Infrastructure.Translator.Parse(answer, "ru"));
+        Assert.True(AC.Infrastructure.Translator.Parse(answer, "en") is null, "a text already in that language");
+    }
+
     public static void Guides_TipsSurviveStorage()
     {
         var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));

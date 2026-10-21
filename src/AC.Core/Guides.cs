@@ -45,6 +45,8 @@ public sealed class GuideTips
     public string Language { get; set; } = "";
     public DateTimeOffset FetchedAt { get; set; }
     public Dictionary<string, GuideTip> Tips { get; set; } = new();
+    /// <summary>Machine translations of tips: "language:apiName" to the text.</summary>
+    public Dictionary<string, string> Translations { get; set; } = new();
 
     /// <summary>Tips in the content language, English ones where those have no words of their own.</summary>
     public static Dictionary<string, GuideTip> Combine(IReadOnlyDictionary<string, GuideTip> own, IReadOnlyDictionary<string, GuideTip> english)

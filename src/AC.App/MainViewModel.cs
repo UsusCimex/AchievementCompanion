@@ -77,6 +77,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         UpdateNotesCommand = new RelayCommand(() => OpenUrl(_update?.PageUrl), () => _update != null);
         CloseSessionCommand = new RelayCommand(() => { _lastSession = null; UpdateSession(); });
         OpenGuideTipCommand = new RelayCommand(p => OpenUrl(p is AchievementRowViewModel r ? GuideTipFor(r.ApiName)?.Url : null));
+        TranslateTipCommand = new AsyncCommand(p => TranslateTipAsync(p as AchievementRowViewModel), OnError);
 
         uint runningAtStart = 0;
         try { runningAtStart = SteamLocal.RunningAppId(); }
@@ -370,6 +371,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand CloseSessionCommand { get; }
     /// <summary>Opens the guide section a tip comes from. Parameter: the row.</summary>
     public RelayCommand OpenGuideTipCommand { get; }
+    /// <summary>Shows a tip in the interface language, or the original again. Parameter: the row.</summary>
+    public AsyncCommand TranslateTipCommand { get; }
 
     private string _sampleText = "";
     public string SampleText { get => _sampleText; private set => Set(ref _sampleText, value); }
@@ -497,6 +500,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public GuideTip? GuideTipFor(string apiName) => _guides?.Tips.GetValueOrDefault(apiName);
+
+    public string? TipTranslation(string apiName) => _guides?.Translations.GetValueOrDefault(Loc.Language + ":" + apiName);
+
+    /// <summary>Translates on demand; when the translator does not answer, the browser translates instead.</summary>
+    private async Task TranslateTipAsync(AchievementRowViewModel? row)
+    {
+        if (row is null || _game is null || _guides is null) return;
+        if (row.ShowsTranslation)
+        {
+            row.ShowTranslation(false);
+            return;
+        }
+        try
+        {
+            if (await _svc.TranslateTipAsync(_game.AppId, _guides, row.ApiName, Loc.Language) is not null) row.ShowTranslation(true);
+        }
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            AppLog.Info($"Translation: {e.Message}");
+            StatusMessage = Loc.T("status.translateInBrowser");
+            OpenUrl(Translator.WebUrl(GuideTipFor(row.ApiName)?.Text ?? "", Loc.Language));
+        }
+    }
 
     /// <summary>Tips from Steam guides, read in the background: the rows show them when they arrive.</summary>
     private async Task LoadGuidesAsync(GameData game)

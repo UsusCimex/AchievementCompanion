@@ -739,6 +739,13 @@
                                                     <Button Style="{StaticResource RevealButton}" Command="{Binding RevealCommand}" VerticalAlignment="Top"
                                                             Visibility="{Binding IsTipHidden, Converter={StaticResource BoolToVis}}" />
                                                 </Grid>
+                                                <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,4"
+                                                           Visibility="{Binding CanTranslate, Converter={StaticResource BoolToVis}}">
+                                                    <Hyperlink Command="{Binding DataContext.TranslateTipCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                               CommandParameter="{Binding}" ToolTip="{local:Tr details.translateTip}">
+                                                        <Run Text="{Binding TranslateLabel, Mode=OneWay}" />
+                                                    </Hyperlink>
+                                                </TextBlock>
                                                 <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap">
                                                     <Hyperlink Command="{Binding DataContext.OpenGuideTipCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                CommandParameter="{Binding}">
