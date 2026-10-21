@@ -4,7 +4,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <RootNamespace>AC.App</RootNamespace>
-    <AssemblyName>AchievementCompanion</AssemblyName>
+    <AssemblyName>Hundo</AssemblyName>
     <StartupObject>AC.App.Program</StartupObject>
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationManifest>app.manifest</ApplicationManifest>

@@ -42,7 +42,7 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem out/app -Filter *.pdb -Recurse | Remove-Item
-          $zip = "AchievementCompanion-${{ steps.ver.outputs.tag }}-win-x64.zip"
+          $zip = "Hundo-${{ steps.ver.outputs.tag }}-win-x64.zip"
           Compress-Archive -Path out/app/* -DestinationPath $zip
           "ZIP=$zip" >> $env:GITHUB_ENV
 
@@ -54,13 +54,13 @@ jobs:
           Invoke-WebRequest "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/$is" -OutFile $is
           if ((Get-FileHash $is).Hash -ne "9C73C3BAE7ED48D44112A0F48E66742C00090BDB5BEF71D9D3C056C66E97B732") { throw "Unexpected $is" }
           Start-Process "./$is" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CURRENTUSER", "/PORTABLE=1", "/DIR=$env:RUNNER_TEMP\is" -Wait
-          & "$env:RUNNER_TEMP\is\ISCC.exe" /Q "/DAppVersion=${{ steps.ver.outputs.num }}" installer/AchievementCompanion.iss
+          & "$env:RUNNER_TEMP\is\ISCC.exe" /Q "/DAppVersion=${{ steps.ver.outputs.num }}" installer/Hundo.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          "SETUP=out/AchievementCompanion-${{ steps.ver.outputs.tag }}-win-x64-setup.exe" >> $env:GITHUB_ENV
+          "SETUP=out/Hundo-${{ steps.ver.outputs.tag }}-win-x64-setup.exe" >> $env:GITHUB_ENV
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AchievementCompanion-win-x64
+          name: Hundo-win-x64
           path: |
             ${{ env.ZIP }}
             ${{ env.SETUP }}

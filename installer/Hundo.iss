@@ -2,20 +2,20 @@
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
-#define AppExe "AchievementCompanion.exe"
+#define AppExe "Hundo.exe"
 #define SideImages "side-202.png,side-404.png"
 #define SmallImages "small-58.png,small-77.png,small-97.png,small-124.png"
 
 [Setup]
 ; The same AppId on every release makes a new setup update the installed copy.
 AppId={{39FB1325-FFAF-4F0B-B07A-70CD681B2423}
-AppName=Achievement Companion
+AppName=Hundo
 AppVersion={#AppVersion}
 AppPublisher=UsusCimex
-AppPublisherURL=https://github.com/UsusCimex/AchievementCompanion
-AppSupportURL=https://github.com/UsusCimex/AchievementCompanion/issues
-AppUpdatesURL=https://github.com/UsusCimex/AchievementCompanion/releases
-DefaultDirName={autopf}\Achievement Companion
+AppPublisherURL=https://github.com/UsusCimex/Hundo
+AppSupportURL=https://github.com/UsusCimex/Hundo/issues
+AppUpdatesURL=https://github.com/UsusCimex/Hundo/releases
+DefaultDirName={autopf}\Hundo
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -29,10 +29,10 @@ WizardImageFileDynamicDark={#SideImages}
 WizardSmallImageFile={#SmallImages}
 WizardSmallImageFileDynamicDark={#SmallImages}
 SetupIconFile=..\src\AC.App\Assets\app.ico
-UninstallDisplayName=Achievement Companion
+UninstallDisplayName=Hundo
 UninstallDisplayIcon={app}\{#AppExe}
 OutputDir=..\out
-OutputBaseFilename=AchievementCompanion-v{#AppVersion}-win-x64-setup
+OutputBaseFilename=Hundo-v{#AppVersion}-win-x64-setup
 SolidCompression=yes
 
 [Languages]
@@ -45,9 +45,15 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "..\out\app\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 
+; Achievement Companion was the app's first name: an update removes its exe and shortcuts.
+[InstallDelete]
+Type: files; Name: "{app}\AchievementCompanion.exe"
+Type: files; Name: "{autoprograms}\Achievement Companion.lnk"
+Type: files; Name: "{autodesktop}\Achievement Companion.lnk"
+
 [Icons]
-Name: "{autoprograms}\Achievement Companion"; Filename: "{app}\{#AppExe}"
-Name: "{autodesktop}\Achievement Companion"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
+Name: "{autoprograms}\Hundo"; Filename: "{app}\{#AppExe}"
+Name: "{autodesktop}\Hundo"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Achievement Companion}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Hundo}"; Flags: nowait postinstall skipifsilent

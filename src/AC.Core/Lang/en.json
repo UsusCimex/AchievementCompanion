@@ -201,7 +201,7 @@
   "time.offset": "Ignore from Steam, h",
   "time.offsetTip": "Hours before achievements existed, or AFK - subtracted from Steam's playtime",
 
-  "overlay.title": "Achievement Companion - overlay",
+  "overlay.title": "Hundo - overlay",
   "overlay.doneTip": "Mark as done but not counted by Steam",
   "overlay.toSteamTip": "Write to Steam now",
   "overlay.missable": "DON'T MISS",
@@ -296,7 +296,7 @@
   "group.act": "Act {0}",
   "group.episode": "Episode {0}",
 
-  "dialog.errorTitle": "Achievement Companion - error",
+  "dialog.errorTitle": "Hundo - error",
   "dialog.manualUnlocks": "This adds a \"Done\" checkbox for achievements Steam did not count and lets the app write achievements to your Steam account.\n\nValve does not officially support such writes, and ranking sites (Steam Hunters, completionist.me) may flag a profile when many achievements unlock at once. Written achievements can be revoked, and every write is logged.\n\nTurn it on?",
   "dialog.noLoginUsers": "loginusers.vdf not found: Steam is not installed or nobody has signed in yet.",
   "dialog.accountFound": "Account found: {0}",

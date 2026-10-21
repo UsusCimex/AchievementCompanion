@@ -675,7 +675,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private async Task FlushQueueAsync()
     {
         if (_game is null) return;
-        if (MessageBox.Show(Loc.Plural("dialog.flushQueue", QueueCount), "Achievement Companion",
+        if (MessageBox.Show(Loc.Plural("dialog.flushQueue", QueueCount), "Hundo",
                 MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
         await Busy(Loc.T("status.writing"), async () =>
         {
@@ -699,7 +699,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (rows.Count == 0) return;
 
         if (!fromOverlay && rows.Count > 1 &&
-            MessageBox.Show(Loc.Plural("dialog.writeSelected", rows.Count), "Achievement Companion",
+            MessageBox.Show(Loc.Plural("dialog.writeSelected", rows.Count), "Hundo",
                 MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
             return;
 
@@ -724,7 +724,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_game is null || row is null) return;
         if (!_svc.WasWrittenByApp(_game.AppId, row.ApiName) &&
             MessageBox.Show(Loc.T("dialog.revertForeign"),
-                "Achievement Companion", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+                "Hundo", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
         await Busy(Loc.T("status.reverting"), async () =>
         {
             var r = await _svc.RevertInSteamAsync(_game, row.ApiName);

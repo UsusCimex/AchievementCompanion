@@ -206,7 +206,7 @@
   "time.offset": "Не считать из Steam, ч",
   "time.offsetTip": "Часы до появления достижений или AFK - вычитаются из времени Steam",
 
-  "overlay.title": "Achievement Companion - оверлей",
+  "overlay.title": "Hundo - оверлей",
   "overlay.doneTip": "Отметить: выполнено, но Steam не засчитал",
   "overlay.toSteamTip": "Записать в Steam сейчас",
   "overlay.missable": "НЕ ПРОПУСТИ",
@@ -301,7 +301,7 @@
   "group.act": "Акт {0}",
   "group.episode": "Эпизод {0}",
 
-  "dialog.errorTitle": "Achievement Companion - ошибка",
+  "dialog.errorTitle": "Hundo - ошибка",
   "dialog.manualUnlocks": "Появятся галочка \"Сделал\" для достижений, которые Steam не засчитал, и запись достижений в твой аккаунт Steam.\n\nValve такую запись официально не поддерживает, а сайты-рейтинги (Steam Hunters, completionist.me) могут пометить профиль, если много достижений откроется разом. Записанное можно снять, каждая запись попадает в журнал.\n\nВключить?",
   "dialog.noLoginUsers": "Не найден loginusers.vdf: Steam не установлен или в него ещё не входили.",
   "dialog.accountFound": "Найден аккаунт: {0}",

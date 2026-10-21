@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AC.App"
         xmlns:core="clr-namespace:AC.Core;assembly=AC.Core"
-        Title="Achievement Companion" Icon="Assets/app.ico"
+        Title="Hundo" Icon="Assets/app.ico"
         Width="1360" Height="880" MinWidth="1040" MinHeight="620"
         WindowStartupLocation="CenterScreen">
 
@@ -323,7 +323,7 @@
                 BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
             <DockPanel Margin="16">
                 <StackPanel DockPanel.Dock="Top">
-                    <TextBlock Text="Achievement Companion" Style="{StaticResource Subtitle}" />
+                    <TextBlock Text="Hundo" Style="{StaticResource Subtitle}" />
                     <TextBlock Text="{local:Tr library.tagline}" Style="{StaticResource Caption}" Margin="0,2,0,14" />
                     <Grid Margin="0,0,0,10">
                         <TextBox x:Name="LibrarySearch" Padding="32,5,6,6" Text="{Binding LibraryFilter, UpdateSourceTrigger=PropertyChanged}" />

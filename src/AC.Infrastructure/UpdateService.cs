@@ -11,7 +11,7 @@ public sealed record UpdateInfo(Version Version, string PageUrl, string Download
 /// </summary>
 public sealed class UpdateService(HttpClient http)
 {
-    public const string Repository = "UsusCimex/AchievementCompanion";
+    public const string Repository = "UsusCimex/Hundo";
     private const string ZipSuffix = "-win-x64.zip";
     private const string SetupSuffix = "-win-x64-setup.exe";
 
@@ -28,7 +28,7 @@ public sealed class UpdateService(HttpClient http)
     public async Task<UpdateInfo?> CheckAsync(CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, LatestUrl);
-        request.Headers.UserAgent.ParseAdd($"AchievementCompanion/{Current}");
+        request.Headers.UserAgent.ParseAdd($"Hundo/{Current}");
         request.Headers.Accept.ParseAdd("application/vnd.github+json");
         using var response = await http.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode) return null;

@@ -592,9 +592,9 @@ static class Tests
         const string json = """
             {"tag_name": "v0.3.1", "html_url": "https://github.com/o/r/releases/tag/v0.3.1", "draft": false, "prerelease": false,
              "assets": [{"name": "notes.txt", "browser_download_url": "https://e/notes.txt", "size": 1},
-                        {"name": "AchievementCompanion-v0.3.1-win-x64.zip", "browser_download_url": "https://e/a.zip", "size": 42,
+                        {"name": "Hundo-v0.3.1-win-x64.zip", "browser_download_url": "https://e/a.zip", "size": 42,
                          "digest": "sha256:abcdef"},
-                        {"name": "AchievementCompanion-v0.3.1-win-x64-setup.exe", "browser_download_url": "https://e/s.exe", "size": 40}]}
+                        {"name": "Hundo-v0.3.1-win-x64-setup.exe", "browser_download_url": "https://e/s.exe", "size": 40}]}
             """;
         var update = AC.Infrastructure.UpdateService.Parse(json, new Version(0, 3, 0))!;
         Assert.Equal(new Version(0, 3, 1), update.Version);

@@ -44,7 +44,7 @@ public sealed class SteamHunters(HttpClient http)
     private async Task<string?> GetAsync(string url, CancellationToken ct)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
-        req.Headers.UserAgent.ParseAdd($"AchievementCompanion/{typeof(SteamHunters).Assembly.GetName().Version?.ToString(3)}");
+        req.Headers.UserAgent.ParseAdd($"Hundo/{typeof(SteamHunters).Assembly.GetName().Version?.ToString(3)}");
         using var resp = await http.SendAsync(req, ct);
         if (resp.StatusCode == HttpStatusCode.NotFound) return null;
         resp.EnsureSuccessStatusCode();

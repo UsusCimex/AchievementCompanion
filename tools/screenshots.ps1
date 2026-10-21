@@ -111,7 +111,7 @@ foreach ($pair in ($Set -split ";" | Where-Object { $_ })) {
 }
 [IO.File]::WriteAllText($settingsPath, ($settings | ConvertTo-Json -Depth 5))
 
-$psi = New-Object Diagnostics.ProcessStartInfo (Join-Path $app "AchievementCompanion.exe")
+$psi = New-Object Diagnostics.ProcessStartInfo (Join-Path $app "Hundo.exe")
 $psi.UseShellExecute = $false
 $psi.EnvironmentVariables["AC_DATA_DIR"] = $data
 $psi.EnvironmentVariables["AC_NO_STEAM_CLIENT"] = "1"

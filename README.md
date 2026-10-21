@@ -2,7 +2,7 @@
   <img src="src/AC.App/Assets/icon-512.png" width="96" alt="" />
 </p>
 
-<h1 align="center">Achievement Companion</h1>
+<h1 align="center">Hundo</h1>
 
 <p align="center">
   Your 100% completion companion for Steam games on Windows.<br />
@@ -19,7 +19,7 @@
 
 ## Run
 
-1. Download `AchievementCompanion-<version>-win-x64-setup.exe` from [Releases](../../releases/latest) and run it, or unpack the portable zip anywhere. Needs Windows 10 or 11 (x64) and the Steam client.
+1. Download `Hundo-<version>-win-x64-setup.exe` from [Releases](../../releases/latest) and run it, or unpack the portable zip anywhere. Needs Windows 10 or 11 (x64) and the Steam client.
    If Windows SmartScreen stops it, click More info > Run anyway.
 2. In Settings, paste a [Steam Web API key](https://steamcommunity.com/dev/apikey) (domain: `localhost`) to load your library and progress.
 
