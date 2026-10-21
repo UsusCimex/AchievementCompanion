@@ -779,6 +779,30 @@ static class Tests
         }
     }
 
+    public static void History_GroupsUnlocksByLocalDay()
+    {
+        var zone = TimeZoneInfo.CreateCustomTimeZone("UTC+3", TimeSpan.FromHours(3), "UTC+3", "UTC+3");
+        var g = SampleGame();
+        void Unlock(string id, DateTimeOffset? at)
+        {
+            var s = g.StateOf(id);
+            s.SteamUnlocked = true;
+            s.SteamUnlockTime = at;
+        }
+        Unlock("ch1", null);
+        Unlock("misc", new DateTimeOffset(2026, 10, 1, 22, 30, 0, TimeSpan.Zero)); // already Oct 2 in UTC+3
+        Unlock("ch5", new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero));
+        Unlock("miss", new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.Zero));
+
+        var days = UnlockHistory.ByDay(g, zone);
+        Assert.Equal("10/02:misc,ch5:3 10/20:miss:4",
+            string.Join(" ", days.Select(d => $"{d.Day.Month:00}/{d.Day.Day:00}:{string.Join(",", d.Unlocked.Select(a => a.ApiName))}:{d.Total}")));
+        Assert.Equal<(DateOnly, DateOnly)?>((new DateOnly(2026, 10, 2), new DateOnly(2026, 10, 20)),
+            UnlockHistory.LongestBreak(days, new DateOnly(2026, 10, 25)));
+        Assert.Equal<(DateOnly, DateOnly)?>((new DateOnly(2026, 10, 20), new DateOnly(2026, 11, 30)),
+            UnlockHistory.LongestBreak(days, new DateOnly(2026, 11, 30)));
+    }
+
     public static void Session_TrackerReportsSessionsSeenFromTheStart()
     {
         var t0 = new DateTimeOffset(2026, 10, 1, 18, 0, 0, TimeSpan.Zero);

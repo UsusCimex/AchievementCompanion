@@ -64,6 +64,7 @@
   "tabs.achievements": "Достижения",
   "tabs.plan": "План до 100%",
   "tabs.time": "Время",
+  "tabs.history": "История",
 
   "list.search": "Название, описание, группа, заметка",
   "list.kindTip": "Тип",
@@ -159,6 +160,16 @@
   "session.left": "До 100%: было {0}, стало {1}",
   "session.leftNow": "До 100%: {0}",
   "session.close": "Скрыть",
+
+  "history.empty": "Пока ничего не получено",
+  "history.date": "d MMMM yyyy",
+  "history.axisDay": "d MMM",
+  "history.axisMonth": "MMM yyyy",
+  "history.break": {
+    "one": "перерыв {0} день",
+    "few": "перерыв {0} дня",
+    "many": "перерыв {0} дней"
+  },
 
   "time.sampleTitle": "Статистика по игрокам",
   "time.sampleHint": "Берём авторов обзоров игры в Steam с открытым профилем и смотрим, что и когда они получили: так узнаём проценты и сколько было наиграно к каждому достижению. Помогает, когда процентов нет ни у Steam, ни у Steam Hunters (как у новых игр). Занимает до минуты.",

@@ -868,6 +868,42 @@
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
+
+                <TabItem Header="{local:Tr tabs.history}" AutomationProperties.AutomationId="HistoryTab">
+                    <Grid Margin="0,10,0,0">
+                        <TextBlock Text="{local:Tr history.empty}" Style="{StaticResource Muted}"
+                                   Visibility="{Binding HasHistory, Converter={StaticResource InverseVis}}" />
+                        <DockPanel MaxWidth="980" HorizontalAlignment="Left" Visibility="{Binding HasHistory, Converter={StaticResource BoolToVis}}">
+                            <local:UnlockChart DockPanel.Dock="Top" Height="230" Margin="0,0,0,16" AutomationProperties.AutomationId="UnlockChart"
+                                               Days="{Binding HistoryDays}" Total="{Binding CountAll}"
+                                               Stroke="{DynamicResource AccentFillColorDefaultBrush}"
+                                               GridBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                                               TextBrush="{DynamicResource TextFillColorSecondaryBrush}"
+                                               LabelBrush="{DynamicResource TextFillColorPrimaryBrush}"
+                                               SurfaceBrush="{DynamicResource ApplicationBackgroundBrush}" />
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding HistoryRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="150" />
+                                                    <ColumnDefinition Width="44" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Date}" Style="{StaticResource Muted}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Count}" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding Names}" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Grid>
+                </TabItem>
             </TabControl>
 
             <DockPanel Grid.Row="4" Margin="0,8,0,0">

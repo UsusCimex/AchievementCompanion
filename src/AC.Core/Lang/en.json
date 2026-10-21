@@ -64,6 +64,7 @@
   "tabs.achievements": "Achievements",
   "tabs.plan": "Plan to 100%",
   "tabs.time": "Time",
+  "tabs.history": "History",
 
   "list.search": "Name, description, group, note",
   "list.kindTip": "Type",
@@ -156,6 +157,15 @@
   "session.left": "To 100%: was {0}, now {1}",
   "session.leftNow": "To 100%: {0}",
   "session.close": "Dismiss",
+
+  "history.empty": "Nothing unlocked yet",
+  "history.date": "MMMM d, yyyy",
+  "history.axisDay": "MMM d",
+  "history.axisMonth": "MMM yyyy",
+  "history.break": {
+    "one": "{0}-day break",
+    "other": "{0}-day break"
+  },
 
   "time.sampleTitle": "Player statistics",
   "time.sampleHint": "Takes the authors of the game's Steam reviews with public profiles and looks at what they unlocked and when: this gives percentages and how long each achievement took. Helps when neither Steam nor Steam Hunters has percentages (as with new games). Takes up to a minute.",

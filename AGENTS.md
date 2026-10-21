@@ -33,9 +33,9 @@ The script works on copies of the build and of the data folder, so the real fold
 
 | Project | Contents |
 | --- | --- |
-| `src/AC.Core` | models and all logic, tested without Steam: statuses and probably missed missables (`GameLogic`), kind and chapter from the text (`KindClassifier`), time estimates (`TimeEstimator`, `SampleStats`, `Progress`), plan (`Planner`), session summary (`SessionTracker`, `SessionSummary`), filters (`AchievementQuery`), export, tags file (`TagPack`), Steam file formats (`SteamFormats/`), texts (`Loc`, `Lang/`) |
+| `src/AC.Core` | models and all logic, tested without Steam: statuses and probably missed missables (`GameLogic`), kind and chapter from the text (`KindClassifier`), time estimates (`TimeEstimator`, `SampleStats`, `Progress`), plan (`Planner`), session summary (`SessionTracker`, `SessionSummary`), unlocks by day (`UnlockHistory`), filters (`AchievementQuery`), export, tags file (`TagPack`), Steam file formats (`SteamFormats/`), texts (`Loc`, `Lang/`) |
 | `src/AC.Infrastructure` | I/O: use cases (`GameService`), Steam Web API, registry and Steam files (`SteamLocal`), Steam client (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), storage (`JsonStore`), data folder (`AppPaths`), error log (`AppLog`), DPAPI, Steam Hunters (`SteamHunters`), store art paths (`StoreAssets`), updates (`UpdateService`) |
-| `src/AC.App` | WPF UI on the built-in Fluent theme: windows, view models, cached image loading (`RemoteImage`), theme (`ThemeManager`), hotkeys (`Native`) |
+| `src/AC.App` | WPF UI on the built-in Fluent theme: windows, view models, cached image loading (`RemoteImage`), unlock chart (`UnlockChart`), theme (`ThemeManager`), hotkeys (`Native`) |
 | `tests/AC.Core.Tests` | tests of the logic and storage |
 
 No NuGet packages: MVVM, tests, DPAPI and parsers are written in the project.

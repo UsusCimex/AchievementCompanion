@@ -16,6 +16,8 @@ public sealed record PlanGroupViewModel(string Label, string Longest, IReadOnlyL
 
 public sealed record PlanSectionViewModel(string Title, IReadOnlyList<PlanGroupViewModel> Groups);
 
+public sealed record HistoryRowViewModel(string Date, string Count, string Names);
+
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
     private readonly GameService _svc;
@@ -266,6 +268,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private string _statRemainingSub = "";
     public string StatRemainingSub { get => _statRemainingSub; private set => Set(ref _statRemainingSub, value); }
+
+    private IReadOnlyList<UnlockDay> _historyDays = [];
+    public IReadOnlyList<UnlockDay> HistoryDays
+    {
+        get => _historyDays;
+        private set { if (Set(ref _historyDays, value)) OnPropertyChanged(nameof(HasHistory)); }
+    }
+
+    public bool HasHistory => _historyDays.Count > 0;
+
+    /// <summary>The days of <see cref="HistoryDays"/>, newest first.</summary>
+    private IReadOnlyList<HistoryRowViewModel> _historyRows = [];
+    public IReadOnlyList<HistoryRowViewModel> HistoryRows { get => _historyRows; private set => Set(ref _historyRows, value); }
 
     private bool _hasSession;
     public bool HasSession { get => _hasSession; private set => Set(ref _hasSession, value); }
@@ -1000,6 +1015,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 sf.ToLocalTime().ToString("d", CultureInfo.CurrentCulture))
             : Loc.T("time.sampleNone");
         QueueCount = _game.PendingUnlocks.Count;
+        var history = UnlockHistory.ByDay(_game, TimeZoneInfo.Local);
+        var language = CultureInfo.GetCultureInfo(Loc.Language);
+        HistoryDays = history;
+        HistoryRows = history.Reverse().Select(d => new HistoryRowViewModel(
+            d.Day.ToString(Loc.T("history.date"), language), $"+{d.Unlocked.Count}", string.Join(", ", d.Unlocked.Select(a => a.Name)))).ToList();
         UpdateOverlayLists(all);
 
         var summary = GameSummary.Of(_game);
