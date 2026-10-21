@@ -81,6 +81,20 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="SpoilerTip" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsTipHidden}" Value="True">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <BlurEffect Radius="9" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="RevealButton" TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Cursor" Value="Hand" />
@@ -718,6 +732,32 @@
                                                 <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ApiName, Mode=OneWay}" IsReadOnly="True" />
                                             </Grid>
 
+                                            <TextBlock Text="{local:Tr details.guides}" Style="{StaticResource Header}" Margin="0,16,0,6" />
+                                            <StackPanel Margin="0,0,0,8" Visibility="{Binding HasGuideTip, Converter={StaticResource BoolToVis}}">
+                                                <Grid Margin="0,0,0,4" Visibility="{Binding GuideText, Converter={StaticResource EmptyToCollapsed}}">
+                                                    <TextBlock Text="{Binding GuideText}" Style="{StaticResource SpoilerTip}" />
+                                                    <Button Style="{StaticResource RevealButton}" Command="{Binding RevealCommand}" VerticalAlignment="Top"
+                                                            Visibility="{Binding IsTipHidden, Converter={StaticResource BoolToVis}}" />
+                                                </Grid>
+                                                <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap">
+                                                    <Hyperlink Command="{Binding DataContext.OpenGuideTipCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                               CommandParameter="{Binding}">
+                                                        <Run Text="{Binding GuideSource, Mode=OneWay}" />
+                                                    </Hyperlink>
+                                                </TextBlock>
+                                            </StackPanel>
+
+                                            <WrapPanel>
+                                                <Button Content="{local:Tr details.guideSteam}" Margin="0,0,8,8" Padding="10,4"
+                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="steam" />
+                                                <Button Content="{local:Tr details.guideDiscussions}" Margin="0,0,8,8" Padding="10,4"
+                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="discussions" />
+                                                <Button Content="YouTube" Margin="0,0,8,8" Padding="10,4"
+                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="youtube" />
+                                                <Button Content="Google" Margin="0,0,8,8" Padding="10,4"
+                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="google" />
+                                            </WrapPanel>
+
                                             <TextBlock Text="{local:Tr details.kind}" Style="{StaticResource Caption}" Margin="0,16,0,2" />
                                             <ComboBox ItemsSource="{x:Static local:Options.Kinds}" DisplayMemberPath="Title" SelectedValuePath="Value"
                                                       SelectedValue="{Binding Kind, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Stretch" />
@@ -732,18 +772,6 @@
 
                                             <TextBlock Text="{local:Tr details.note}" Style="{StaticResource Caption}" Margin="0,10,0,2" />
                                             <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
-
-                                            <TextBlock Text="{local:Tr details.guides}" Style="{StaticResource Header}" />
-                                            <WrapPanel>
-                                                <Button Content="{local:Tr details.guideSteam}" Margin="0,0,8,8" Padding="10,4"
-                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="steam" />
-                                                <Button Content="{local:Tr details.guideDiscussions}" Margin="0,0,8,8" Padding="10,4"
-                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="discussions" />
-                                                <Button Content="YouTube" Margin="0,0,8,8" Padding="10,4"
-                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="youtube" />
-                                                <Button Content="Google" Margin="0,0,8,8" Padding="10,4"
-                                                        Command="{Binding DataContext.OpenGuideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="google" />
-                                            </WrapPanel>
 
                                             <StackPanel Visibility="{Binding DataContext.ManualUnlocks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                                 <CheckBox Content="{local:Tr details.done}" Margin="0,12,0,8"

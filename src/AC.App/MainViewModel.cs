@@ -36,6 +36,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly Dictionary<uint, GameSummary> _summaries;
     /// <summary>Hidden achievements whose description the user revealed ("appid/apiName"). Kept until the app closes.</summary>
     private readonly HashSet<string> _revealed = new(StringComparer.Ordinal);
+    private GuideTips? _guides;
 
     public MainViewModel(GameService svc)
     {
@@ -75,6 +76,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DownloadUpdateCommand = new RelayCommand(() => OpenUrl(_update?.DownloadUrl), () => _update != null);
         UpdateNotesCommand = new RelayCommand(() => OpenUrl(_update?.PageUrl), () => _update != null);
         CloseSessionCommand = new RelayCommand(() => { _lastSession = null; UpdateSession(); });
+        OpenGuideTipCommand = new RelayCommand(p => OpenUrl(p is AchievementRowViewModel r ? GuideTipFor(r.ApiName)?.Url : null));
 
         uint runningAtStart = 0;
         try { runningAtStart = SteamLocal.RunningAppId(); }
@@ -366,6 +368,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Look up how to get the selected achievement online: steam, discussions, youtube, google.</summary>
     public RelayCommand OpenGuideCommand { get; }
     public RelayCommand CloseSessionCommand { get; }
+    /// <summary>Opens the guide section a tip comes from. Parameter: the row.</summary>
+    public RelayCommand OpenGuideTipCommand { get; }
 
     private string _sampleText = "";
     public string SampleText { get => _sampleText; private set => Set(ref _sampleText, value); }
@@ -488,6 +492,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _ = RefreshSampleAsync(g);
             }
         }
+
+        if (seq == _loadSeq && _game is { } game && game.AppId == appId) _ = SafeAsync(() => LoadGuidesAsync(game));
+    }
+
+    public GuideTip? GuideTipFor(string apiName) => _guides?.Tips.GetValueOrDefault(apiName);
+
+    /// <summary>Tips from Steam guides, read in the background: the rows show them when they arrive.</summary>
+    private async Task LoadGuidesAsync(GameData game)
+    {
+        var tips = await _svc.GetGuideTipsAsync(game);
+        if (!ReferenceEquals(game, _game)) return;
+        _guides = tips;
+        foreach (var row in Rows) row.RefreshGuide();
     }
 
     private static readonly TimeSpan SampleRefresh = TimeSpan.FromDays(7);
@@ -875,6 +892,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void SetGame(GameData game)
     {
         _game = game;
+        _guides = null;
         GameName = game.Name.Length > 0 ? game.Name : $"AppID {game.AppId}";
         SelectedRow = null;
         OnPropertyChanged(nameof(HasGame));

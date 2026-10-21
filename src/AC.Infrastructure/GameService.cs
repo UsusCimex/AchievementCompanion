@@ -18,11 +18,15 @@ public sealed class GameService
 {
     private static readonly TimeSpan SchemaTtl = TimeSpan.FromHours(24);
     private static readonly TimeSpan CompletionTtl = TimeSpan.FromDays(7);
+    private static readonly TimeSpan GuidesTtl = TimeSpan.FromDays(30);
 
     private readonly JsonStore _store;
     private readonly SteamWebApi _api;
     private readonly BridgeClient _bridge;
     private readonly SteamHunters _hunters;
+    private readonly SteamGuides _guides;
+    /// <summary>When reading a game's guides last failed: not tried again for a day.</summary>
+    private readonly Dictionary<uint, DateTimeOffset> _guidesFailed = new();
 
     public AppSettings Settings { get; private set; }
     public UpdateService Updates { get; }
@@ -36,6 +40,7 @@ public sealed class GameService
         _api = api;
         _bridge = bridge;
         _hunters = hunters;
+        _guides = new SteamGuides(api);
         Settings = store.LoadSettings();
         if (Settings.SteamId64 == 0 && SteamLocal.MostRecentUser() is { } u)
         {
@@ -234,6 +239,50 @@ public sealed class GameService
             Progress.AddPlaytime(game, now, own.PlaytimeMinutes);
         }
         _store.SaveGame(game);
+    }
+
+    /// <summary>
+    /// Tips from Steam Community guides: in the content language, English ones where those have no words of their own.
+    /// Kept for a month and read again when the content language changes. Null - no key and nothing kept.
+    /// </summary>
+    public async Task<GuideTips?> GetGuideTipsAsync(GameData game, CancellationToken ct = default)
+    {
+        var kept = _store.LoadGuides(game.AppId);
+        bool fresh = kept is not null && kept.Language == ContentLanguage && DateTimeOffset.Now - kept.FetchedAt < GuidesTtl;
+        bool failed = _guidesFailed.TryGetValue(game.AppId, out var at) && DateTimeOffset.Now - at < TimeSpan.FromDays(1);
+        if (fresh || failed || !HasApiKey || game.Achievements.Count == 0) return kept;
+        try
+        {
+            var key = ApiKey;
+            bool english = string.Equals(ContentLanguage, "english", StringComparison.OrdinalIgnoreCase);
+            var names = english ? null : await EnglishNamesAsync(game, key, ct);
+            var englishName = (names ?? []).DistinctBy(n => n.ApiName).ToDictionary(n => n.ApiName, n => n.Name, StringComparer.Ordinal);
+            var own = game.Achievements
+                .Select(a => new GuideAchievement(a.ApiName, a.Name, a.Description, englishName.GetValueOrDefault(a.ApiName, "")))
+                .ToList();
+            var mine = english ? new Dictionary<string, GuideTip>() : await _guides.TipsAsync(key, game.AppId, game.Name, ContentLanguage, own, ct);
+            var theirs = (english ? own : names) is { } list
+                ? await _guides.TipsAsync(key, game.AppId, game.Name, "english", list, ct)
+                : new Dictionary<string, GuideTip>();
+            var tips = new GuideTips { Language = ContentLanguage, FetchedAt = DateTimeOffset.Now, Tips = GuideTips.Combine(mine, theirs) };
+            _store.SaveGuides(game.AppId, tips);
+            return tips;
+        }
+        catch (Exception e) when (e is SteamApiException or HttpRequestException or TaskCanceledException)
+        {
+            _guidesFailed[game.AppId] = DateTimeOffset.Now;
+            AppLog.Info($"{game.AppId}: guides: {e.Message}");
+            return kept;
+        }
+    }
+
+    /// <summary>English names to find achievements in English guides: from the local schema, else from the Web API.</summary>
+    private async Task<List<GuideAchievement>?> EnglishNamesAsync(GameData game, string key, CancellationToken ct)
+    {
+        if (SteamLocal.ReadSchema(game.AppId, "english") is { Count: > 0 } local)
+            return local.Select(a => new GuideAchievement(a.ApiName, a.Name, a.Description)).ToList();
+        var (_, entries) = await _api.GetSchemaAsync(key, game.AppId, "english", ct);
+        return entries.Count == 0 ? null : entries.Select(e => new GuideAchievement(e.ApiName, e.Name, e.Description)).ToList();
     }
 
     /// <summary>Own "actually played" time (null - from Steam) and Steam hours to ignore.</summary>

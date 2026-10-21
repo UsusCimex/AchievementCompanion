@@ -193,6 +193,53 @@ public sealed class SteamWebApi(HttpClient http)
         return result;
     }
 
+    /// <summary>A game's guides with all the given tags, the best rated first.</summary>
+    public async Task<List<GuideCard>> QueryGuidesAsync(string key, uint appId, IReadOnlyList<string> tags, int count, CancellationToken ct = default)
+    {
+        var tagArgs = string.Concat(tags.Select((t, i) => $"&requiredtags%5B{i}%5D={Esc(t)}"));
+        // query_type 0 - by votes; filetype 10 - guides; without return_details only ids come back.
+        using var doc = await GetJsonAsync(
+            $"{Base}/IPublishedFileService/QueryFiles/v1/?key={Esc(key)}&query_type=0&filetype=10&appid={appId}&numperpage={count}{tagArgs}&return_details=true&format=json", ct);
+        var list = new List<GuideCard>();
+        if (!doc.RootElement.TryGetProperty("response", out var resp) || !resp.TryGetProperty("publishedfiledetails", out var files)) return list;
+        foreach (var f in files.EnumerateArray())
+            if (Id(f, "publishedfileid") is { } id && Str(f, "title") is { Length: > 0 } title)
+                list.Add(new GuideCard(id, title.Trim(), Id(f, "creator") ?? 0));
+        return list;
+    }
+
+    /// <summary>The sections of a guide in their order: id, title and BBCode text.</summary>
+    public async Task<List<(string Id, string Title, string Text)>> GetGuideSectionsAsync(string key, ulong guideId, CancellationToken ct = default)
+    {
+        using var doc = await GetJsonAsync(
+            $"{Base}/IPublishedFileService/GetSubSectionData/v1/?key={Esc(key)}&publishedfileid={guideId}&format=json", ct);
+        if (!doc.RootElement.TryGetProperty("response", out var resp) || !resp.TryGetProperty("sub_sections", out var subs)) return [];
+        return subs.EnumerateArray()
+            .OrderBy(s => Num(s, "sort_order"))
+            .Select(s => (Id(s, "sectionid")?.ToString(CultureInfo.InvariantCulture) ?? "", Str(s, "title"), Str(s, "description_text")))
+            .ToList();
+    }
+
+    /// <summary>Persona names by SteamID.</summary>
+    public async Task<Dictionary<ulong, string>> GetPlayerNamesAsync(string key, IReadOnlyCollection<ulong> steamIds, CancellationToken ct = default)
+    {
+        var names = new Dictionary<ulong, string>();
+        if (steamIds.Count == 0) return names;
+        using var doc = await GetJsonAsync(
+            $"{Base}/ISteamUser/GetPlayerSummaries/v2/?key={Esc(key)}&steamids={string.Join(',', steamIds)}&format=json", ct);
+        if (doc.RootElement.TryGetProperty("response", out var resp) && resp.TryGetProperty("players", out var players))
+            foreach (var pl in players.EnumerateArray())
+                if (Id(pl, "steamid") is { } id) names[id] = Str(pl, "personaname");
+        return names;
+    }
+
+    /// <summary>A 64-bit id, sent as a string or a number.</summary>
+    private static ulong? Id(JsonElement e, string prop) =>
+        !e.TryGetProperty(prop, out var v) ? null
+        : v.ValueKind == JsonValueKind.Number && v.TryGetUInt64(out var n) ? n
+        : v.ValueKind == JsonValueKind.String && ulong.TryParse(v.GetString(), NumberStyles.None, CultureInfo.InvariantCulture, out var s) ? s
+        : null;
+
     private static double Num(JsonElement e, string prop) =>
         e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
 

@@ -33,8 +33,8 @@ The script works on copies of the build and of the data folder, so the real fold
 
 | Project | Contents |
 | --- | --- |
-| `src/AC.Core` | models and all logic, tested without Steam: statuses and probably missed missables (`GameLogic`), kind and chapter from the text (`KindClassifier`), time estimates (`TimeEstimator`, `SampleStats`, `Progress`), plan (`Planner`), session summary (`SessionTracker`, `SessionSummary`), unlocks by day (`UnlockHistory`), filters (`AchievementQuery`), export, tags file (`TagPack`), Steam file formats (`SteamFormats/`), texts (`Loc`, `Lang/`) |
-| `src/AC.Infrastructure` | I/O: use cases (`GameService`), Steam Web API, registry and Steam files (`SteamLocal`), Steam client (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), storage (`JsonStore`), data folder (`AppPaths`), error log (`AppLog`), DPAPI, Steam Hunters (`SteamHunters`), store art paths (`StoreAssets`), updates (`UpdateService`) |
+| `src/AC.Core` | models and all logic, tested without Steam: statuses and probably missed missables (`GameLogic`), kind and chapter from the text (`KindClassifier`), time estimates (`TimeEstimator`, `SampleStats`, `Progress`), plan (`Planner`), session summary (`SessionTracker`, `SessionSummary`), unlocks by day (`UnlockHistory`), quotes from guides (`GuideParser`, `GuideMatcher`), filters (`AchievementQuery`), export, tags file (`TagPack`), Steam file formats (`SteamFormats/`), texts (`Loc`, `Lang/`) |
+| `src/AC.Infrastructure` | I/O: use cases (`GameService`), Steam Web API, registry and Steam files (`SteamLocal`), Steam client (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), storage (`JsonStore`), data folder (`AppPaths`), error log (`AppLog`), DPAPI, Steam Hunters (`SteamHunters`), Steam guides (`SteamGuides`), store art paths (`StoreAssets`), updates (`UpdateService`) |
 | `src/AC.App` | WPF UI on the built-in Fluent theme: windows, view models, cached image loading (`RemoteImage`), unlock chart (`UnlockChart`), theme (`ThemeManager`), hotkeys (`Native`) |
 | `tests/AC.Core.Tests` | tests of the logic and storage |
 
@@ -64,6 +64,7 @@ The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (p
 | `library.json` | library cache |
 | `unlock_log.jsonl` | log of writes to Steam |
 | `app.log` | errors and starts, moved to `app.log.1` at 1 MB |
+| `cache/guides/<appid>.json` | quotes from Steam guides per achievement, with the guide, author and section; read again after a month |
 | `cache/images/` | images, trimmed to 200 MB at 300 MB |
 
 ### Sources
@@ -76,6 +77,7 @@ The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (p
 | Status | `GetPlayerAchievements` (key and public "Game details") or the Steam client |
 | Library | `GetOwnedGames` (key); fresh playtime of one game - the same call with `appids_filter` |
 | Own sample | authors of `store.steampowered.com/appreviews/<appid>` and their `GetPlayerAchievements`; collected on its own only when nobody has percentages, at most once a week |
+| Guide quotes | `IPublishedFileService/QueryFiles` (key): guides tagged Achievements and the language, up to 5 by title, until every achievement has words; `GetSubSectionData`: sections in BBCode; authors from `GetPlayerSummaries`. The content language first, then English with English names from the local schema or `GetSchemaForGame` |
 | Store art | `store_item_assets/steam/apps/<appid>/header.jpg`; newer apps keep it in a hashed folder: `IStoreBrowseService/GetItems`, else the store's `appdetails` |
 | Running game and new unlocks | registry `RunningAppID`, watching `appcache/stats/UserGameStats_<accountid>_<appid>.bin` and polling on a timer |
 | Updates | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: the `*-win-x64.zip` asset, downloaded by the browser |

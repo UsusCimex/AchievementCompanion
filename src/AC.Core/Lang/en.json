@@ -121,6 +121,8 @@
   "details.estimate": "Estimate",
   "details.status": "Status",
   "details.apiName": "API name",
+  "details.guideSource": "Guide \"{0}\" by {1}",
+  "details.guideSourceTitle": "Guide \"{0}\"",
   "details.kind": "Type",
   "details.group": "\"One sitting\" group (chapter, location, mode)",
   "details.groupAuto": "Detected from the description",

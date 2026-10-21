@@ -122,6 +122,8 @@
   "details.estimate": "Оценка",
   "details.status": "Статус",
   "details.apiName": "API-имя",
+  "details.guideSource": "Гайд \"{0}\", автор {1}",
+  "details.guideSourceTitle": "Гайд \"{0}\"",
   "details.kind": "Тип",
   "details.group": "Группа \"за один заход\" (глава, локация, режим)",
   "details.groupAuto": "Определена по описанию автоматически",

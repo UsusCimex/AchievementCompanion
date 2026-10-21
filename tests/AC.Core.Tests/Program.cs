@@ -779,6 +779,200 @@ static class Tests
         }
     }
 
+    public static void Guides_ReadsBBCodeLines()
+    {
+        var lines = GuideParser.Lines("""
+            [h1]Chapter one[/h1]
+            [list][*][b]First Steps[/b]
+            [i]Finish the tutorial[/i]
+            Talk to the old man twice, then jump.
+            [*][b]Second Wind[/b] - Beat the boss
+            [img]https://example.com/a.png[/img]
+            [/list]
+            [url=https://example.com]A link[/url] and [Note] stay
+            [table]
+              [tr]
+                [td][previewimg=1;sizeThumb;a.jpg]Age[/previewimg][/td]
+                [td]PLUMBER[/td]
+              [/tr]
+            [/table]
+            [table][tr][td]Lone Wolf[/td][td]Never pick up a companion.[/td][/tr][/table]
+            """);
+        Assert.Equal("Chapter one|First Steps|Finish the tutorial|Talk to the old man twice, then jump.|Second Wind - Beat the boss||A link and [Note] stay||PLUMBER|Lone Wolf - Never pick up a companion.",
+            string.Join("|", lines.Select(l => l.Text)));
+        Assert.True(lines[0].Heading == 1 && lines[1].Bold == 1 && lines[4].Bold < 0.8, "heading and bold");
+        Assert.True(lines[1].Item == 1 && lines[3].Item == 1 && lines[4].Item == 2 && lines[5].Media == 1 && lines[6].Item == 0, "list items and media");
+        Assert.True(lines[7].Media == 1, "a picture's caption is not text");
+        var unclosed = GuideParser.Lines("""
+            [h1]Mr. Mayor[/h1]
+            [previewimg=1;sizeThumb;a.jpg][previewyoutube=2;leftthumb][/previewyoutube]
+            Use the D-Pad on the wall.
+            [h1]A Secret Legend[/h1]
+            """);
+        Assert.Equal("Mr. Mayor||Use the D-Pad on the wall.|A Secret Legend", string.Join("|", unclosed.Select(l => l.Text)));
+    }
+
+    public static void Guides_QuotesTheAchievementsEntry()
+    {
+        var section = new GuideSection("7", "Story", GuideParser.Lines("""
+            [list][*][b]First Steps[/b]
+            [i]Finish the tutorial[/i]
+            Talk to the old man twice, then jump.
+            [*][b]Second Wind[/b] - Beat the boss
+            [img]https://example.com/a.png[/img][/list]
+            Thanks for reading!
+            [h2]3. Lone Wolf:[/h2]
+            Never pick up a companion. The game counts only the first act.
+            """));
+        var tips = GuideMatcher.Match(new GuidePage(42, "All achievements", "Ann", [section]), "english", [
+            new GuideAchievement("A", "First Steps", "Finish the tutorial"),
+            new GuideAchievement("B", "Second Wind", "Beat the boss"),
+            new GuideAchievement("C", "Lone Wolf", ""),
+            new GuideAchievement("D", "Nowhere", "Not in this guide"),
+        ]);
+        Assert.Equal("Talk to the old man twice, then jump.", tips["A"].Text);
+        Assert.Equal("", tips["B"].Text);
+        Assert.Equal("Never pick up a companion. The game counts only the first act.", tips["C"].Text);
+        Assert.True(!tips.ContainsKey("D"), "an achievement the guide does not name gets no tip");
+        Assert.True(tips["A"].Rank == 0 && tips["C"].Rank == 2, "exact heading, normalized heading");
+        var bilingual = GuideMatcher.Match(new GuidePage(1, "Guide", "Ann", [new GuideSection("2", "", GuideParser.Lines("""
+            [b]7 - Summit/Вершина.[/b]
+            Climb the mountain without help.
+            1UP! - Jump six times in a row
+            [b]Ghost[/b]
+            https://youtu.be/abc
+            """))]), "english", [new GuideAchievement("S", "Summit", ""), new GuideAchievement("U", "1UP!", ""), new GuideAchievement("G", "Ghost", "")]);
+        Assert.Equal("Climb the mountain without help.", bilingual["S"].Text);
+        Assert.Equal("Jump six times in a row", bilingual["U"].Text);
+        Assert.Equal("", bilingual["G"].Text);
+        Assert.Equal("https://steamcommunity.com/sharedfiles/filedetails/?id=42#7", tips["A"].Url);
+    }
+
+    public static void Guides_SkipsWhatAddsNothing()
+    {
+        var tips = GuideMatcher.Match(new GuidePage(1, "Guide", "Ann", [new GuideSection("2", "", GuideParser.Lines("""
+            [b]Scholar[/b]
+            Confirm half of the glyphs.
+            1:31
+            Keep a notebook open.
+            [b]Ducks in a Row[/b]
+            Видео в помощь: https://youtu.be/abc
+            [b]Сигилов недостаточно.[/b]
+            Sigils Are Not Enough
+            [b]Ostrich[/b]
+            08:46 - Yoyo
+            16:03 - G. Flame and Ostrich
+            C sides / Стороны C - https://youtu.be/x
+            """)), new GuideSection("3", "11 - Fruitcake", GuideParser.Lines("""
+            Description:
+            Beat four advanced chambers.
+            Where:
+            Main menu, then Bonus maps.
+            """))]), "russian", [
+            new GuideAchievement("S", "Scholar", "Confirm half of all the glyphs in the game"),
+            new GuideAchievement("D", "Ducks in a Row", ""),
+            new GuideAchievement("N", "Сигилов недостаточно.", "Взять звезду.", "Sigils Are Not Enough"),
+            new GuideAchievement("O", "Ostrich", "Find the G. flame"),
+            new GuideAchievement("F", "Fruitcake", "Beat four advanced chambers."),
+        ]);
+        Assert.Equal("Keep a notebook open.", tips["S"].Text);
+        Assert.Equal("", tips["D"].Text);
+        Assert.Equal("", tips["N"].Text);
+        Assert.Equal("", tips["O"].Text);
+        Assert.Equal("Where:\nMain menu, then Bonus maps.", tips["F"].Text);
+    }
+
+    public static void Guides_SurestPlaceWins()
+    {
+        var tips = GuideMatcher.Match(new GuidePage(1, "Guide", "Ann", [new GuideSection("2", "", GuideParser.Lines("""
+            [b]Traversed World 5[/b]
+            Run through the world from start to end, the shadow helps.
+            [b]Pilgrim[/b]
+            Short tip.
+            [b]Pilgrims[/b]
+            A much longer text about another achievement with a similar name.
+            [b]Overachiver[/b]
+            Do everything.
+            """))]), "english", [
+            new GuideAchievement("W", "Traversed World 6", ""),
+            new GuideAchievement("P", "Pilgrim", ""),
+            new GuideAchievement("O", "Overachiever", ""),
+        ]);
+        Assert.True(!tips.ContainsKey("W"), "another number is another achievement");
+        Assert.Equal("Short tip.", tips["P"].Text);
+        Assert.Equal("Do everything.", tips["O"].Text);
+        var paired = GuideMatcher.Match(new GuidePage(1, "Guide", "Ann", [new GuideSection("2", "", GuideParser.Lines("""
+            [b]Achievements[/b]
+            4) Left Behind - Через левое плечо - 1:31
+            5) Obscure Foundations - Мрачный фундамент - 1:57
+            Через левое плечо: прыгаем в проход от падения сейфа.
+            """))]), "russian", [
+            new GuideAchievement("L", "Через левое плечо", "", "Left Behind"),
+            new GuideAchievement("O", "Мрачный фундамент", "", "Obscure Foundations"),
+        ]);
+        Assert.Equal("прыгаем в проход от падения сейфа.", paired["L"].Text);
+        Assert.True(!paired.ContainsKey("O"), "a list pairing the names is not a place");
+        var both = GuideMatcher.Match(new GuidePage(9, "\"Captain Did It\" and \"Abandon Ship\"", "Ann",
+            [new GuideSection("1", "", GuideParser.Lines("Obra Dinn is great, its rarest achievements are not.\nFor Abandon Ship, row away before the end."))]),
+            "english", [new GuideAchievement("A", "Abandon Ship", "Leave the ship early.")]);
+        Assert.Equal("For Abandon Ship, row away before the end.", both["A"].Text);
+    }
+
+    public static void Guides_GuideAboutOneAchievement()
+    {
+        var sections = new[] { new GuideSection("1", "What is this", GuideParser.Lines("Blame every death on the captain.\nIt takes about an hour.")) };
+        GuideAchievement[] achievements = [new("C", "Captain Did It", "Loosely true"), new("G", "Celeste", "Climb the mountain")];
+        var tips = GuideMatcher.Match(new GuidePage(9, "How to Achievement: Captain Did It", "Ann", sections), "english", achievements, "Obra Dinn");
+        Assert.Equal("Blame every death on the captain.\nIt takes about an hour.", tips["C"].Text);
+        Assert.Equal("https://steamcommunity.com/sharedfiles/filedetails/?id=9", tips["C"].Url);
+        var general = GuideMatcher.Match(new GuidePage(9, "Celeste 100% Guide", "Ann", sections), "english", achievements, "Celeste");
+        Assert.True(general.Count == 0, "the game's own name in a title is not an achievement's");
+        var pictures = GuideMatcher.Match(new GuidePage(9, "Fastest way to \"60 down 999,999,940 to go\"", "Ann",
+            [new GuideSection("1", "", GuideParser.Lines("[img]https://example.com/a.png[/img]"))]), "english",
+            [new GuideAchievement("S", "60 down 99,999,940 to go", "Solve 60 puzzles")], "Hexcells");
+        Assert.True(pictures["S"].Text.Length == 0, "a misspelled long name still finds its guide, even one of pictures");
+        var chapters = GuideMatcher.Match(new GuidePage(9, "Hints", "Ann",
+            [new GuideSection("4", "Chapter I: Loose Cargo", GuideParser.Lines("Samuel was crushed by falling cargo."))]), "english",
+            [new GuideAchievement("L", "Loose Cargo", "Solve all fates in chapter I.")]);
+        Assert.Equal("Samuel was crushed by falling cargo.", chapters["L"].Text);
+    }
+
+    public static void Guides_PicksAchievementGuides()
+    {
+        var picked = GuideParser.Pick([
+            new GuideCard(1, "How to get a real girlfriend", 0),
+            new GuideCard(2, "Full Video Walkthrough [All achievements]", 0),
+            new GuideCard(3, "Celeste 100% Guide", 0),
+            new GuideCard(4, "Achievements Guide", 0),
+            new GuideCard(5, "Руководство по всем достижениям", 0),
+        ], 3);
+        Assert.Equal("4,5,3", string.Join(",", picked.Select(c => c.Id)));
+    }
+
+    public static void Guides_CombineKeepsOwnLanguageWords()
+    {
+        static GuideTip Tip(string language, string text) => new(1, "Guide", "Ann", language, "", 0, text);
+        var tips = GuideTips.Combine(
+            new Dictionary<string, GuideTip> { ["a"] = Tip("russian", "Прыгни дважды"), ["b"] = Tip("russian", "") },
+            new Dictionary<string, GuideTip> { ["a"] = Tip("english", "Jump twice"), ["b"] = Tip("english", "Jump"), ["c"] = Tip("english", "Run") });
+        Assert.Equal("russian english english", $"{tips["a"].Language} {tips["b"].Language} {tips["c"].Language}");
+    }
+
+    public static void Guides_TipsSurviveStorage()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var tip = new GuideTip(42, "All achievements", "Ann", "english", "7", 0, "Jump twice");
+            new AC.Infrastructure.JsonStore(dir).SaveGuides(5, new GuideTips { Language = "english", FetchedAt = DateTimeOffset.Now, Tips = { ["A"] = tip } });
+            Assert.Equal(tip, new AC.Infrastructure.JsonStore(dir).LoadGuides(5)!.Tips["A"]);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
     public static void History_GroupsUnlocksByLocalDay()
     {
         var zone = TimeZoneInfo.CreateCustomTimeZone("UTC+3", TimeSpan.FromHours(3), "UTC+3", "UTC+3");

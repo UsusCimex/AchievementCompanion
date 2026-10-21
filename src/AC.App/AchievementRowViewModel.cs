@@ -43,7 +43,32 @@ public sealed class AchievementRowViewModel : ObservableObject
 
     public RelayCommand RevealCommand { get; }
 
-    public void RefreshSpoiler() => OnPropertyChanged(nameof(IsSpoilerHidden));
+    public void RefreshSpoiler()
+    {
+        OnPropertyChanged(nameof(IsSpoilerHidden));
+        OnPropertyChanged(nameof(IsTipHidden));
+    }
+
+    private GuideTip? Tip => _owner.GuideTipFor(ApiName);
+
+    public bool HasGuideTip => Tip is not null;
+
+    /// <summary>What a guide says about getting it; empty when the guide only shows pictures or a video there.</summary>
+    public string GuideText => Tip?.Text ?? "";
+
+    public string GuideSource => Tip is not { } t ? ""
+        : t.Author.Length > 0 ? Loc.T("details.guideSource", t.GuideTitle, t.Author)
+        : Loc.T("details.guideSourceTitle", t.GuideTitle);
+
+    /// <summary>A guide tells how to get a hidden achievement even when Steam gave no description: blurred the same way.</summary>
+    public bool IsTipHidden => _row.Def.Hidden && !_row.IsDone && _owner.HideSpoilers && !_owner.IsRevealed(ApiName);
+
+    public void RefreshGuide()
+    {
+        OnPropertyChanged(nameof(HasGuideTip));
+        OnPropertyChanged(nameof(GuideText));
+        OnPropertyChanged(nameof(GuideSource));
+    }
 
     public bool IsHidden => _row.Def.Hidden;
     public bool IsLocked => _row.Status == EffectiveStatus.Locked;
@@ -234,7 +259,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         nameof(Def), nameof(Status), nameof(IsDone), nameof(IsUnlocked), nameof(IsProtected), nameof(Name),
         nameof(Description), nameof(Icon), nameof(Percent), nameof(PercentValue),
         nameof(Estimate), nameof(StatusText), nameof(ManualDone), nameof(OverlayDescription),
-        nameof(CanWriteToSteam), nameof(IsSpoilerHidden), nameof(IsHidden), nameof(IsLocked), nameof(IsManualStatus),
+        nameof(CanWriteToSteam), nameof(IsSpoilerHidden), nameof(IsTipHidden), nameof(IsHidden), nameof(IsLocked), nameof(IsManualStatus),
         nameof(GroupIsAuto), nameof(IsPendingWrite), nameof(RarityText), nameof(RarityLevel), nameof(EstimateHint),
         nameof(EstimateBoth),
     };

@@ -20,6 +20,7 @@ public sealed class JsonStore
     private string SettingsPath => Path.Combine(Root, "settings.json");
     private string LibraryPath => Path.Combine(Root, "library.json");
     private string SummaryPath => Path.Combine(Root, "summary.json");
+    private string GuidesDir => Path.Combine(Root, "cache", "guides");
     public string LogPath => Path.Combine(Root, "unlock_log.jsonl");
 
     public JsonStore(string? root = null)
@@ -37,6 +38,16 @@ public sealed class JsonStore
         Write(GamePath(game.AppId), game);
         UpdateSummary(game);
     }
+
+    public GuideTips? LoadGuides(uint appId) => Read<GuideTips>(GuidesPath(appId));
+
+    public void SaveGuides(uint appId, GuideTips tips)
+    {
+        Directory.CreateDirectory(GuidesDir);
+        Write(GuidesPath(appId), tips);
+    }
+
+    private string GuidesPath(uint appId) => Path.Combine(GuidesDir, appId.ToString(CultureInfo.InvariantCulture) + ".json");
 
     public AppSettings LoadSettings() => Read<AppSettings>(SettingsPath) ?? new AppSettings();
 
