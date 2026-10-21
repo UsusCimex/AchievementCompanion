@@ -5,6 +5,9 @@ using AC.Core;
 using AC.Core.SteamFormats;
 
 // Mini runner: every public static void method of the Tests class is a test.
+// The app's own files (log, settings) go to a temporary folder, never to the user's data folder.
+var dataDir = Path.Combine(Path.GetTempPath(), "ac-tests-" + Guid.NewGuid().ToString("N"));
+Environment.SetEnvironmentVariable(AC.Infrastructure.AppPaths.DataDirVariable, dataDir);
 int failed = 0, passed = 0;
 Loc.SetLanguage(Loc.Fallback);
 foreach (var m in typeof(Tests).GetMethods(BindingFlags.Public | BindingFlags.Static))
@@ -22,6 +25,7 @@ foreach (var m in typeof(Tests).GetMethods(BindingFlags.Public | BindingFlags.St
     }
 }
 Console.WriteLine($"Passed: {passed}, Failed: {failed}");
+try { Directory.Delete(dataDir, true); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
 return failed == 0 ? 0 : 1;
 
 static class Assert
@@ -725,11 +729,13 @@ static class Tests
         try
         {
             var store = new AC.Infrastructure.JsonStore(dir);
+            // A known account, so the service does not read this machine's Steam login file: antivirus software
+            // takes reading it next to DPAPI for a password stealer and freezes the process.
+            store.SaveSettings(new AC.Infrastructure.AppSettings { SteamId64 = 76561197960287930 });
             var http = new HttpClient(fake);
             var svc = new AC.Infrastructure.GameService(store, new AC.Infrastructure.SteamWebApi(http),
                 new AC.Infrastructure.BridgeClient(), new AC.Infrastructure.SteamHunters(http));
             svc.ApiKey = "00000000000000000000000000000000";
-            svc.Settings.SteamId64 = 76561197960287930;
             body(svc, store);
         }
         finally
