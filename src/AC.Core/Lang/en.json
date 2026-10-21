@@ -176,7 +176,6 @@
   "overlay.toSteamTip": "Write to Steam now",
   "overlay.missable": "DON'T MISS",
   "overlay.nearest": "UP NEXT",
-  "overlay.hidden": "[hidden] {0}",
   "overlay.noDescription": "no description from Steam",
   "overlay.progress": "{0} of {1} ({2}%)",
   "overlay.progressManual": ", +{0} not counted",

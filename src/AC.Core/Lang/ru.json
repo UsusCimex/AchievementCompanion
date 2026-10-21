@@ -179,7 +179,6 @@
   "overlay.toSteamTip": "Записать в Steam сейчас",
   "overlay.missable": "НЕ ПРОПУСТИ",
   "overlay.nearest": "БЛИЖАЙШИЕ",
-  "overlay.hidden": "[скрытое] {0}",
   "overlay.noDescription": "Steam не отдал описание",
   "overlay.progress": "{0} из {1} ({2}%)",
   "overlay.progressManual": ", +{0} не засчитано",

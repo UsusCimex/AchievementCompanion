@@ -111,16 +111,10 @@ public sealed class AchievementRowViewModel : ObservableObject
         _row.Def.Description.Length > 0 ? _row.Def.Description :
         _row.Def.Hidden ? Loc.T("card.noDescription") : "";
 
-    /// <summary>Overlay: always shows the text, tags hidden ones.</summary>
-    public string OverlayDescription
-    {
-        get
-        {
-            var text = _row.Def.Description.Length > 0 ? _row.Def.Description
-                : _row.Def.Hidden ? Loc.T("overlay.noDescription") : "";
-            return _row.Def.Hidden ? Loc.T("overlay.hidden", text) : text;
-        }
-    }
+    /// <summary>Overlay: the description; a hidden one without it says Steam gave none.</summary>
+    public string OverlayDescription =>
+        _row.Def.Description.Length > 0 ? _row.Def.Description
+        : _row.Def.Hidden ? Loc.T("overlay.noDescription") : "";
 
     /// <summary>Writable to Steam: writes are on in settings, the achievement is not unlocked or protected.</summary>
     public bool CanWriteToSteam => _owner.ManualUnlocks && !IsUnlocked && !IsProtected;
