@@ -44,6 +44,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _kindFilter = Options.KindFilters[0];
         _selectedPercentile = Options.Percentiles.FirstOrDefault(p => p.Value == svc.Settings.Percentile) ?? Options.Percentiles[0];
         _selectedHours = Options.HourModes.FirstOrDefault(h => h.Value == svc.Settings.Hours) ?? Options.HourModes[0];
+        _selectedLibrarySort = Options.LibrarySorts.FirstOrDefault(s => s.Value == svc.Settings.LibrarySort) ?? Options.LibrarySorts[0];
+        ApplyLibrarySort();
 
         RefreshLibraryCommand = new AsyncCommand(RefreshLibraryAsync, OnError);
         LoadAppIdCommand = new AsyncCommand(LoadAppIdAsync, OnError);
@@ -82,6 +84,27 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<LibraryItemViewModel> Library { get; } = new();
     public ICollectionView LibraryView { get; }
+
+    private Option<LibrarySort> _selectedLibrarySort;
+    public Option<LibrarySort> SelectedLibrarySort
+    {
+        get => _selectedLibrarySort;
+        set
+        {
+            if (!Set(ref _selectedLibrarySort, value)) return;
+            _svc.Settings.LibrarySort = value.Value;
+            _svc.SaveSettings();
+            ApplyLibrarySort();
+        }
+    }
+
+    private bool LibraryByTimeLeft => _selectedLibrarySort.Value == LibrarySort.TimeLeft;
+
+    private void ApplyLibrarySort()
+    {
+        foreach (var item in Library) item.ShowLeft = LibraryByTimeLeft;
+        if (LibraryView is ListCollectionView view) view.CustomSort = LibraryByTimeLeft ? LibraryOrder.ByTimeLeft : null;
+    }
 
     private string _libraryFilter = "";
     public string LibraryFilter
@@ -363,7 +386,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void FillLibrary(IEnumerable<OwnedGame> games)
     {
         Library.Clear();
-        foreach (var g in games) Library.Add(new LibraryItemViewModel(g, _summaries.GetValueOrDefault(g.AppId)));
+        foreach (var g in games) Library.Add(new LibraryItemViewModel(g, _summaries.GetValueOrDefault(g.AppId)) { ShowLeft = LibraryByTimeLeft });
     }
 
     private async Task LoadAppIdAsync()
@@ -945,7 +968,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         var summary = GameSummary.Of(_game);
         _summaries[_game.AppId] = summary;
-        if (Library.FirstOrDefault(i => i.AppId == _game.AppId) is { } item) item.Summary = summary;
+        if (Library.FirstOrDefault(i => i.AppId == _game.AppId) is { } item && !summary.Equals(item.Summary))
+        {
+            item.Summary = summary;
+            if (LibraryByTimeLeft) LibraryView.Refresh();
+        }
     }
 
     /// <summary>Time to 100% source, for the header.</summary>
@@ -1100,5 +1127,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         _runningTimer.Stop();
         _watcher?.Dispose();
+    }
+}
+
+/// <summary>Library orders other than Steam's own.</summary>
+internal sealed class LibraryOrder : System.Collections.IComparer
+{
+    public static readonly LibraryOrder ByTimeLeft = new();
+
+    public int Compare(object? x, object? y)
+    {
+        if (x is not LibraryItemViewModel a || y is not LibraryItemViewModel b) return 0;
+        int c = GameSummary.CompareByTimeLeft(a.Summary, b.Summary);
+        if (c != 0) return c;
+        c = Nullable.Compare(b.Game.LastPlayed, a.Game.LastPlayed);
+        return c != 0 ? c : string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase);
     }
 }

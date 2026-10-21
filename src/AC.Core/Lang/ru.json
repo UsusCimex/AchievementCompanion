@@ -10,6 +10,9 @@
   "library.follow": "Переключаться на запущенную игру",
   "library.played": "{0} в игре",
   "library.neverPlayed": "не запускалась",
+  "library.left": "{0} до 100%",
+  "library.sortRecent": "Сначала недавние",
+  "library.sortLeft": "Сначала ближе к 100%",
 
   "empty.title": "Выбери игру слева",
   "empty.hint": "или запусти её в Steam - приложение переключится само",

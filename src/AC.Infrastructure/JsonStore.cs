@@ -56,9 +56,9 @@ public sealed class JsonStore
     {
         if (_summaries != null) return _summaries;
         _summaries = Read<Dictionary<uint, GameSummary>>(SummaryPath);
-        if (_summaries is null)
+        if (_summaries is null || _summaries.Values.Any(s => s.Format < GameSummary.CurrentFormat))
         {
-            // No summary yet: build it once from the games already saved.
+            // No summary yet, or one without the newer fields: build it once from the games already saved.
             _summaries = new();
             foreach (var file in Directory.EnumerateFiles(GamesDir, "*.json"))
             {
@@ -149,14 +149,29 @@ public sealed class UnlockLogEntry
 /// <summary>Game progress for the library list.</summary>
 public sealed record GameSummary
 {
+    /// <summary>Summaries of an older format lack fields and are rebuilt from the game files.</summary>
+    public const int CurrentFormat = 2;
+
+    public int Format { get; init; }
     public int Unlocked { get; init; }
     public int Manual { get; init; }
     public int Total { get; init; }
+    /// <summary>Typical time left to 100%; null - finished or no estimate.</summary>
+    public double? RemainingMinutes { get; init; }
 
     public static GameSummary Of(GameData game)
     {
         var (u, m, total) = GameLogic.Progress(game);
-        return new GameSummary { Unlocked = u, Manual = m, Total = total };
+        var left = Planner.Build(game, Percentile.P50).RemainingMinutes;
+        return new GameSummary { Format = CurrentFormat, Unlocked = u, Manual = m, Total = total, RemainingMinutes = left is { } v ? Math.Round(v) : null };
+    }
+
+    /// <summary>Closest to 100% first: by the time left, then games without an estimate, finished ones last.</summary>
+    public static int CompareByTimeLeft(GameSummary? a, GameSummary? b)
+    {
+        static int Rank(GameSummary? s) => s is not { Total: > 0 } ? 1 : s.Unlocked >= s.Total ? 2 : s.RemainingMinutes is null ? 1 : 0;
+        int c = Rank(a).CompareTo(Rank(b));
+        return c != 0 ? c : Nullable.Compare(a?.RemainingMinutes, b?.RemainingMinutes);
     }
 }
 

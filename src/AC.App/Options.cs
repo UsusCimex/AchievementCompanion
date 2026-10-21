@@ -66,6 +66,12 @@ public static class Options
         new Option<Percentile>(Percentile.P90, "percentile.p90"),
     };
 
+    public static IReadOnlyList<Option<LibrarySort>> LibrarySorts { get; } = new[]
+    {
+        new Option<LibrarySort>(LibrarySort.Recent, "library.sortRecent"),
+        new Option<LibrarySort>(LibrarySort.TimeLeft, "library.sortLeft"),
+    };
+
     public static IReadOnlyList<Option<HoursMode>> HourModes { get; } = new[]
     {
         new Option<HoursMode>(HoursMode.FromStart, "hours.fromStart"),

@@ -31,6 +31,15 @@ public enum HoursMode
     Left = 1,
 }
 
+/// <summary>Order of the library list.</summary>
+public enum LibrarySort
+{
+    /// <summary>As Steam gives it: recently played first.</summary>
+    Recent = 0,
+    /// <summary>Closest to 100% first.</summary>
+    TimeLeft = 1,
+}
+
 /// <summary>Color theme.</summary>
 public enum AppTheme
 {
@@ -53,6 +62,7 @@ public sealed class AppSettings
     public string Language { get; set; } = "";
     public Percentile Percentile { get; set; } = Percentile.P50;
     public HoursMode Hours { get; set; } = HoursMode.FromStart;
+    public LibrarySort LibrarySort { get; set; } = LibrarySort.Recent;
     /// <summary>
     /// Manual "done but not counted" marks and writes to Steam.
     /// Off - progress counts only achievements earned in the game.

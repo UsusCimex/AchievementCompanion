@@ -779,6 +779,34 @@ static class Tests
         }
     }
 
+    public static void Summary_SortsByTimeLeft()
+    {
+        var s = AC.Infrastructure.GameSummary.Of(SampleGame());
+        Assert.Equal(600.0, s.RemainingMinutes);
+        var near = s with { RemainingMinutes = 60 };
+        var unknown = s with { RemainingMinutes = null };
+        var done = s with { Unlocked = s.Total, RemainingMinutes = null };
+        var order = new[] { done, unknown, s, near }
+            .OrderBy(x => x, Comparer<AC.Infrastructure.GameSummary?>.Create(AC.Infrastructure.GameSummary.CompareByTimeLeft)).ToList();
+        Assert.True(order[0] == near && order[1] == s && order[2] == unknown && order[3] == done, "nearest first, unknown after, finished last");
+    }
+
+    public static void Summary_OldFormatIsRebuilt()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            new AC.Infrastructure.JsonStore(dir).SaveGame(SampleGame());
+            File.WriteAllText(Path.Combine(dir, "summary.json"), """{"1":{"Unlocked":0,"Manual":0,"Total":5}}""");
+            var summary = new AC.Infrastructure.JsonStore(dir).LoadSummaries()[1];
+            Assert.Equal(600.0, summary.RemainingMinutes);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
     public static void Library_SkipsComputedUrls()
     {
         var dir = Path.Combine(Path.GetTempPath(), "ac-test-" + Guid.NewGuid().ToString("N"));
@@ -821,8 +849,8 @@ static class Tests
             Assert.True(back.Tags["grind"].GroupSource is null && back.Tags["grind"].GroupIsManual, "old file: the group is manual");
 
             // the library summary is updated on save and rebuilt if its file is missing
-            var summary = new AC.Infrastructure.GameSummary { Unlocked = 0, Manual = 1, Total = 5 };
-            Assert.Equal(summary, store.LoadSummaries()[1]);
+            var summary = store.LoadSummaries()[1];
+            Assert.True(summary is { Unlocked: 0, Manual: 1, Total: 5, RemainingMinutes: > 0 }, $"summary {summary}");
             File.Delete(Path.Combine(dir, "summary.json"));
             Assert.Equal(summary, new AC.Infrastructure.JsonStore(dir).LoadSummaries()[1]);
 

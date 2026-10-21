@@ -10,6 +10,9 @@
   "library.follow": "Switch to the running game",
   "library.played": "{0} played",
   "library.neverPlayed": "never played",
+  "library.left": "{0} to 100%",
+  "library.sortRecent": "Recent first",
+  "library.sortLeft": "Closest to 100% first",
 
   "empty.title": "Pick a game on the left",
   "empty.hint": "or launch it in Steam - the app will switch to it",

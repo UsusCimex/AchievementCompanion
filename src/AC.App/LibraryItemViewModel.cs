@@ -20,11 +20,18 @@ public sealed class LibraryItemViewModel : ObservableObject
     public string Name => Game.Name;
     public string HeaderUrl => Game.HeaderUrl;
 
-    public string PlaytimeText => Game.PlaytimeMinutes > 0
-        ? Loc.T("library.played", TimeEstimator.Format(Game.PlaytimeMinutes))
+    private bool _showLeft;
+
+    /// <summary>The line under the name shows the time left to 100% (the library is sorted by it).</summary>
+    public bool ShowLeft { get => _showLeft; set { if (Set(ref _showLeft, value)) OnPropertyChanged(nameof(Subtitle)); } }
+
+    /// <summary>Under the name: the time left to 100% when <see cref="ShowLeft"/>, else the playtime.</summary>
+    public string Subtitle =>
+        ShowLeft && !IsPerfect && _summary?.RemainingMinutes is { } left ? Loc.T("library.left", TimeEstimator.Format(left))
+        : Game.PlaytimeMinutes > 0 ? Loc.T("library.played", TimeEstimator.Format(Game.PlaytimeMinutes))
         : Loc.T("library.neverPlayed");
 
-    public void RefreshTexts() => OnPropertyChanged(nameof(PlaytimeText));
+    public void RefreshTexts() => OnPropertyChanged(nameof(Subtitle));
 
     public GameSummary? Summary
     {
@@ -38,6 +45,7 @@ public sealed class LibraryItemViewModel : ObservableObject
             OnPropertyChanged(nameof(ProgressText));
             OnPropertyChanged(nameof(DoneStars));
             OnPropertyChanged(nameof(RestStars));
+            OnPropertyChanged(nameof(Subtitle));
         }
     }
 
