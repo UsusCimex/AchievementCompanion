@@ -779,6 +779,42 @@ static class Tests
         }
     }
 
+    public static void Session_TrackerReportsSessionsSeenFromTheStart()
+    {
+        var t0 = new DateTimeOffset(2026, 10, 1, 18, 0, 0, TimeSpan.Zero);
+        var tracker = new SessionTracker(runningAtStart: 7);
+        Assert.Equal<PlaySession?>(null, tracker.Observe(0, t0));
+        Assert.Equal<PlaySession?>(null, tracker.Observe(5, t0.AddMinutes(1)));
+        Assert.Equal<PlaySession?>(null, tracker.Observe(5, t0.AddMinutes(30)));
+        Assert.Equal<PlaySession?>(new PlaySession(5, t0.AddMinutes(1), t0.AddMinutes(90)), tracker.Observe(9, t0.AddMinutes(90)));
+        Assert.Equal<PlaySession?>(new PlaySession(9, t0.AddMinutes(90), t0.AddMinutes(95)), tracker.Observe(0, t0.AddMinutes(95)));
+    }
+
+    public static void Session_SummaryTakesBackItsUnlocks()
+    {
+        var start = new DateTimeOffset(2026, 10, 1, 18, 0, 0, TimeSpan.Zero);
+        static void Unlock(GameData g, string id, DateTimeOffset at)
+        {
+            var s = g.StateOf(id);
+            s.SteamUnlocked = true;
+            s.SteamUnlockTime = at;
+        }
+        var earlier = SampleGame();
+        Unlock(earlier, "ch1", start.AddDays(-1));
+        var g = SampleGame();
+        Unlock(g, "ch1", start.AddDays(-1));
+        Unlock(g, "misc", start.AddMinutes(70));
+        Unlock(g, "ch5", start.AddMinutes(20));
+
+        var s = SessionSummary.Of(g, new PlaySession(1, start, start.AddMinutes(90)), Percentile.P50);
+        Assert.Equal("ch5,misc", string.Join(",", s.Unlocked.Select(a => a.ApiName)));
+        Assert.Equal(TimeSpan.FromMinutes(90), s.Duration);
+        Assert.Equal(Planner.Build(earlier, Percentile.P50).RemainingMinutes, s.LeftBefore);
+        Assert.Equal(Planner.Build(g, Percentile.P50).RemainingMinutes, s.LeftAfter);
+        Assert.True(s.LeftBefore > s.LeftAfter, $"before {s.LeftBefore}, after {s.LeftAfter}");
+        Assert.True(g.States["ch5"].SteamUnlocked && g.States["misc"].SteamUnlocked, "the game is left as it was");
+    }
+
     public static void Summary_SortsByTimeLeft()
     {
         var s = AC.Infrastructure.GameSummary.Of(SampleGame());

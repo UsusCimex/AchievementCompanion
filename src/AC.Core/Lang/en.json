@@ -147,6 +147,16 @@
   "plan.noPercents": "To 100%: no estimate - Steam did not provide global percentages. Reload the achievement list (More menu) or collect statistics on the Time tab",
   "plan.noEstimate": "To 100%: no estimate - set the time to 100% on the Time tab, or unlock a couple of achievements and it will appear",
 
+  "session.title": "Session: {0}",
+  "session.unlocked": {
+    "one": "{0} achievement unlocked: {1}",
+    "other": "{0} achievements unlocked: {1}"
+  },
+  "session.none": "No new achievements",
+  "session.left": "To 100%: was {0}, now {1}",
+  "session.leftNow": "To 100%: {0}",
+  "session.close": "Dismiss",
+
   "time.sampleTitle": "Player statistics",
   "time.sampleHint": "Takes the authors of the game's Steam reviews with public profiles and looks at what they unlocked and when: this gives percentages and how long each achievement took. Helps when neither Steam nor Steam Hunters has percentages (as with new games). Takes up to a minute.",
   "time.needKey": "A Steam Web API key is required - enter it in settings",

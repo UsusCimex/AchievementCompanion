@@ -25,6 +25,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private DateTime _lastPoll = DateTime.MinValue;
     private bool _refreshing;
     private uint _lastRunningAppId;
+    private readonly SessionTracker _sessions;
+    /// <summary>The last session seen from its start: its summary stays until dismissed or the next session starts.</summary>
+    private PlaySession? _lastSession;
     private int _loadSeq;
     private int _busyCount;
     private string _completionFetchedText = "";
@@ -69,6 +72,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OverlayMarkCommand = new RelayCommand(p => { if (p is AchievementRowViewModel r) MarkDoneFromOverlay(r); }, _ => ManualUnlocks);
         DownloadUpdateCommand = new RelayCommand(() => OpenUrl(_update?.DownloadUrl), () => _update != null);
         UpdateNotesCommand = new RelayCommand(() => OpenUrl(_update?.PageUrl), () => _update != null);
+        CloseSessionCommand = new RelayCommand(() => { _lastSession = null; UpdateSession(); });
+
+        uint runningAtStart = 0;
+        try { runningAtStart = SteamLocal.RunningAppId(); }
+        catch { }
+        _sessions = new SessionTracker(runningAtStart);
 
         _runningTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _runningTimer.Tick += async (_, _) => await OnRunningTickAsync();
@@ -258,6 +267,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _statRemainingSub = "";
     public string StatRemainingSub { get => _statRemainingSub; private set => Set(ref _statRemainingSub, value); }
 
+    private bool _hasSession;
+    public bool HasSession { get => _hasSession; private set => Set(ref _hasSession, value); }
+
+    private string _sessionTitle = "";
+    public string SessionTitle { get => _sessionTitle; private set => Set(ref _sessionTitle, value); }
+
+    private string _sessionUnlocked = "";
+    public string SessionUnlocked { get => _sessionUnlocked; private set => Set(ref _sessionUnlocked, value); }
+
+    private string _sessionLeft = "";
+    public string SessionLeft { get => _sessionLeft; private set => Set(ref _sessionLeft, value); }
+
     private string _statPlayed = "-";
     public string StatPlayed { get => _statPlayed; private set => Set(ref _statPlayed, value); }
 
@@ -329,6 +350,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AsyncCommand CollectSampleCommand { get; }
     /// <summary>Look up how to get the selected achievement online: steam, discussions, youtube, google.</summary>
     public RelayCommand OpenGuideCommand { get; }
+    public RelayCommand CloseSessionCommand { get; }
 
     private string _sampleText = "";
     public string SampleText { get => _sampleText; private set => Set(ref _sampleText, value); }
@@ -987,6 +1009,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             item.Summary = summary;
             if (LibraryByTimeLeft || LibraryStartedOnly) LibraryView.Refresh();
         }
+        UpdateSession();
     }
 
     /// <summary>Time to 100% source, for the header.</summary>
@@ -1056,6 +1079,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             // While something loads, do not remember it; retry on the next tick.
             if (IsBusy) return;
+            if (_sessions.Observe(running, DateTimeOffset.Now) is { } ended) _lastSession = ended;
+            else if (running != 0) _lastSession = null;
+            UpdateSession();
             if (_lastRunningAppId != 0 && _game is { } played && played.AppId == _lastRunningAppId && _svc.HasApiKey)
                 _ = SafeAsync(() => AfterSessionAsync(played));
             _lastRunningAppId = running;
@@ -1091,6 +1117,31 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
         }
         Recompute(rebuildRows: false);
+    }
+
+    /// <summary>
+    /// The summary of the last session for the open game. Rebuilt with every status read, so unlocks read after
+    /// the game closed join it. Needs a way to read the status, otherwise it would claim nothing was unlocked.
+    /// </summary>
+    private void UpdateSession()
+    {
+        var summary = _lastSession is { } session && _game is { } game && game.AppId == session.AppId && (_svc.HasApiKey || _svc.Bridge.Exists)
+            ? SessionSummary.Of(game, session, _selectedPercentile.Value)
+            : null;
+        // A game started and closed at once is not worth a summary.
+        if (summary is { Unlocked.Count: 0 } && summary.Duration < TimeSpan.FromMinutes(1)) summary = null;
+        HasSession = summary is not null;
+        if (summary is null) return;
+
+        SessionTitle = Loc.T("session.title", TimeEstimator.Format(summary.Duration.TotalMinutes));
+        SessionUnlocked = summary.Unlocked.Count == 0 ? Loc.T("session.none")
+            : Loc.Plural("session.unlocked", summary.Unlocked.Count, string.Join(", ", summary.Unlocked.Select(a => a.Name)));
+        SessionLeft = summary.IsComplete ? Loc.T("plan.complete")
+            : summary.LeftAfter is not { } after ? ""
+            : summary.LeftBefore is { } before && Left(before) != Left(after) ? Loc.T("session.left", Left(before), Left(after))
+            : Loc.T("session.leftNow", Left(after));
+
+        static string Left(double minutes) => "~" + TimeEstimator.Format(minutes);
     }
 
     private void AnnounceNew(IReadOnlyList<string> apiNames)
