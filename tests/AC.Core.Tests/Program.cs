@@ -918,6 +918,38 @@ static class Tests
         Assert.Equal("For Abandon Ship, row away before the end.", both["A"].Text);
     }
 
+    public static void Guides_WalkthroughLeadsUpToTheAchievement()
+    {
+        var tips = GuideMatcher.Match(new GuidePage(1, "Guide", "Ann", [new GuideSection("2", "Level 2", GuideParser.Lines("""
+            [b]Please Use the Other Door[/b]
+            Find the nook in Optical
+            Go to the end of the corridor and pull out the dice in the trash can.
+            [img]https://example.com/a.png[/img]
+            Shrink it and put it back in the trash can. You'll then get the achievement:
+            [img]https://example.com/b.png[/img]
+            [b]Take Your Trash Elsewhere[/b]
+            Fail at throwing away trash
+            When you get to the room with the moon, take the cheese off it.
+            Now on to the next achievement:
+            [b]First Steps[/b]
+            Talk to the old man twice.
+            """))]), "english", [
+            new GuideAchievement("D", "Please Use the Other Door", "Find the nook in Optical"),
+            new GuideAchievement("T", "Take Your Trash Elsewhere", "Fail at throwing away trash"),
+            new GuideAchievement("F", "First Steps", ""),
+        ]);
+        Assert.Equal("Go to the end of the corridor and pull out the dice in the trash can.\nShrink it and put it back in the trash can. You'll then get the achievement.",
+            tips["T"].Text);
+        Assert.Equal("Talk to the old man twice.", tips["F"].Text);
+        var mentioned = GuideMatcher.Match(new GuidePage(1, "Guide", "Ann", [new GuideSection("2", "Level 3", GuideParser.Lines("""
+            The achievement Soda Connaisseur is earned by collecting all six soda cans.
+            Grab the cheese and take it to the corridor with the first fire alarm.
+            Pull the fire alarm to get the achievement:
+            [b]Fire Alarmist[/b]
+            """))]), "english", [new GuideAchievement("S", "Soda Connaisseur", "Drink all sodas"), new GuideAchievement("A", "Fire Alarmist", "")]);
+        Assert.Equal("Grab the cheese and take it to the corridor with the first fire alarm.\nPull the fire alarm to get the achievement.", mentioned["A"].Text);
+    }
+
     public static void Guides_GuideAboutOneAchievement()
     {
         var sections = new[] { new GuideSection("1", "What is this", GuideParser.Lines("Blame every death on the captain.\nIt takes about an hour.")) };

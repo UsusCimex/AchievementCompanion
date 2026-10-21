@@ -242,6 +242,9 @@ public static partial class GuideMatcher
         // An entry ends where another one starts, by any of its names; places are found by the guide language's names
         // only: the other names turn up in lists that pair them ("Left Behind - Через левое плечо - 1:31").
         var stops = achievements.Select(a => NamesOf(a).Select(StartPattern).OfType<Regex>().ToList()).ToList();
+        var descriptions = achievements.Select(a => Norm(a.Description)).ToList();
+        // Names long enough not to be common words, to notice another achievement mentioned in a walkthrough's step.
+        var mentions = achievements.Select(a => NamesOf(a).Select(Norm).Where(n => n.Length >= 6).ToList()).ToList();
 
         var heads = new List<(int Section, int Line, string Text)>();
         for (int s = 0; s < sections.Count; s++)
@@ -271,7 +274,7 @@ public static partial class GuideMatcher
             int kind = places.Min(p => Kind(p.Rank));
             var best = places
                 .Where(p => Kind(p.Rank) == kind)
-                .Select(p => (p.Rank, p.Section, Text: Quote(sections[p.Section], folded[p.Section], p.Line, a, k, stops)))
+                .Select(p => (p.Rank, p.Section, Text: Quote(sections[p.Section], folded[p.Section], p.Line, a, k, stops, descriptions, mentions)))
                 .OrderByDescending(x => x.Text.Length).ThenBy(x => x.Rank)
                 .First();
             tips[a.ApiName] = new GuideTip(page.Id, page.Title, page.Author, language, sections[best.Section].Id, best.Rank, best.Text);
@@ -368,14 +371,36 @@ public static partial class GuideMatcher
         return null;
     }
 
-    /// <summary>The guide's words from the place on, without lines that only repeat the name or the description.</summary>
-    private static string Quote(GuideSection section, List<string> folded, int line, GuideAchievement a, int self, List<List<Regex>> stops)
+    /// <summary>
+    /// The guide's words from the place on, or in a walkthrough the steps leading up to it, without lines that only
+    /// repeat the name or the description.
+    /// </summary>
+    private static string Quote(GuideSection section, List<string> folded, int line, GuideAchievement a, int self,
+        List<List<Regex>> stops, List<string> descriptions, List<List<string>> mentions)
     {
         var lines = section.Lines;
         var block = new List<GuideLine>();
         if (line < 0)
         {
             block.AddRange(lines.Take(MaxLines));
+        }
+        else if (LeadIn(lines, line) is { } lead)
+        {
+            // A walkthrough leads up to the achievement ("...and you get the achievement:") and goes on after its name:
+            // the words are the steps before it, back to a heading or a line about another achievement.
+            int chars = 0;
+            for (int i = lead; i >= 0 && block.Count < MaxLines; i--)
+            {
+                var n = " " + Norm(lines[i].Text) + " ";
+                // Cut from the far end: the steps nearest the achievement matter most.
+                if (i < lead && (IsHeading(lines[i]) || chars + lines[i].Text.Length > MaxChars
+                    || stops.Where((_, k) => k != self).Any(r => r.Any(p => p.IsMatch(folded[i])))
+                    || descriptions.Where((_, k) => k != self).Any(d => d.Length >= 10 && n == " " + d + " ")
+                    || mentions.Where((_, k) => k != self).Any(m => m.Any(name => n.Contains(" " + name + " ", StringComparison.Ordinal))))) break;
+                // Ending the quote, the lead-in is a sentence, not a label of what follows.
+                block.Insert(0, i == lead ? lines[i] with { Text = lines[i].Text.TrimEnd()[..^1].TrimEnd() + "." } : lines[i]);
+                chars += lines[i].Text.Length;
+            }
         }
         else
         {
@@ -393,6 +418,14 @@ public static partial class GuideMatcher
         }
 
         return Words(block, a);
+    }
+
+    /// <summary>The line before the place, past pictures, when it leads up to the achievement; null - it does not.</summary>
+    private static int? LeadIn(IReadOnlyList<GuideLine> lines, int line)
+    {
+        int i = line - 1;
+        while (i >= 0 && lines[i].Text.Length == 0) i--;
+        return i >= 0 && LeadsUp().IsMatch(lines[i].Text) ? i : null;
     }
 
     private static IEnumerable<string> NamesOf(GuideAchievement a) =>
@@ -583,6 +616,13 @@ public static partial class GuideMatcher
 
     [GeneratedRegex(@"[:\p{Pd}]$")]
     private static partial Regex LabelEnd();
+
+    /// <summary>
+    /// "...and you get the achievement:", "...то получите достижение:": getting one achievement, not a list
+    /// ("Here are the achievements:") or a turn to the next entry ("Рассмотрим следующее достижение:").
+    /// </summary>
+    [GeneratedRegex(@"\b(?:get|got|unlock|earn|receiv|obtain|award|pop|получ|откро|выда|дадут|заработа)\w*[^.!?]*\b(?:achievement|trophy|достижение|ачивку|ачивка)\s*:\s*$", RegexOptions.IgnoreCase)]
+    private static partial Regex LeadsUp();
 
     /// <summary>A line starting with a time in a video: "08:46 - Yoyo".</summary>
     [GeneratedRegex(@"^\W*(?:\d{1,2}:)?\d{1,2}:\d{2}\b")]
