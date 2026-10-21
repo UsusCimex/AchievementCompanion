@@ -294,6 +294,28 @@ static class Tests
         Assert.Equal((double?)null, plan.RemainingMinutes);
     }
 
+    public static void Planner_TimeLeft()
+    {
+        // Nothing unlocked: the time left to each one is its time from the start.
+        var g = SampleGame();
+        var left = Planner.Build(g, Percentile.P50).TimeLeft;
+        foreach (var name in new[] { "misc", "ch5", "miss", "grind" })
+            Assert.Equal(Math.Round(g.Estimates[name].P50!.Value, 1), Math.Round(left[name], 1));
+
+        // Played in order: the way from the last unlock to the next one.
+        g.StateOf("ch1").SteamUnlocked = true;
+        g.StateOf("misc").SteamUnlocked = true;
+        left = Planner.Build(g, Percentile.P50).TimeLeft;
+        Assert.True(!left.ContainsKey("misc"), "done ones have no time left");
+        Assert.Equal(Math.Round(g.Estimates["ch5"].P50!.Value - g.Estimates["misc"].P50!.Value, 1), Math.Round(left["ch5"], 1));
+
+        // A lucky rare unlock does not shorten the way to the earlier ones; the last one is the time to 100%.
+        g.StateOf("grind").SteamUnlocked = true;
+        var plan = Planner.Build(g, Percentile.P50);
+        Assert.Equal(Math.Round(g.Estimates["miss"].P50!.Value - g.Estimates["misc"].P50!.Value, 1), Math.Round(plan.TimeLeft["miss"], 1));
+        Assert.Equal(Math.Round(plan.RemainingMinutes!.Value, 1), Math.Round(plan.TimeLeft.Values.Max(), 1));
+    }
+
     public static void Planner_Groups()
     {
         var g = SampleGame();
@@ -328,6 +350,19 @@ static class Tests
         q = new AchievementQuery();
         q.Kinds.Add(AchievementKind.Story);
         Assert.Equal(2, q.Apply(g, Percentile.P50).Count);
+    }
+
+    public static void Query_SortsByTimeLeft()
+    {
+        var g = SampleGame();
+        g.StateOf("ch1").SteamUnlocked = true;
+        g.StateOf("ch5").SteamUnlocked = true;
+        var q = new AchievementQuery { Sort = SortMode.Time };
+        Assert.Equal("ch1,misc,ch5,miss,grind", string.Join(",", q.Apply(g, Percentile.P50).Select(r => r.ApiName)));
+
+        // By time left: locked ones first, the nearest on top, then the done ones.
+        q.TimeLeft = Planner.Build(g, Percentile.P50).TimeLeft;
+        Assert.Equal("misc,miss,grind,ch1,ch5", string.Join(",", q.Apply(g, Percentile.P50).Select(r => r.ApiName)));
     }
 
     public static void Export_CsvHasBomAndEscapes()

@@ -80,19 +80,30 @@ public sealed class AchievementRowViewModel : ObservableObject
         _ => 1,
     };
 
-    /// <summary>Time estimate source, for the tooltip.</summary>
+    /// <summary>Time estimate source and both readings of it, for the tooltip.</summary>
     public string EstimateHint
     {
         get
         {
-            if (_row.EstimateIsManual) return Loc.T("estimate.own");
             var est = _owner.Game?.Estimates.GetValueOrDefault(ApiName);
-            return est?.Source switch
+            var source = _row.EstimateIsManual ? Loc.T("estimate.own") : est?.Source switch
             {
                 AC.Core.SampleStats.SourceName => Loc.Plural("estimate.sample", est.SampleSize),
                 AC.Core.TimeEstimator.SourceName => Loc.T("estimate.model"),
                 _ => Loc.T("estimate.none"),
             };
+            return _row.EstimateMinutes is null ? source : source + "\n" + EstimateBoth;
+        }
+    }
+
+    /// <summary>The estimate from the start of the game and, for a locked one, the time left to it.</summary>
+    public string EstimateBoth
+    {
+        get
+        {
+            if (_row.EstimateMinutes is null) return "-";
+            var fromStart = Loc.T("estimate.fromStart", TimeEstimator.Format(_row.EstimateMinutes));
+            return _owner.TimeLeftOf(ApiName) is { } left ? fromStart + ", " + Loc.T("estimate.left", TimeEstimator.Format(left)) : fromStart;
         }
     }
 
@@ -127,7 +138,17 @@ public sealed class AchievementRowViewModel : ObservableObject
     public string Percent => _row.Def.Percent is { } p ? p.ToString("0.0", CultureInfo.CurrentCulture) + "%" : "-";
     public double PercentValue => _row.Def.Percent ?? -1;
 
-    public string Estimate => TimeEstimator.Format(_row.EstimateMinutes) + (_row.EstimateIsManual ? " *" : "");
+    /// <summary>The hours in the chosen mode; a done one shows none when the mode is the time left.</summary>
+    public string Estimate
+    {
+        get
+        {
+            var own = _row.EstimateIsManual ? " *" : "";
+            if (!_owner.ShowTimeLeft) return TimeEstimator.Format(_row.EstimateMinutes) + own;
+            if (_row.IsDone) return "";
+            return _owner.TimeLeftOf(ApiName) is { } left ? Loc.T("estimate.left", TimeEstimator.Format(left)) + own : "-";
+        }
+    }
 
     public bool IsProbablyMissed => _row.ProbablyMissed;
 
@@ -221,6 +242,7 @@ public sealed class AchievementRowViewModel : ObservableObject
         nameof(Estimate), nameof(StatusText), nameof(ManualDone), nameof(OverlayDescription),
         nameof(CanWriteToSteam), nameof(IsSpoilerHidden), nameof(IsHidden), nameof(IsLocked), nameof(IsManualStatus),
         nameof(GroupIsAuto), nameof(IsPendingWrite), nameof(RarityText), nameof(RarityLevel), nameof(EstimateHint),
+        nameof(EstimateBoth),
     };
 
     /// <summary>Swaps the row data after a recalculation without recreating the object (keeps focus).</summary>

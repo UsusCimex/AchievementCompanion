@@ -210,7 +210,8 @@
                         <TextBlock Text="{Binding Percent}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Right"
                                    Style="{StaticResource RarityPercent}" />
                         <TextBlock Text="{Binding RarityText}" HorizontalAlignment="Right" Style="{StaticResource Caption}" />
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0" ToolTip="{Binding EstimateHint}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0" ToolTip="{Binding EstimateHint}"
+                                    Visibility="{Binding Estimate, Converter={StaticResource EmptyToCollapsed}}">
                             <TextBlock Text="&#xE823;" Style="{StaticResource Glyph}" FontSize="12" Margin="0,0,4,0"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             <TextBlock Text="{Binding Estimate}" Style="{StaticResource Caption}" />
@@ -539,7 +540,7 @@
                 <TabItem Header="{local:Tr tabs.achievements}" AutomationProperties.AutomationId="AchievementsTab">
                     <DockPanel Margin="0,10,0,0">
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4" LastChildFill="False">
-                            <Grid Width="280" Margin="0,0,12,8">
+                            <Grid Width="260" Margin="0,0,12,8">
                                 <TextBox x:Name="SearchBox" Padding="32,5,6,6"
                                          Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
                                 <TextBlock Text="&#xE721;" Style="{StaticResource Glyph}" Margin="11,0,0,0" HorizontalAlignment="Left" IsHitTestVisible="False"
@@ -555,8 +556,10 @@
                             <ToggleButton Margin="0,0,8,8" Padding="9,7" IsChecked="{Binding Descending}" ToolTip="{local:Tr list.reverseTip}">
                                 <TextBlock Text="&#xE8CB;" Style="{StaticResource Glyph}" />
                             </ToggleButton>
-                            <ComboBox Width="160" Margin="0,0,0,8" ItemsSource="{x:Static local:Options.Percentiles}" DisplayMemberPath="Title" SelectedItem="{Binding SelectedPercentile}"
+                            <ComboBox Width="160" Margin="0,0,8,8" ItemsSource="{x:Static local:Options.Percentiles}" DisplayMemberPath="Title" SelectedItem="{Binding SelectedPercentile}"
                                       ToolTip="{local:Tr list.percentileTip}" />
+                            <ComboBox Width="150" Margin="0,0,0,8" ItemsSource="{x:Static local:Options.HourModes}" DisplayMemberPath="Title" SelectedItem="{Binding SelectedHours}"
+                                      ToolTip="{local:Tr list.hoursTip}" AutomationProperties.AutomationId="HoursBox" />
                         </DockPanel>
 
                         <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
@@ -678,7 +681,7 @@
                                                     <Run Text="{Binding RarityText, Mode=OneWay}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 </TextBlock>
                                                 <TextBlock Grid.Row="1" Text="{local:Tr details.estimate}" Style="{StaticResource Caption}" Margin="0,0,0,6" />
-                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Estimate}" Margin="0,0,0,6" ToolTip="{Binding EstimateHint}" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding EstimateBoth}" Margin="0,0,0,6" TextWrapping="Wrap" ToolTip="{Binding EstimateHint}" />
                                                 <TextBlock Grid.Row="2" Text="{local:Tr details.status}" Style="{StaticResource Caption}" Margin="0,0,0,6"
                                                            Visibility="{Binding StatusText, Converter={StaticResource EmptyToCollapsed}}" />
                                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding StatusText}" Margin="0,0,0,6"

@@ -31,6 +31,8 @@ public sealed class AchievementQuery
     /// <summary>Empty means all kinds.</summary>
     public HashSet<AchievementKind> Kinds { get; } = new();
     public string Search { get; set; } = "";
+    /// <summary>Time left to locked achievements (<see cref="Planner.TimeLeft"/>): sort by time on it, the rest after.</summary>
+    public IReadOnlyDictionary<string, double>? TimeLeft { get; set; }
 
     public IReadOnlyList<AchievementRow> Apply(GameData game, Percentile p)
     {
@@ -71,7 +73,9 @@ public sealed class AchievementQuery
                 break;
             }
             case SortMode.Time:
-                list = list.OrderBy(r => r.EstimateMinutes is null)
+                list = list.OrderBy(r => TimeLeft is null || !TimeLeft.ContainsKey(r.ApiName))
+                           .ThenBy(r => TimeLeft?.GetValueOrDefault(r.ApiName))
+                           .ThenBy(r => r.EstimateMinutes is null)
                            .ThenBy(r => r.EstimateMinutes)
                            .ThenByDescending(r => r.Def.Percent ?? -1)
                            .ToList();

@@ -65,6 +65,7 @@
   "list.sortTip": "Sort",
   "list.reverseTip": "Reverse order",
   "list.percentileTip": "How to estimate time: like a typical player, or with a margin if you take your time",
+  "list.hoursTip": "Hours of an achievement: when it usually comes, counted from the start of the game, or how much is left to it from your progress at your pace",
   "list.all": "All",
   "list.open": "Locked",
   "list.done": "Unlocked",
@@ -106,6 +107,8 @@
   },
   "estimate.model": "Estimated from rarity and time to 100%",
   "estimate.none": "No estimate",
+  "estimate.fromStart": "{0} from the start",
+  "estimate.left": "{0} left",
 
   "details.empty": "Select an achievement to set its type, group, estimate and note",
   "details.percent": "Players",
@@ -243,6 +246,8 @@
   "percentile.p50": "Typical estimate",
   "percentile.p75": "With margin",
   "percentile.p90": "With wide margin",
+  "hours.fromStart": "From the start",
+  "hours.left": "Time left",
 
   "theme.light": "Light",
   "theme.dark": "Dark",

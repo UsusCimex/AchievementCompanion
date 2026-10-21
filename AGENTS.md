@@ -85,7 +85,7 @@ The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (p
 - Per achievement: own estimate, else measured in the sample, else the rarity model: t = T x ln(maxPct / pct) / ln(maxPct / minPct). P75 and P90 are margins of x1.3 and x1.7.
 - T (time to 100%): manual, else Steam Hunters, else the sample median, else derived from own pace.
 - Stretch (`Progress`): on the "minutes from the start" scale every achievement owns the way from the previous one to it. Stretches of unlocked ones are the progress made, of locked ones what is left, in any order of unlocks.
-- Time left (`Planner`): the stretches of locked achievements times the pace; own estimates get the P75 and P90 margins too.
+- Time left (`Planner`): the stretches of locked achievements times the pace; to one achievement, those of the locked ones up to it. Own estimates get the P75 and P90 margins too. Achievement hours show the time from the start or the time left (a setting).
 - Pace: Steam minutes between playtime snapshots (`PlaytimeHistory`: when a game loads outside a session, after a session, and two weeks back from Steam) divided by the progress made between them, as a progress-weighted median. Stretches without progress (AFK, a game left open) do not count. From 1 to 3: faster than the median gives no speed-up.
 - Sample (`SampleStats`): up to 300 review authors until 80 public profiles, collected again in the background when over a week old; between "moment - minutes played" points play is taken as even.
 

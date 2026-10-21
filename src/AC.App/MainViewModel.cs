@@ -43,6 +43,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _selectedSort = Options.Sorts[0];
         _kindFilter = Options.KindFilters[0];
         _selectedPercentile = Options.Percentiles.FirstOrDefault(p => p.Value == svc.Settings.Percentile) ?? Options.Percentiles[0];
+        _selectedHours = Options.HourModes.FirstOrDefault(h => h.Value == svc.Settings.Hours) ?? Options.HourModes[0];
 
         RefreshLibraryCommand = new AsyncCommand(RefreshLibraryAsync, OnError);
         LoadAppIdCommand = new AsyncCommand(LoadAppIdAsync, OnError);
@@ -144,6 +145,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Recompute(rebuildRows: true);
         }
     }
+
+    private Option<HoursMode> _selectedHours;
+    public Option<HoursMode> SelectedHours
+    {
+        get => _selectedHours;
+        set
+        {
+            if (!Set(ref _selectedHours, value)) return;
+            _svc.Settings.Hours = value.Value;
+            _svc.SaveSettings();
+            Recompute(rebuildRows: true);
+        }
+    }
+
+    public bool ShowTimeLeft => _selectedHours.Value == HoursMode.Left;
+
+    private IReadOnlyDictionary<string, double> _timeLeft = new Dictionary<string, double>();
+
+    /// <summary>Time left to a locked achievement; null - done or no estimate.</summary>
+    internal double? TimeLeftOf(string apiName) => _timeLeft.TryGetValue(apiName, out var v) ? v : null;
+
+    /// <summary>The hours the overlay and the plan groups go by.</summary>
+    private double? HoursOf(AchievementRow r) => ShowTimeLeft ? TimeLeftOf(r.ApiName) : r.EstimateMinutes;
 
     public bool HideSpoilers => _svc.Settings.HideSpoilers;
     public bool HasApiKey => _svc.HasApiKey;
@@ -824,6 +848,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var p = _selectedPercentile.Value;
         // The time to 100% derived from own progress changes with every unlock, so recalculate it.
         TimeEstimator.EstimateFromGlobalPercent(_game);
+        var plan = Planner.Build(_game, p);
+        _timeLeft = plan.TimeLeft;
 
         if (rebuildRows)
         {
@@ -834,6 +860,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 Search = Search,
                 Sort = _selectedSort.Value,
                 Descending = Descending,
+                TimeLeft = ShowTimeLeft ? _timeLeft : null,
             };
             if (_kindFilter.Value is { } k) query.Kinds.Add(k);
             var selectedApi = SelectedRow?.ApiName;
@@ -854,14 +881,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         CountOpen = CountAll - CountDone;
         CountNotCounted = all.Count(r => r.Status == EffectiveStatus.ManualDone);
 
-        var plan = Planner.Build(_game, p);
         PlanSections.Clear();
         foreach (var s in plan.Sections)
         {
-            var groups = s.Groups.Select(g => new PlanGroupViewModel(
-                g.Label.Length > 0 ? g.Label : Loc.T("plan.noGroup"),
-                g.LongestMinutes is null ? "" : Loc.T("plan.upTo", TimeEstimator.Format(g.LongestMinutes)),
-                g.Items.Select(i => new AchievementRowViewModel(this, i)).ToList())).ToList();
+            var groups = s.Groups.Select(g =>
+            {
+                var longest = ShowTimeLeft ? g.Items.Max(HoursOf) : g.LongestMinutes;
+                return new PlanGroupViewModel(
+                    g.Label.Length > 0 ? g.Label : Loc.T("plan.noGroup"),
+                    longest is null ? "" : Loc.T("plan.upTo", TimeEstimator.Format(longest)),
+                    g.Items.Select(i => new AchievementRowViewModel(this, i)).ToList());
+            }).ToList();
             PlanSections.Add(new PlanSectionViewModel($"{Options.StageTitle(s.Stage)} ({s.Count})", groups));
         }
 
@@ -932,13 +962,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         OverlayMissable.Clear();
         foreach (var r in all.Where(r => !r.IsDone && r.Kind == AchievementKind.Missable)
-                             .OrderBy(r => r.EstimateMinutes ?? double.MaxValue).Take(6))
+                             .OrderBy(r => HoursOf(r) ?? double.MaxValue).Take(6))
             OverlayMissable.Add(new AchievementRowViewModel(this, r));
 
         OverlayNearest.Clear();
         foreach (var r in all.Where(r => !r.IsDone && r.Kind != AchievementKind.Missable)
-                             .OrderBy(r => r.EstimateMinutes is null)
-                             .ThenBy(r => r.EstimateMinutes)
+                             .OrderBy(r => HoursOf(r) is null)
+                             .ThenBy(HoursOf)
                              .ThenByDescending(r => r.Def.Percent ?? -1)
                              .Take(Math.Max(1, _svc.Settings.OverlayNearestCount)))
             OverlayNearest.Add(new AchievementRowViewModel(this, r));

@@ -66,6 +66,12 @@ public static class Options
         new Option<Percentile>(Percentile.P90, "percentile.p90"),
     };
 
+    public static IReadOnlyList<Option<HoursMode>> HourModes { get; } = new[]
+    {
+        new Option<HoursMode>(HoursMode.FromStart, "hours.fromStart"),
+        new Option<HoursMode>(HoursMode.Left, "hours.left"),
+    };
+
     public static IReadOnlyList<Option<AppTheme>> Themes { get; } = new[]
     {
         new Option<AppTheme>(AppTheme.System, "option.system"),

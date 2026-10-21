@@ -28,6 +28,9 @@ public sealed record Plan(
 
     /// <summary>Nothing left to unlock.</summary>
     public bool IsComplete => Sections.Count == 0;
+
+    /// <summary>Time left to each locked achievement with an estimate (<see cref="Planner.TimeLeft"/>).</summary>
+    public IReadOnlyDictionary<string, double> TimeLeft { get; init; } = new Dictionary<string, double>();
 }
 
 /// <summary>
@@ -71,7 +74,8 @@ public static class Planner
 
         double pace = PaceOf(game, now ?? DateTimeOffset.Now);
         int unknown = open.Count(r => r.EstimateMinutes is null);
-        return new Plan(sections, Remaining(rows, p, pace), unknown, pace);
+        var left = TimeLeft(rows, p, pace);
+        return new Plan(sections, left.Count == 0 ? null : left.Values.Max(), unknown, pace) { TimeLeft = left };
     }
 
     /// <summary>
@@ -97,12 +101,13 @@ public static class Planner
     };
 
     /// <summary>
-    /// The stretches of locked achievements (<see cref="Progress.Stretches"/>), whatever the order of unlocks.
+    /// Time left to each locked achievement: the stretches (<see cref="Progress.Stretches"/>) of the locked ones up
+    /// to it, at the player's pace. Played in order, that is the way from the last unlock to it; the last one of
+    /// all is the time to 100%. Unlocks further on do not shorten the way to an earlier one.
     /// Computed on the scale of the median player at the chosen percentile: own estimates are divided by pace
     /// and get the same margin as the others, then everything is multiplied by pace.
-    /// null - no locked achievement has an estimate.
     /// </summary>
-    private static double? Remaining(IReadOnlyList<AchievementRow> rows, Percentile p, double pace)
+    public static Dictionary<string, double> TimeLeft(IReadOnlyList<AchievementRow> rows, Percentile p, double pace)
     {
         double margin = p switch
         {
@@ -110,12 +115,18 @@ public static class Planner
             Percentile.P90 => TimeEstimator.P90Factor,
             _ => 1,
         };
-        var estimated = rows.Where(r => r.EstimateMinutes.HasValue).ToList();
-        if (estimated.All(r => r.IsDone)) return null;
+        var at = rows.Where(r => r.EstimateMinutes.HasValue).ToDictionary(r => r.ApiName,
+            r => r.EstimateIsManual ? r.EstimateMinutes!.Value / pace * margin : r.EstimateMinutes!.Value, StringComparer.Ordinal);
+        var stretches = Progress.Stretches(at.Select(kv => (kv.Key, kv.Value)));
 
-        var stretches = Progress.Stretches(estimated.Select(r =>
-            (r.ApiName, r.EstimateIsManual ? r.EstimateMinutes!.Value / pace * margin : r.EstimateMinutes!.Value)));
-        return estimated.Where(r => !r.IsDone).Sum(r => stretches[r.ApiName]) * pace;
+        var left = new Dictionary<string, double>(StringComparer.Ordinal);
+        double way = 0;
+        foreach (var point in rows.Where(r => !r.IsDone && at.ContainsKey(r.ApiName)).GroupBy(r => at[r.ApiName]).OrderBy(g => g.Key))
+        {
+            way += point.Sum(r => stretches[r.ApiName]);
+            foreach (var r in point) left[r.ApiName] = way * pace;
+        }
+        return left;
     }
 
     private sealed class RowOrder : IComparer<AchievementRow>

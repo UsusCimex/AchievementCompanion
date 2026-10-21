@@ -22,6 +22,15 @@ public enum StatusSource
     SteamClient = 1,
 }
 
+/// <summary>What the hours of an achievement show.</summary>
+public enum HoursMode
+{
+    /// <summary>When it usually comes, counted from the start of the game.</summary>
+    FromStart = 0,
+    /// <summary>How much is left to it from the player's progress.</summary>
+    Left = 1,
+}
+
 /// <summary>Color theme.</summary>
 public enum AppTheme
 {
@@ -43,6 +52,7 @@ public sealed class AppSettings
     /// <summary>Steam language of achievement names and descriptions (english, russian...); empty means the interface language.</summary>
     public string Language { get; set; } = "";
     public Percentile Percentile { get; set; } = Percentile.P50;
+    public HoursMode Hours { get; set; } = HoursMode.FromStart;
     /// <summary>
     /// Manual "done but not counted" marks and writes to Steam.
     /// Off - progress counts only achievements earned in the game.
