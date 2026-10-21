@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Version>0.7.0</Version>
-    <Authors>Daniil L.</Authors>
+    <Authors>UsusCimex</Authors>
     <Product>Achievement Companion</Product>
   </PropertyGroup>
 </Project>
