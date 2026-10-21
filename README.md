@@ -19,7 +19,8 @@
 
 ## Run
 
-1. Download `AchievementCompanion-<version>-win-x64.zip` from [Releases](../../releases/latest), unpack it anywhere and run `AchievementCompanion.exe`. Needs Windows 10 or 11 (x64) and the Steam client.
+1. Download `AchievementCompanion-<version>-win-x64-setup.exe` from [Releases](../../releases/latest) and run it, or unpack the portable zip anywhere. Needs Windows 10 or 11 (x64) and the Steam client.
+   If Windows SmartScreen stops it, click More info > Run anyway.
 2. In Settings, paste a [Steam Web API key](https://steamcommunity.com/dev/apikey) (domain: `localhost`) to load your library and progress.
 
 ## Hotkeys

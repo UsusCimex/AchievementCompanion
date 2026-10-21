@@ -46,10 +46,24 @@ jobs:
           Compress-Archive -Path out/app/* -DestinationPath $zip
           "ZIP=$zip" >> $env:GITHUB_ENV
 
+      # Inno Setup pinned to the version the installer was checked with, not the one on the runner image.
+      - name: Installer
+        shell: pwsh
+        run: |
+          $is = "innosetup-6.7.3.exe"
+          Invoke-WebRequest "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/$is" -OutFile $is
+          if ((Get-FileHash $is).Hash -ne "9C73C3BAE7ED48D44112A0F48E66742C00090BDB5BEF71D9D3C056C66E97B732") { throw "Unexpected $is" }
+          Start-Process "./$is" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CURRENTUSER", "/PORTABLE=1", "/DIR=$env:RUNNER_TEMP\is" -Wait
+          & "$env:RUNNER_TEMP\is\ISCC.exe" /Q "/DAppVersion=${{ steps.ver.outputs.num }}" installer/AchievementCompanion.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "SETUP=out/AchievementCompanion-${{ steps.ver.outputs.tag }}-win-x64-setup.exe" >> $env:GITHUB_ENV
+
       - uses: actions/upload-artifact@v4
         with:
           name: AchievementCompanion-win-x64
-          path: ${{ env.ZIP }}
+          path: |
+            ${{ env.ZIP }}
+            ${{ env.SETUP }}
 
       - name: Release notes
         id: notes
@@ -72,4 +86,6 @@ jobs:
         with:
           name: ${{ steps.notes.outputs.title }}
           body_path: notes.md
-          files: ${{ env.ZIP }}
+          files: |
+            ${{ env.ZIP }}
+            ${{ env.SETUP }}

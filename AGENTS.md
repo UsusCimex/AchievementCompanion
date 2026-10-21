@@ -10,6 +10,8 @@ dotnet run --project tests/AC.Core.Tests -c Release
 tools\screenshots.ps1 -DataDir <data folder> -OutDir <output> -Theme Dark -Set "UiLanguage=ru"
 ```
 
+The setup: after the publish step of `release.yml`, `ISCC.exe /DAppVersion=X.Y.Z installer\AchievementCompanion.iss` (Inno Setup 6.7) writes it to `out`.
+
 Tests are a console runner without packages: OK/FAIL per test and a total, exit code 1 on failure.
 Check UI changes with screenshots in both themes: the build passes even when the markup is broken.
 The script works on copies of the build and of the data folder, so the real folder is fine as input.
@@ -37,6 +39,7 @@ The script works on copies of the build and of the data folder, so the real fold
 | `src/AC.Infrastructure` | I/O: use cases (`GameService`), Steam Web API, registry and Steam files (`SteamLocal`), Steam client (`SteamClientSession`, `SteamClientCommand`, `BridgeClient`), storage (`JsonStore`), data folder (`AppPaths`), error log (`AppLog`), DPAPI, Steam Hunters (`SteamHunters`), Steam guides (`SteamGuides`), machine translation (`Translator`), store art paths (`StoreAssets`), updates (`UpdateService`) |
 | `src/AC.App` | WPF UI on the built-in Fluent theme: windows, view models, cached image loading (`RemoteImage`), unlock chart (`UnlockChart`), theme (`ThemeManager`), hotkeys (`Native`) |
 | `tests/AC.Core.Tests` | tests of the logic and storage |
+| `installer` | Inno Setup script of the per-user setup and its wizard images |
 
 No NuGet packages: MVVM, tests, DPAPI and parsers are written in the project.
 
@@ -81,7 +84,7 @@ The folder is `AppPaths.DataRoot`: `AC_DATA_DIR`, else `data` next to the exe (p
 | Translation of quotes | on a click: `translate.googleapis.com/translate_a/single?client=gtx`, Google Translate's keyless web endpoint (not an official API); when it does not answer, the translator's page in the browser |
 | Store art | `store_item_assets/steam/apps/<appid>/header.jpg`; newer apps keep it in a hashed folder: `IStoreBrowseService/GetItems`, else the store's `appdetails` |
 | Running game and new unlocks | registry `RunningAppID`, watching `appcache/stats/UserGameStats_<accountid>_<appid>.bin` and polling on a timer |
-| Updates | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: the `*-win-x64.zip` asset, downloaded by the browser |
+| Updates | `api.github.com/repos/UsusCimex/AchievementCompanion/releases/latest`: the `*-win-x64.zip` asset, or `*-win-x64-setup.exe` for a copy installed by the setup (`unins000.exe` beside the exe), downloaded by the browser |
 
 ### Time
 
@@ -108,7 +111,7 @@ Every finished change is released. Versions follow [SemVer](https://semver.org/)
 
 1. A separate `chore(release): X.Y.Z` commit with the version in `Directory.Build.props`.
 2. The notes go into an annotated tag: `git tag -a vX.Y.Z --cleanup=whitespace -F notes.md` (without `--cleanup` git drops lines starting with `#`, the headings). The first line is the title (`Achievement Companion X.Y.Z`), then the groups `## New`, `## Changed`, `## Fixed`: short, what a user notices, no implementation details.
-3. `git push origin main vX.Y.Z`: `release.yml` runs the tests, builds the zip (a single-file exe) and creates the release with the notes from the tag.
+3. `git push origin main vX.Y.Z`: `release.yml` runs the tests, builds the zip (a single-file exe) and the setup, and creates the release with the notes from the tag.
 
 ## Limits
 

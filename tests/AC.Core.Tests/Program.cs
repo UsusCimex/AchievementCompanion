@@ -593,7 +593,8 @@ static class Tests
             {"tag_name": "v0.3.1", "html_url": "https://github.com/o/r/releases/tag/v0.3.1", "draft": false, "prerelease": false,
              "assets": [{"name": "notes.txt", "browser_download_url": "https://e/notes.txt", "size": 1},
                         {"name": "AchievementCompanion-v0.3.1-win-x64.zip", "browser_download_url": "https://e/a.zip", "size": 42,
-                         "digest": "sha256:abcdef"}]}
+                         "digest": "sha256:abcdef"},
+                        {"name": "AchievementCompanion-v0.3.1-win-x64-setup.exe", "browser_download_url": "https://e/s.exe", "size": 40}]}
             """;
         var update = AC.Infrastructure.UpdateService.Parse(json, new Version(0, 3, 0))!;
         Assert.Equal(new Version(0, 3, 1), update.Version);
@@ -602,6 +603,8 @@ static class Tests
         Assert.True(AC.Infrastructure.UpdateService.Parse(json, new Version(0, 3, 1)) is null, "same version");
         Assert.True(AC.Infrastructure.UpdateService.Parse(json.Replace("\"prerelease\": false", "\"prerelease\": true"), new Version(0, 1, 0)) is null, "prerelease");
         Assert.True(AC.Infrastructure.UpdateService.Parse(json.Replace("win-x64.zip", "linux.zip"), new Version(0, 1, 0)) is null, "no Windows zip");
+        Assert.Equal("https://e/s.exe", AC.Infrastructure.UpdateService.Parse(json, new Version(0, 3, 0), installed: true)!.DownloadUrl);
+        Assert.True(AC.Infrastructure.UpdateService.Parse(json.Replace("setup.exe", "setup.msi"), new Version(0, 1, 0), installed: true) is null, "no setup");
     }
 
     public static void Vdf_LoginUsers()
