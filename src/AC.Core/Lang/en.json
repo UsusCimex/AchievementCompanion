@@ -13,6 +13,8 @@
   "library.left": "{0} to 100%",
   "library.sortRecent": "Recent first",
   "library.sortLeft": "Closest to 100% first",
+  "library.started": "Started",
+  "library.startedTip": "Only games opened here with something unlocked and not at 100%",
 
   "empty.title": "Pick a game on the left",
   "empty.hint": "or launch it in Steam - the app will switch to it",

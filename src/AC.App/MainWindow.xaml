@@ -319,8 +319,15 @@
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                    Visibility="{Binding Text, ElementName=LibrarySearch, Converter={StaticResource EmptyToCollapsed}, ConverterParameter=invert}" />
                     </Grid>
-                    <ComboBox Margin="0,0,0,10" HorizontalAlignment="Stretch" ItemsSource="{x:Static local:Options.LibrarySorts}" DisplayMemberPath="Title"
-                              SelectedItem="{Binding SelectedLibrarySort}" AutomationProperties.AutomationId="LibrarySort" />
+                    <DockPanel Margin="0,0,0,10">
+                        <ToggleButton DockPanel.Dock="Right" Style="{StaticResource FilterChip}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding LibraryStartedOnly}" ToolTip="{local:Tr library.startedTip}"
+                                      AutomationProperties.AutomationId="LibraryStarted">
+                            <TextBlock Text="{local:Tr library.started}" />
+                        </ToggleButton>
+                        <ComboBox HorizontalAlignment="Stretch" ItemsSource="{x:Static local:Options.LibrarySorts}" DisplayMemberPath="Title"
+                                  SelectedItem="{Binding SelectedLibrarySort}" AutomationProperties.AutomationId="LibrarySort" />
+                    </DockPanel>
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">

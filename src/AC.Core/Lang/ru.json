@@ -13,6 +13,8 @@
   "library.left": "{0} до 100%",
   "library.sortRecent": "Сначала недавние",
   "library.sortLeft": "Сначала ближе к 100%",
+  "library.started": "Начатые",
+  "library.startedTip": "Только открытые здесь игры, где что-то получено, но ещё не 100%",
 
   "empty.title": "Выбери игру слева",
   "empty.hint": "или запусти её в Steam - приложение переключится само",

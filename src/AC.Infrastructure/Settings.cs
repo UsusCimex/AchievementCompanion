@@ -63,6 +63,8 @@ public sealed class AppSettings
     public Percentile Percentile { get; set; } = Percentile.P50;
     public HoursMode Hours { get; set; } = HoursMode.FromStart;
     public LibrarySort LibrarySort { get; set; } = LibrarySort.Recent;
+    /// <summary>The library lists only games with something unlocked and not at 100%.</summary>
+    public bool LibraryStartedOnly { get; set; }
     /// <summary>
     /// Manual "done but not counted" marks and writes to Steam.
     /// Off - progress counts only achievements earned in the game.

@@ -50,6 +50,8 @@ public sealed class LibraryItemViewModel : ObservableObject
     }
 
     public bool HasProgress => _summary is { Total: > 0 };
+    /// <summary>Something is unlocked, not everything; known only for games opened in the app.</summary>
+    public bool IsStarted => _summary is { Total: > 0 } s && s.Unlocked + s.Manual > 0 && s.Unlocked < s.Total;
     public bool IsPerfect => _summary is { Total: > 0 } s && s.Unlocked >= s.Total;
     public bool ShowProgressText => HasProgress && !IsPerfect;
     public string ProgressText => _summary is { Total: > 0 } s ? $"{s.Unlocked}/{s.Total}" : "";

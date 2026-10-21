@@ -38,6 +38,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _summaries = new Dictionary<uint, GameSummary>(svc.Store.LoadSummaries());
         LibraryView = CollectionViewSource.GetDefaultView(Library);
         LibraryView.Filter = o => o is LibraryItemViewModel g &&
+            (!LibraryStartedOnly || g.IsStarted) &&
             (string.IsNullOrWhiteSpace(_libraryFilter) || g.Name.Contains(_libraryFilter.Trim(), StringComparison.CurrentCultureIgnoreCase));
 
         _selectedSort = Options.Sorts[0];
@@ -99,6 +100,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     private bool LibraryByTimeLeft => _selectedLibrarySort.Value == LibrarySort.TimeLeft;
+
+    public bool LibraryStartedOnly
+    {
+        get => _svc.Settings.LibraryStartedOnly;
+        set
+        {
+            if (_svc.Settings.LibraryStartedOnly == value) return;
+            _svc.Settings.LibraryStartedOnly = value;
+            _svc.SaveSettings();
+            OnPropertyChanged();
+            LibraryView.Refresh();
+        }
+    }
 
     private void ApplyLibrarySort()
     {
@@ -971,7 +985,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (Library.FirstOrDefault(i => i.AppId == _game.AppId) is { } item && !summary.Equals(item.Summary))
         {
             item.Summary = summary;
-            if (LibraryByTimeLeft) LibraryView.Refresh();
+            if (LibraryByTimeLeft || LibraryStartedOnly) LibraryView.Refresh();
         }
     }
 
